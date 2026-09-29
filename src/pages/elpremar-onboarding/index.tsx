@@ -61,10 +61,12 @@ function SkilledPeopleBanner() {
 export function ElpremarOnboardingPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
+  const [furthest, setFurthest] = useState(0)
   const [draft, setDraft] = useState<ElpremarDraft>({})
 
   const go = (n: number) => {
     setStep(n)
+    setFurthest((f) => Math.max(f, n))
     window.scrollTo({ top: 0 })
   }
   const save = <K extends keyof ElpremarDraft>(key: K) => (values: ElpremarDraft[K]) => {
@@ -98,7 +100,8 @@ export function ElpremarOnboardingPage() {
     <WizardPage
       title="ELPREMAR Onboarding"
       breadcrumbs={[{ label: "ELPREMAR Activity & Availability", to: "/elpremars" }, { label: "ELPREMAR Onboarding" }]}
-      onStepSelect={(i) => i < step && go(i)}
+      onStepSelect={(i) => i <= furthest && go(i)}
+      furthest={furthest}
       steps={steps}
       current={step}
       aside={aside}

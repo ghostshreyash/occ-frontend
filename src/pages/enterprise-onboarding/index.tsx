@@ -52,11 +52,13 @@ export function EnterpriseOnboardingPage() {
   const navigate = useNavigate()
   const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
+  const [furthest, setFurthest] = useState(0)
   const [data, setData] = useState<OnboardingData>({ subDepartments: [] })
 
   const closeWizard = () => {
     setWizardOpen(false)
     setStep(0)
+    setFurthest(0)
     setData({ subDepartments: [] })
     window.scrollTo({ top: 0 })
   }
@@ -76,13 +78,20 @@ export function EnterpriseOnboardingPage() {
 
   const next = <K extends keyof OnboardingData>(key: K) => (values: OnboardingData[K]) => {
     setData((d) => ({ ...d, [key]: values }))
-    setStep((s) => s + 1)
+    setStep((s) => {
+      const nextStep = s + 1
+      setFurthest((f) => Math.max(f, nextStep))
+      return nextStep
+    })
     window.scrollTo({ top: 0 })
   }
   const back = () => setStep((s) => Math.max(0, s - 1))
-  /* Jumping back keeps everything already entered - each step re-seeds from `data` */
+  /*
+   * Any step already reached can be revisited, forward or back - each step
+   * re-seeds its form from `data`, so nothing entered is lost either way.
+   */
   const goToStep = (i: number) => {
-    if (i < step) {
+    if (i <= furthest) {
       setStep(i)
       window.scrollTo({ top: 0 })
     }
@@ -94,6 +103,7 @@ export function EnterpriseOnboardingPage() {
       breadcrumbs={[{ label: "Enterprises", onClick: closeWizard }, { label: "New Enterprise" }]}
       onExit={closeWizard}
       onStepSelect={goToStep}
+      furthest={furthest}
       steps={steps}
       current={step}
       aside={<KeyInfo items={keyInfo[step]} />}

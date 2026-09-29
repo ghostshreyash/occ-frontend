@@ -11,6 +11,7 @@ export function WizardPage({
   breadcrumbs,
   steps,
   current,
+  furthest,
   aside,
   onExit,
   onStepSelect,
@@ -21,6 +22,8 @@ export function WizardPage({
   breadcrumbs: { label: string; to?: string; onClick?: () => void }[]
   steps: WizardStep[]
   current: number
+  /** Highest step reached, so completed steps stay reachable in both directions */
+  furthest?: number
   /** Extra content under the progress panel (key info, images) */
   aside?: React.ReactNode
   /** Leaves the wizard without completing it */
@@ -48,12 +51,12 @@ export function WizardPage({
           </>
         }
       />
-      <StepperBar steps={steps} current={current} onSelect={onStepSelect} />
+      <StepperBar steps={steps} current={current} furthest={furthest} onSelect={onStepSelect} />
       {/* Progress panel sits to the right from tablet up, and sticks while the form scrolls */}
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_17rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">{children}</div>
         <div className="space-y-2.5 md:sticky md:top-3 md:self-start">
-          <WizardProgressPanel steps={steps} current={current} onSelect={onStepSelect} />
+          <WizardProgressPanel steps={steps} current={current} furthest={furthest} onSelect={onStepSelect} />
           {aside}
         </div>
       </div>

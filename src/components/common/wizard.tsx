@@ -33,11 +33,13 @@ const stateOf = (i: number, current: number) => (i < current ? "done" : i === cu
  * Completed steps are clickable, so you can go back and change an earlier answer;
  * upcoming steps are not, because their data has not been entered yet.
  */
-export function StepperBar({ steps, current, onSelect }: { steps: WizardStep[]; current: number; onSelect?: (i: number) => void }) {
+export function StepperBar({ steps, current, furthest, onSelect }: { steps: WizardStep[]; current: number; furthest?: number; onSelect?: (i: number) => void }) {
+  // Everything up to the furthest step reached stays reachable, in either direction
+  const reachable = furthest ?? current
   return (
     <ol className="mb-3 flex items-center gap-1.5 overflow-x-auto rounded-lg bg-card px-3 py-2 shadow-xs ring-1 ring-foreground/10">
       {steps.map((step, i) => {
-        const clickable = i < current && onSelect !== undefined
+        const clickable = onSelect !== undefined && i !== current && i <= reachable
         // Circle and label form one target, matching the side panel's row behaviour
         const Item = clickable ? "button" : "div"
         return (
@@ -71,7 +73,8 @@ export function StepperBar({ steps, current, onSelect }: { steps: WizardStep[]; 
 }
 
 /** Right-hand "Onboarding Progress" panel with vertical steps */
-export function WizardProgressPanel({ steps, current, onSelect }: { steps: WizardStep[]; current: number; onSelect?: (i: number) => void }) {
+export function WizardProgressPanel({ steps, current, furthest, onSelect }: { steps: WizardStep[]; current: number; furthest?: number; onSelect?: (i: number) => void }) {
+  const reachable = furthest ?? current
   const percent = Math.round(((current + 1) / steps.length) * 100)
   return (
     <div className="rounded-lg bg-card p-2.5 shadow-xs ring-1 ring-foreground/10 transition-[transform,box-shadow,--tw-ring-color] duration-200 ease-out hover:shadow-md hover:ring-foreground/20 motion-safe:hover:-translate-y-0.5">
@@ -91,7 +94,7 @@ export function WizardProgressPanel({ steps, current, onSelect }: { steps: Wizar
         <ol className="space-y-0.5">
           {steps.map((step, i) => {
             const state = stateOf(i, current)
-            const clickable = state === "done" && onSelect !== undefined
+            const clickable = onSelect !== undefined && i !== current && i <= reachable
             return (
               <li key={step.title}>
                 <div
