@@ -5,12 +5,15 @@ import './index.css'
 import { router } from './router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { AuthProvider } from '@/lib/auth/auth-context'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <TooltipProvider>
-      <RouterProvider router={router} />
-      <Toaster richColors position="top-right" />
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <RouterProvider router={router} />
+        <Toaster richColors position="top-right" />
+      </TooltipProvider>
+    </AuthProvider>
   </StrictMode>,
 )

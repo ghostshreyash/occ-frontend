@@ -1,10 +1,17 @@
-import { createBrowserRouter } from "react-router"
+import { createBrowserRouter, Navigate } from "react-router"
 
 import { AppLayout } from "@/layouts/app-layout"
 import { occNavigation } from "@/config/navigation"
-import { LoginPage } from "@/pages/login"
+import { PublicOnly, RequireAuth } from "@/components/auth/require-auth"
+import { LandingPage } from "@/pages/landing"
+import { LoginPage } from "@/pages/auth/login"
+import { VerifyOtpPage } from "@/pages/auth/verify-otp"
+import { ForgotPasswordPage } from "@/pages/auth/forgot-password"
+import { VerifyResetPage } from "@/pages/auth/verify-reset"
+import { ResetPasswordPage } from "@/pages/auth/reset-password"
+import { RegisterPage } from "@/pages/auth/register"
+import { AccountRecoveryPage } from "@/pages/auth/account-recovery"
 import { DashboardPage } from "@/pages/dashboard"
-import { CustomerMapPage } from "@/pages/customer-map"
 import { EnterpriseOnboardingPage } from "@/pages/enterprise-onboarding"
 import { ElpremarActivityPage } from "@/pages/elpremar-activity"
 import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
@@ -14,23 +21,46 @@ import { ThemePreview } from "@/components/theme-preview"
 
 const built = new Set(["/", "/customer-map", "/enterprise-onboarding", "/elpremars", "/critical-alerts"])
 
+/*
+ * The hostname decides which sign-in a visitor sees (`src/lib/brand.ts`), so
+ * every deployment serves the same routes and signed-out visitors land on the
+ * sign-in for their host — `/welcome` is an overview they can reach from there,
+ * not a gate in front of it. `?brand=` overrides the host for demos only.
+ */
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
+  // Overview of the platform, for anyone unsure which system they need.
+  { path: "/welcome", element: <LandingPage /> },
+
+  { path: "/login", element: <PublicOnly><LoginPage /></PublicOnly> },
+  { path: "/login/verify", element: <PublicOnly><VerifyOtpPage /></PublicOnly> },
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  { path: "/forgot-password/verify", element: <VerifyResetPage /> },
+  { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/register", element: <RegisterPage /> },
+  { path: "/account-recovery", element: <AccountRecoveryPage /> },
   { path: "/theme-preview", element: <ThemePreview /> },
+
+  // The console itself, behind sign-in
   {
-    element: <AppLayout />,
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "customer-map", element: <CustomerMapPage /> },
-      { path: "enterprise-onboarding", element: <EnterpriseOnboardingPage /> },
-      { path: "elpremars", element: <ElpremarActivityPage /> },
-      { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
-      { path: "critical-alerts", element: <CriticalAlertsPage /> },
-      // Remaining sidebar entries show a placeholder until their mockups exist
-      ...occNavigation
-        .filter((item) => !built.has(item.path))
-        .map((item) => ({ path: item.path.slice(1), element: <ComingSoonPage title={item.title} /> })),
-      { path: "*", element: <ComingSoonPage title="Page not found" /> },
+      {
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          // Global and India map views now live inside the OCC dashboard.
+          { path: "customer-map", element: <Navigate to="/" replace /> },
+          { path: "enterprise-onboarding", element: <EnterpriseOnboardingPage /> },
+          { path: "elpremars", element: <ElpremarActivityPage /> },
+          { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
+          { path: "critical-alerts", element: <CriticalAlertsPage /> },
+          // Remaining sidebar entries show a placeholder until their mockups exist
+          ...occNavigation
+            .filter((item) => !built.has(item.path))
+            .map((item) => ({ path: item.path.slice(1), element: <ComingSoonPage title={item.title} /> })),
+          { path: "*", element: <ComingSoonPage title="Page not found" /> },
+        ],
+      },
     ],
   },
 ])
