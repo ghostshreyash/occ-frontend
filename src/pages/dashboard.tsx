@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Link } from "react-router"
 import {
   ArrowRight,
   Building2,
@@ -9,7 +8,6 @@ import {
   HardHat,
   HeartPulse,
   Leaf,
-  Maximize2,
   MapPin,
   RefreshCw,
   Server,
@@ -20,11 +18,12 @@ import {
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
 import { DonutChart } from "@/components/common/donut-chart"
-import { CustomerMap, type MapView } from "@/components/common/customer-map"
+import { CustomerMap, MapViewToggle, type MapView } from "@/components/common/customer-map"
 import { OperationsTables } from "@/components/common/operations-tables"
 import {
   criticalAlerts,
@@ -37,6 +36,8 @@ import {
   regionSummary,
   systemConnectivity,
 } from "@/data/mock"
+import { topCustomers } from "@/data/mock"
+import { indiaEnterpriseStatus, indiaKpis, indiaPlantStatus } from "@/data/occ-tables"
 import { alertSeverity, chartSeries, healthStatus, workStatus } from "@/lib/status"
 
 const onboardingSlice = { label: "Onboarding", color: "var(--neutral)" }
@@ -47,6 +48,10 @@ const activityIcons = { enterprise: Building2, plant: Factory, inspection: FileC
 /** OCC Global Dashboard */
 export function DashboardPage() {
   const [view, setView] = useState<MapView>("global")
+  const indiaPlants = mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)
+  const plants = view === "india" ? indiaPlants : mapPlants
+  const kpis = view === "india" ? indiaKpis : globalKpis
+  const maxAssets = Math.max(...topCustomers.map((c) => c.assets))
 
   return (
     <div className="space-y-3">
@@ -65,45 +70,30 @@ export function DashboardPage() {
 
       {/* KPI strip: 2-up on tablet, 3-up on md, 6-up on wide */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total Enterprises" value={globalKpis.enterprises.value} change={globalKpis.enterprises.change} icon={Building2} tone="info" />
-        <StatCard label="Total Plants" value={globalKpis.plants.value} change={globalKpis.plants.change} icon={Factory} tone="success" />
-        <StatCard label="Total Assets (Monitored)" value={globalKpis.assets.value} change={globalKpis.assets.change} icon={Server} tone="highlight" />
-        <StatCard label="Healthy Assets (Green)" value={globalKpis.healthy.value} percent={globalKpis.healthy.percent} icon={HeartPulse} tone="healthy" />
-        <StatCard label="Attention (Orange)" value={globalKpis.attention.value} percent={globalKpis.attention.percent} icon={TriangleAlert} tone="attention" />
-        <StatCard label="Critical (Red)" value={globalKpis.critical.value} percent={globalKpis.critical.percent} icon={ShieldAlert} tone="critical" />
+        <StatCard label={view === "india" ? "Total Customers" : "Total Enterprises"} value={kpis.enterprises.value} change={kpis.enterprises.change} icon={Building2} tone="info" />
+        <StatCard label="Total Plants" value={kpis.plants.value} change={kpis.plants.change} icon={Factory} tone="success" />
+        <StatCard label="Total Assets (Monitored)" value={kpis.assets.value} change={kpis.assets.change} icon={Server} tone="highlight" />
+        <StatCard label="Healthy Assets (Green)" value={kpis.healthy.value} percent={kpis.healthy.percent} icon={HeartPulse} tone="healthy" />
+        <StatCard label="Attention (Orange)" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
+        <StatCard label="Critical (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
       </div>
 
       {/* Map with Customer Distribution alongside it, side by side from tablet up */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <SectionCard
-          title="India / Global Customer Map"
+          title={view === "india" ? "India Customer Map" : "Global Customer Map"}
           actions={
             <>
-              <div className="inline-flex rounded bg-muted p-0.5 text-[0.7rem] font-medium">
-                {(["global", "india"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setView(v)}
-                    className={v === view ? "rounded bg-brand-navy px-2.5 py-0.5 text-brand-navy-foreground" : "rounded px-2.5 py-0.5 hover:bg-card"}
-                  >
-                    {v === "global" ? "Global" : "India"}
-                  </button>
-                ))}
-                <Link to="/customer-map" className="rounded px-2.5 py-0.5 hover:bg-card">List</Link>
-              </div>
-              <Link to="/customer-map" aria-label="Open full map" className="rounded p-1 text-muted-foreground ring-1 ring-border hover:bg-muted">
-                <Maximize2 className="size-3.5" />
-              </Link>
+              <MapViewToggle value={view} onChange={setView} labels={{ global: "Global", india: "India" }} className="text-[0.7rem]" />
             </>
           }
         >
-          <CustomerMap plants={mapPlants} view={view} regionLabels={mapRegionLabels} showControls={false} showLegend={false} className="h-[19rem]">
+          <CustomerMap plants={plants} view={view} regionLabels={view === "global" ? mapRegionLabels : undefined} showControls={false} showLegend={false} className="h-[19rem]">
             {/* Countries + ELPREMARs only — enterprises and plants already lead the KPI strip above */}
             <div className="absolute top-2 left-2 flex gap-1.5">
               {[
-                { icon: MapPin, value: globalKpis.countries, label: "Countries" },
-                { icon: HardHat, value: globalKpis.elpremars, label: "ELPREMARs" },
+                { icon: MapPin, value: view === "india" ? 1 : globalKpis.countries, label: "Countries" },
+                { icon: HardHat, value: view === "india" ? indiaKpis.elpremars : globalKpis.elpremars, label: "ELPREMARs" },
               ].map(({ icon: Icon, value, label }) => (
                 <div key={label} className="flex items-center gap-1.5 rounded-md bg-brand-navy/85 px-2 py-1 text-brand-navy-foreground ring-1 ring-white/15 backdrop-blur-sm">
                   <Icon className="size-3.5 shrink-0 text-brand-navy-foreground/80" />
@@ -122,47 +112,74 @@ export function DashboardPage() {
                 </li>
               ))}
             </ul>
-            <Link to="/customer-map" className="absolute right-2 bottom-2 flex items-center gap-1 rounded bg-brand-navy/85 px-2 py-1 text-[0.65rem] text-brand-navy-foreground/85 ring-1 ring-white/10 hover:text-brand-navy-foreground">
-              View Full Map <ArrowRight className="size-3" />
-            </Link>
           </CustomerMap>
         </SectionCard>
 
-        <SectionCard title={<span>Customer Distribution <span className="font-normal text-muted-foreground">(by Region)</span></span>}>
-          <DonutChart
-            centerLabel="Customers"
-            size={96}
-            data={regionSummary.map((r, i) => ({ key: `r${i}`, label: r.region, value: r.customers, color: chartSeries[i % chartSeries.length] }))}
-          />
-        </SectionCard>
+        {view === "global" ? (
+          <SectionCard title={<span>Customer Distribution <span className="font-normal text-muted-foreground">(by Region)</span></span>}>
+            <DonutChart
+              centerLabel="Customers"
+              size={96}
+              data={regionSummary.map((r, i) => ({ key: `r${i}`, label: r.region, value: r.customers, color: chartSeries[i % chartSeries.length] }))}
+            />
+          </SectionCard>
+        ) : (
+          <SectionCard title="India Overview">
+            <div className="grid grid-cols-[1fr_1.2fr] items-center gap-3">
+              <CustomerMap plants={indiaPlants} view="india" focusCountry="India" interactive={false} showLegend={false} className="h-24" />
+              <div className="space-y-2">
+                {[
+                  ["Customers", indiaKpis.enterprises.value],
+                  ["Plants", indiaKpis.plants.value],
+                  ["Assets", indiaKpis.assets.value],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-bold tabular-nums">{Number(value).toLocaleString("en-IN")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 border-t pt-2">
+              <div className="mb-1 text-[0.68rem] font-semibold text-muted-foreground">Top customers by assets</div>
+              {topCustomers.slice(0, 3).map((customer) => (
+                <div key={customer.name} className="mb-1 flex items-center gap-2 text-[0.68rem]">
+                  <span className="w-24 truncate">{customer.name}</span>
+                  <Progress value={(customer.assets / maxAssets) * 100} className="h-1.5 flex-1" />
+                  <span className="w-10 text-right font-semibold tabular-nums">{customer.assets.toLocaleString("en-IN")}</span>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
       </div>
 
       {/* Status donuts: Enterprise, Plant, Asset Health — one row from tablet up (same grid as the India page) */}
       <div className="grid gap-3 md:grid-cols-3">
-        <SectionCard title="Enterprise Status" viewAllTo="/enterprise-status">
+        <SectionCard title={view === "india" ? "Enterprise Status (India)" : "Enterprise Status"} viewAllTo="/enterprise-status">
           <DonutChart
             centerLabel="Enterprises"
-            data={enterpriseStatus.map((s) => {
+            data={(view === "india" ? indiaEnterpriseStatus : enterpriseStatus).map((s) => {
               const meta = s.status === "onboarding" ? onboardingSlice : healthStatus[s.status]
               return { key: s.status, label: meta.label, value: s.value, color: meta.color }
             })}
           />
         </SectionCard>
 
-        <SectionCard title="Plant Status" viewAllTo="/plant-status">
+        <SectionCard title={view === "india" ? "Plant Status (India)" : "Plant Status"} viewAllTo="/plant-status">
           <DonutChart
             centerLabel="Plants"
-            data={plantStatus.map((s) => ({ key: s.status, label: healthStatus[s.status].label, value: s.value, color: healthStatus[s.status].color }))}
+            data={(view === "india" ? indiaPlantStatus : plantStatus).map((s) => ({ key: s.status, label: healthStatus[s.status].label, value: s.value, color: healthStatus[s.status].color }))}
           />
         </SectionCard>
 
-        <SectionCard title="Asset Health (Global)">
+        <SectionCard title={view === "india" ? "Asset Health (India)" : "Asset Health (Global)"}>
           <DonutChart
             centerLabel="Assets"
             data={(["healthy", "attention", "critical"] as const).map((s) => ({
               key: s,
               label: healthStatus[s].label,
-              value: globalKpis[s].value,
+              value: kpis[s].value,
               color: healthStatus[s].color,
             }))}
           />
@@ -170,7 +187,7 @@ export function DashboardPage() {
       </div>
 
       {/* Maintenance / Tasks / Tickets */}
-      <OperationsTables />
+      <OperationsTables country={view === "india" ? "India" : undefined} />
 
       {/*
        * Bottom block: Critical Alerts on the right; the two modules that are not

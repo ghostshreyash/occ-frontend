@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useAuth } from "@/lib/auth/context"
 
 function useClock() {
   const [now, setNow] = useState(() => new Date())
@@ -26,6 +27,7 @@ function useClock() {
 export function Topbar() {
   const now = useClock()
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b border-topbar-border bg-topbar px-4 text-topbar-foreground">
@@ -62,18 +64,21 @@ export function Topbar() {
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 outline-none hover:bg-white/10">
           <Avatar className="size-8">
-            <AvatarFallback className="bg-primary font-semibold text-primary-foreground">A</AvatarFallback>
+            <AvatarFallback className="bg-primary font-semibold text-primary-foreground">{user?.initials ?? "A"}</AvatarFallback>
           </Avatar>
-          <span className="hidden text-sm font-medium sm:inline">Admin</span>
+          <span className="hidden text-sm font-medium sm:inline">{user?.name ?? "Admin"}</span>
           <ChevronDown className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>OLIVINE Admin</DropdownMenuLabel>
+          <DropdownMenuLabel>{user?.role ?? "OLIVINE Admin"}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>
             <UserRound /> My Profile
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => navigate("/login")}>
+          <DropdownMenuItem variant="destructive" onSelect={() => {
+              signOut()
+              navigate("/login?reason=signed-out", { replace: true })
+            }}>
             <LogOut /> Log out
           </DropdownMenuItem>
         </DropdownMenuContent>
