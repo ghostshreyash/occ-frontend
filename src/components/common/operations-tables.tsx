@@ -77,8 +77,8 @@ export function OperationsTables({ country, className }: { country?: string; cla
   const tickets = newestFirst(where(ticketRows), (r) => r.raised)
 
   const tabs = [
-    { value: "maintenance", label: "Maintenance", icon: Wrench, count: maintenance.length, to: "/maintenance-progress" },
-    { value: "tasks", label: "Tasks", icon: ClipboardList, count: tasks.length, to: "/elpremars" },
+    { value: "maintenance", label: "Maintenance Activities", icon: Wrench, count: maintenance.length, to: "/maintenance-progress" },
+    { value: "tasks", label: "Inspection Tasks", icon: ClipboardList, count: tasks.length, to: "/elpremars" },
     { value: "tickets", label: "Support Tickets", icon: LifeBuoy, count: tickets.length, to: "/support-tickets" },
   ]
 
