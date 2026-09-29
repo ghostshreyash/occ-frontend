@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import { Building2, ClipboardCheck, Factory, Folder, MapPin, Network } from "lucide-react"
 
@@ -56,7 +55,6 @@ const keyInfo = [
  * Lands on the enterprise register (KPIs + table); "Onboard Enterprise" opens the 5-step wizard.
  */
 export function EnterpriseOnboardingPage() {
-  const navigate = useNavigate()
   const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
@@ -144,7 +142,8 @@ export function EnterpriseOnboardingPage() {
               toast.success(`${data.enterprise?.name} onboarded successfully`, {
                 description: "The enterprise administrator can now log in to EMMS-E.",
               })
-              navigate("/enterprise-status")
+              // Back to the Enterprises register, where the new record belongs
+              closeWizard()
             } finally {
               setSubmitting(false)
             }

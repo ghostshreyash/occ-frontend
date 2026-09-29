@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FieldLabel } from "@/components/ui/field"
-import { FileDropField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, FileDropField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { StepCard } from "@/components/common/wizard-layout"
 import { LocationPicker } from "@/components/common/location-picker"
@@ -63,8 +63,6 @@ function Ctx({ icon: Icon, label, value }: { icon: typeof Building2; label: stri
     </span>
   )
 }
-
-const years = Array.from({ length: 60 }, (_, i) => String(new Date().getFullYear() - i))
 
 /* ---------------- Step 1 ---------------- */
 
@@ -164,7 +162,7 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
     resolver: zodResolver(plantSchema),
     defaultValues: data.plant ?? {
       name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phone: "",
-      capacity: "", commissioningYear: "", timeZone: timeZones[0], notes: "",
+      capacity: "", commissioningDate: "", timeZone: timeZones[0], notes: "",
     },
   })
   const { control } = form
@@ -208,7 +206,7 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
           Additional Information
         </h4>
         <TextField control={control} name="capacity" label="Plant Capacity" placeholder="e.g. 5 MTPA" />
-        <SelectField control={control} name="commissioningYear" label="Commissioning Year" options={years} />
+        <DateField control={control} name="commissioningDate" label="Commissioning Date" />
         <SelectField control={control} name="timeZone" label="Time Zone" options={timeZones} />
 
         <FileDropField control={control} name="logo" label="Plant Logo" />

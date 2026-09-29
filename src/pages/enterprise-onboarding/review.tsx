@@ -1,11 +1,12 @@
 import { useState } from "react"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { format, isValid, parseISO } from "date-fns"
 import { Building2, Check, Factory, Folder, MapPin, Network, Pencil, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { StepCard } from "@/components/common/wizard-layout"
 import {
   countries,
@@ -32,7 +33,12 @@ import {
 type Row = { label: string; value?: string }
 type SectionKey = "enterprise" | "location" | "plant" | "department" | "subs" | "account"
 
-const years = Array.from({ length: 60 }, (_, i) => String(new Date().getFullYear() - i))
+/** ISO date in form state, readable date on screen */
+const formatDate = (iso?: string) => {
+  if (!iso) return undefined
+  const d = parseISO(iso)
+  return isValid(d) ? format(d, "dd MMM yyyy") : iso
+}
 
 /** Read-only value grid; optional sections say so rather than showing blanks */
 function ValueGrid({ rows }: { rows: Row[] }) {
@@ -282,7 +288,7 @@ export function ReviewStep({
                 { label: "Email", value: p?.email },
                 { label: "Phone Number", value: p?.phone },
                 { label: "Capacity", value: p?.capacity },
-                { label: "Commissioning Year", value: p?.commissioningYear },
+                { label: "Commissioning Date", value: formatDate(p?.commissioningDate) },
                 { label: "Time Zone", value: p?.timeZone },
                 { label: "Address", value: p?.address },
                 { label: "Notes", value: p?.notes },
@@ -301,7 +307,7 @@ export function ReviewStep({
               <TextField control={plantForm.control} name="email" label="Email" type="email" />
               <TextField control={plantForm.control} name="phone" label="Phone Number" type="tel" />
               <TextField control={plantForm.control} name="capacity" label="Plant Capacity" />
-              <SelectField control={plantForm.control} name="commissioningYear" label="Commissioning Year" options={years} />
+              <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
               <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
               <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
               <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />

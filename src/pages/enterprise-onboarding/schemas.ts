@@ -40,7 +40,7 @@ export const plantSchema = z.object({
   email: optionalEmail,
   phone: optionalText,
   capacity: optionalText,
-  commissioningYear: optionalText,
+  commissioningDate: optionalText,
   timeZone: optionalText,
   logo: z.instanceof(File).optional(),
   notes: optionalText,
