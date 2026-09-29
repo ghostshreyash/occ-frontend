@@ -158,7 +158,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
           <SelectField control={control} name="plant" label="Plant" required options={plants} />
           <SelectField control={control} name="department" label="Department" required options={departments} />
           <SelectField control={control} name="supervisor" label="Reporting Supervisor" options={supervisors} />
-          <TextareaField control={control} name="address" label="Address" optional rows={2} maxLength={250} className="md:col-span-2" />
+          <TextareaField control={control} name="address" label="Address" rows={2} maxLength={250} className="md:col-span-2" />
         </div>
       </form>
       <Footer formId="elp-basic" onCancel={onCancel} />
@@ -328,7 +328,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
 
       <form id="elp-credentials" onSubmit={form.handleSubmit(onNext)} className="rounded-lg ring-1 ring-border" noValidate>
         <h4 className="flex items-center gap-2 border-b bg-info-soft/60 px-4 py-2 font-semibold"><UserRoundCheck className="size-5 text-primary" /> System Access Details</h4>
-        <div className="grid gap-4 p-4 md:grid-cols-2">
+        <div className="grid gap-2.5 p-3 md:grid-cols-2">
           <TextField control={control} name="username" label="Username" required description="Username must be at least 6 characters. (Recommended format: firstname.lastname)" />
           <div>
             <SelectField control={control} name="role" label="User Role" required options={["ELPREMAR", "Senior ELPREMAR", "Team Leader"]} />
@@ -415,7 +415,7 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
         <Button variant="outline" className="text-primary" onClick={() => onEdit(0)}><Pencil /> Edit Details</Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-2.5 lg:grid-cols-2">
         <ReviewSection icon={UserRound} title="1. Basic Details" onEdit={() => onEdit(0)}>
           <div className="flex gap-4">
             <Avatar photo={basic?.photo} className="size-20 shrink-0" />

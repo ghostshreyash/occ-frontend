@@ -14,17 +14,15 @@ type BaseProps<T extends FieldValues> = {
   name: FieldPath<T>
   label: string
   required?: boolean
-  optional?: boolean
   description?: string
   className?: string
 }
 
-function FieldTitle({ label, required, optional, htmlFor }: { label: string; required?: boolean; optional?: boolean; htmlFor: string }) {
+function FieldTitle({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
   return (
     <FieldLabel htmlFor={htmlFor} className="gap-1">
       {label}
       {required ? <span className="text-critical">*</span> : null}
-      {optional ? <span className="font-normal text-muted-foreground">(Optional)</span> : null}
     </FieldLabel>
   )
 }
@@ -34,7 +32,6 @@ export function TextField<T extends FieldValues>({
   name,
   label,
   required,
-  optional,
   description,
   className,
   ...inputProps
@@ -45,7 +42,7 @@ export function TextField<T extends FieldValues>({
       name={name}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className={className}>
-          <FieldTitle label={label} required={required} optional={optional} htmlFor={name} />
+          <FieldTitle label={label} required={required} htmlFor={name} />
           <Input id={name} aria-invalid={fieldState.invalid} {...inputProps} {...field} value={field.value ?? ""} />
           {description ? <FieldDescription>{description}</FieldDescription> : null}
           <FieldError errors={[fieldState.error]} />
@@ -99,7 +96,6 @@ export function TextareaField<T extends FieldValues>({
   name,
   label,
   required,
-  optional,
   className,
   maxLength = 500,
   rows = 4,
@@ -111,7 +107,7 @@ export function TextareaField<T extends FieldValues>({
       name={name}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className={className}>
-          <FieldTitle label={label} required={required} optional={optional} htmlFor={name} />
+          <FieldTitle label={label} required={required} htmlFor={name} />
           <Textarea
             id={name}
             rows={rows}
@@ -136,7 +132,6 @@ export function SelectField<T extends FieldValues>({
   name,
   label,
   required,
-  optional,
   className,
   options,
   placeholder = "Select",
@@ -147,7 +142,7 @@ export function SelectField<T extends FieldValues>({
       name={name}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className={className}>
-          <FieldTitle label={label} required={required} optional={optional} htmlFor={name} />
+          <FieldTitle label={label} required={required} htmlFor={name} />
           <Select value={field.value ?? ""} onValueChange={field.onChange}>
             <SelectTrigger id={name} aria-invalid={fieldState.invalid} className="w-full" onBlur={field.onBlur}>
               <SelectValue placeholder={placeholder} />
@@ -172,7 +167,6 @@ export function FileDropField<T extends FieldValues>({
   control,
   name,
   label,
-  optional,
   className,
   hint = "PNG, JPG (Max 2 MB)",
   accept = "image/png,image/jpeg",
@@ -185,7 +179,7 @@ export function FileDropField<T extends FieldValues>({
         const file = field.value as File | undefined
         return (
           <Field className={className}>
-            <FieldTitle label={label} optional={optional} htmlFor={name} />
+            <FieldTitle label={label} htmlFor={name} />
             <label
               htmlFor={name}
               className={cn(

@@ -61,7 +61,7 @@ export function LocationPicker({
   }, [lat, lng])
 
   return (
-    <div className="relative h-56 overflow-hidden rounded-lg ring-1 ring-border">
+    <div className="relative h-40 overflow-hidden rounded-lg ring-1 ring-border">
       <div className="absolute inset-0">
         <div ref={container} className="size-full" />
       </div>
