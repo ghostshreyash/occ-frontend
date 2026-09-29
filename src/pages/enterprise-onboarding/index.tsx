@@ -80,13 +80,20 @@ export function EnterpriseOnboardingPage() {
     window.scrollTo({ top: 0 })
   }
   const back = () => setStep((s) => Math.max(0, s - 1))
+  /* Jumping back keeps everything already entered - each step re-seeds from `data` */
+  const goToStep = (i: number) => {
+    if (i < step) {
+      setStep(i)
+      window.scrollTo({ top: 0 })
+    }
+  }
 
   return (
     <WizardPage
       title="Onboard Enterprise"
-      description="Register a new enterprise and build its organisational structure for electrical reliability management."
       breadcrumbs={[{ label: "Enterprises", onClick: closeWizard }, { label: "New Enterprise" }]}
       onExit={closeWizard}
+      onStepSelect={goToStep}
       steps={steps}
       current={step}
       aside={<KeyInfo items={keyInfo[step]} />}

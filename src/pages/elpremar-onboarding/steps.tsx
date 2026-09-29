@@ -49,11 +49,11 @@ const departments = ["Electrical", "Maintenance", "Utilities", "Instrumentation"
 
 /* ---------- shared bits ---------- */
 
-function Card({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function Card({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-card p-5 shadow-xs ring-1 ring-foreground/10">
-      <h3 className="text-lg font-bold text-brand-navy dark:text-foreground">{title}</h3>
-      <p className="mb-5 text-sm text-primary">{description}</p>
+    <section className="rounded-lg bg-card p-3 shadow-xs ring-1 ring-foreground/10 transition-shadow duration-200 ease-out hover:shadow-md">
+      <h3 className="mb-2.5 text-sm font-bold text-brand-navy dark:text-foreground">{title}</h3>
+      {description ? <p className="-mt-2 mb-2.5 text-xs text-muted-foreground">{description}</p> : null}
       {children}
     </section>
   )
@@ -114,7 +114,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   })
   const { control } = form
   return (
-    <Card title="Step 1 of 4: Basic Details" description="Enter the basic information of the ELPREMAR.">
+    <Card title="Step 1 of 4: Basic Details">
       <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} className="flex flex-col gap-5 sm:flex-row" noValidate>
         <Controller
           control={control}
@@ -187,7 +187,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   })
 
   return (
-    <Card title="Step 2 of 4: Work & Skills" description="Enter work information, skills and certifications of the ELPREMAR.">
+    <Card title="Step 2 of 4: Work & Skills">
       <form id="elp-work" onSubmit={form.handleSubmit(onNext)} noValidate>
         <div className="flex flex-col gap-5 sm:flex-row">
           <ProfileCard basic={draft.basic} />
@@ -308,7 +308,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
   ]
 
   return (
-    <Card title="Step 3 of 4: Account Credentials" description="Create a username and password for the ELPREMAR to access the system.">
+    <Card title="Step 3 of 4: Account Credentials">
       <div className="mb-5 flex flex-col gap-4 sm:flex-row">
         <ProfileCard basic={basic} />
         <div className="grid flex-1 grid-cols-2 gap-3 self-start rounded-lg bg-info-soft/60 p-4 text-sm md:grid-cols-4">

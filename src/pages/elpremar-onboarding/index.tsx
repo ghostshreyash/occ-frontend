@@ -97,8 +97,8 @@ export function ElpremarOnboardingPage() {
   return (
     <WizardPage
       title="ELPREMAR Onboarding"
-      description="Create profile for Electrical Preventive Maintenance Persons (ELPREMAR) and provide system access."
       breadcrumbs={[{ label: "ELPREMAR Activity & Availability", to: "/elpremars" }, { label: "ELPREMAR Onboarding" }]}
+      onStepSelect={(i) => i < step && go(i)}
       steps={steps}
       current={step}
       aside={aside}

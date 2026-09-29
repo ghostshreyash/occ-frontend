@@ -77,7 +77,6 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
   return (
     <StepCard
       title="Step 1 of 5: Enterprise Name"
-      description="Enter the enterprise details to begin the onboarding process."
       formId="step-enterprise"
       nextLabel="Next: Location"
       onCancel={onCancel}
@@ -110,7 +109,6 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
   return (
     <StepCard
       title="Step 2 of 5: Location Details"
-      description="Add the geographical location for the enterprise."
       formId="step-location"
       nextLabel="Next: Plant"
       onBack={onBack}
@@ -174,7 +172,6 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
   return (
     <StepCard
       title="Step 3 of 5: Plant Details"
-      description="Add plant(s) under the selected location."
       formId="step-plant"
       nextLabel="Next: Department"
       onBack={onBack}
@@ -235,7 +232,6 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
   return (
     <StepCard
       title="Step 4 of 5: Department Details"
-      description="Add department details under the selected plant."
       formId="step-department"
       nextLabel="Next: Sub-department"
       onBack={onBack}
@@ -316,7 +312,6 @@ export function SubDepartmentAccountStep({
   return (
     <StepCard
       title="Step 5 of 5: Sub-department Details & Account Creation"
-      description="Add sub-department(s) under the selected department and create the enterprise login account."
       formId="step-account"
       nextLabel="Complete Onboarding"
       nextIcon={<Check />}
