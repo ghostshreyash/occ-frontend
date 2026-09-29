@@ -212,7 +212,6 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                 <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
                 <TableHead className={th}>Plants</TableHead>
                 <TableHead className={`${th} hidden sm:table-cell`}>Assets</TableHead>
-                <TableHead className={`${th} hidden lg:table-cell`}>ELPREMARs</TableHead>
                 <TableHead className={`${th} hidden md:table-cell`}>
                   <button
                     type="button"
@@ -254,7 +253,6 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                     </TableCell>
                     <TableCell className={`${td} tabular-nums`}>{e.plants}</TableCell>
                     <TableCell className={`${td} hidden tabular-nums sm:table-cell`}>{e.assets.toLocaleString("en-IN")}</TableCell>
-                    <TableCell className={`${td} hidden tabular-nums lg:table-cell`}>{e.elpremars}</TableCell>
                     <TableCell className={`${td} hidden tabular-nums md:table-cell`}>{e.onboarded}</TableCell>
                     <TableCell className={td}>
                       <Badge variant={meta.badge} className="rounded px-1.5 py-0 text-[0.65rem]">{meta.label}</Badge>
