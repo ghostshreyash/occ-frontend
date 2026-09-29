@@ -3,7 +3,12 @@ import { z } from "zod"
 import { optionalEmail, password, required, username } from "@/lib/validation"
 
 const optionalText = z.string().optional()
-const optionalNumber = z.string().regex(/^-?\d*\.?\d*$/, "Enter a number").optional()
+/** Required coordinate, bounded to a real value. Filled automatically by the map picker. */
+const coordinate = (label: string, limit: number) =>
+  required(label).refine((v) => {
+    const n = Number(v)
+    return Number.isFinite(n) && Math.abs(n) <= limit
+  }, `Enter a ${label.toLowerCase()} between -${limit} and ${limit}`)
 
 export const enterpriseSchema = z.object({
   name: required("Enterprise name"),
@@ -21,8 +26,8 @@ export const locationSchema = z.object({
   city: required("City"),
   address: required("Address"),
   pin: z.string().trim().regex(/^[A-Za-z0-9 -]{4,10}$/, "Enter a valid postal code"),
-  latitude: optionalNumber,
-  longitude: optionalNumber,
+  latitude: coordinate("Latitude", 90),
+  longitude: coordinate("Longitude", 180),
 })
 
 export const plantSchema = z.object({
@@ -30,20 +35,22 @@ export const plantSchema = z.object({
   type: required("Plant type"),
   code: optionalText,
   address: required("Plant address"),
+  salutation: required("Salutation"),
   head: required("Plant head"),
   email: optionalEmail,
   phone: optionalText,
   capacity: optionalText,
-  commissioningYear: optionalText,
+  commissioningDate: optionalText,
   timeZone: optionalText,
   logo: z.instanceof(File).optional(),
   notes: optionalText,
 })
 
+/** Department is optional: an enterprise can be onboarded without one */
 export const departmentSchema = z.object({
-  name: required("Department name"),
-  code: required("Department code"),
-  type: required("Department type"),
+  name: optionalText,
+  code: optionalText,
+  type: optionalText,
   parent: optionalText,
   head: optionalText,
   email: optionalEmail,
@@ -52,10 +59,11 @@ export const departmentSchema = z.object({
   description: optionalText,
 })
 
+/** Sub-departments are optional - the whole section can be skipped */
 export const subDepartmentSchema = z.object({
-  name: required("Sub-department name"),
-  code: required("Sub-department code"),
-  function: required("Function / Area"),
+  name: optionalText,
+  code: optionalText,
+  function: optionalText,
   description: optionalText,
 })
 
@@ -83,4 +91,5 @@ export type OnboardingData = {
   plant?: PlantValues
   department?: DepartmentValues
   subDepartments: SubDepartmentValues[]
+  account?: AccountValues
 }

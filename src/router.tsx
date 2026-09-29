@@ -12,14 +12,13 @@ import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { RegisterPage } from "@/pages/auth/register"
 import { AccountRecoveryPage } from "@/pages/auth/account-recovery"
 import { DashboardPage } from "@/pages/dashboard"
-import { EnterpriseOnboardingPage } from "@/pages/enterprise-onboarding"
 import { ElpremarActivityPage } from "@/pages/elpremar-activity"
 import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
 import { CriticalAlertsPage } from "@/pages/critical-alerts"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
 
-const built = new Set(["/", "/customer-map", "/enterprise-onboarding", "/elpremars", "/critical-alerts"])
+const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts"])
 
 /*
  * The hostname decides which sign-in a visitor sees (`src/lib/brand.ts`), so
@@ -50,7 +49,7 @@ export const router = createBrowserRouter([
           { index: true, element: <DashboardPage /> },
           // Global and India map views now live inside the OCC dashboard.
           { path: "customer-map", element: <Navigate to="/" replace /> },
-          { path: "enterprise-onboarding", element: <EnterpriseOnboardingPage /> },
+          { path: "enterprise-onboarding", element: <Navigate to="/enterprises" replace /> },
           { path: "elpremars", element: <ElpremarActivityPage /> },
           { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
           { path: "critical-alerts", element: <CriticalAlertsPage /> },

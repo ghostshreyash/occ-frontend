@@ -25,6 +25,7 @@ export function StatCard({
   icon: Icon,
   tone,
   change,
+  delta,
   percent,
   footer,
   variant = "tinted",
@@ -34,7 +35,10 @@ export function StatCard({
   value: number | string
   icon: LucideIcon
   tone: StatTone
+  /** Percentage movement — only meaningful on large aggregates (assets, plants) */
   change?: number
+  /** Absolute movement — use for small counts, where a percentage reads as nonsense */
+  delta?: number
   percent?: number
   footer?: React.ReactNode
   variant?: "tinted" | "plain"
@@ -66,11 +70,13 @@ export function StatCard({
         <div className="text-lg leading-tight font-bold text-brand-navy dark:text-foreground">
           {typeof value === "number" ? value.toLocaleString("en-IN") : value}
         </div>
-        {/* Trend reads as one line: "▲ +6% vs last month" */}
-        {change !== undefined ? (
+        {/* Trend reads as one line: "▲ +6% vs last month" or "▲ +2 vs last month" */}
+        {change !== undefined || delta !== undefined ? (
           <div className="flex items-center gap-1 text-[0.7rem] leading-tight whitespace-nowrap">
             <Triangle className="size-2 shrink-0 fill-current text-healthy" />
-            <span className="font-semibold text-healthy">+{change}%</span>
+            <span className="font-semibold text-healthy">
+              +{change !== undefined ? `${change}%` : delta}
+            </span>
             <span className="text-muted-foreground">vs last month</span>
           </div>
         ) : null}

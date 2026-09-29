@@ -28,27 +28,53 @@ function StepCircle({ index, state }: { index: number; state: "done" | "current"
 
 const stateOf = (i: number, current: number) => (i < current ? "done" : i === current ? "current" : "upcoming")
 
-/** Horizontal step indicator across the top of an onboarding flow */
-export function StepperBar({ steps, current }: { steps: WizardStep[]; current: number }) {
+/**
+ * Horizontal step indicator across the top of an onboarding flow.
+ * Completed steps are clickable, so you can go back and change an earlier answer;
+ * upcoming steps are not, because their data has not been entered yet.
+ */
+export function StepperBar({ steps, current, furthest, onSelect }: { steps: WizardStep[]; current: number; furthest?: number; onSelect?: (i: number) => void }) {
+  // Everything up to the furthest step reached stays reachable, in either direction
+  const reachable = furthest ?? current
   return (
     <ol className="mb-3 flex items-center gap-1.5 overflow-x-auto rounded-lg bg-card px-3 py-2 shadow-xs ring-1 ring-foreground/10">
-      {steps.map((step, i) => (
-        <li key={step.title} className="flex min-w-fit flex-1 items-center gap-2 last:flex-none">
-          <StepCircle index={i} state={stateOf(i, current)} />
-          <span className={cn("text-xs whitespace-nowrap", i === current ? "font-semibold text-primary" : "text-foreground")}>
-            {step.title}
-          </span>
-          {i < steps.length - 1 ? (
-            <span className={cn("mx-1.5 h-px min-w-4 flex-1", i < current ? "bg-healthy" : "bg-border")} />
-          ) : null}
-        </li>
-      ))}
+      {steps.map((step, i) => {
+        const clickable = onSelect !== undefined && i !== current && i <= reachable
+        // Circle and label form one target, matching the side panel's row behaviour
+        const Item = clickable ? "button" : "div"
+        return (
+          <li key={step.title} className="flex min-w-fit flex-1 items-center gap-2 last:flex-none">
+            <Item
+              {...(clickable ? { type: "button" as const, onClick: () => onSelect(i), title: `Go back to ${step.title}` } : {})}
+              className={cn(
+                "group flex items-center gap-2 rounded px-1 py-0.5 transition-colors duration-150",
+                clickable && "cursor-pointer hover:bg-muted"
+              )}
+            >
+              <StepCircle index={i} state={stateOf(i, current)} />
+              <span
+                className={cn(
+                  "text-xs whitespace-nowrap",
+                  i === current ? "font-semibold text-primary" : "text-foreground",
+                  clickable && "group-hover:text-primary"
+                )}
+              >
+                {step.title}
+              </span>
+            </Item>
+            {i < steps.length - 1 ? (
+              <span className={cn("mx-1.5 h-px min-w-4 flex-1", i < current ? "bg-healthy" : "bg-border")} />
+            ) : null}
+          </li>
+        )
+      })}
     </ol>
   )
 }
 
 /** Right-hand "Onboarding Progress" panel with vertical steps */
-export function WizardProgressPanel({ steps, current }: { steps: WizardStep[]; current: number }) {
+export function WizardProgressPanel({ steps, current, furthest, onSelect }: { steps: WizardStep[]; current: number; furthest?: number; onSelect?: (i: number) => void }) {
+  const reachable = furthest ?? current
   const percent = Math.round(((current + 1) / steps.length) * 100)
   return (
     <div className="rounded-lg bg-card p-2.5 shadow-xs ring-1 ring-foreground/10 transition-[transform,box-shadow,--tw-ring-color] duration-200 ease-out hover:shadow-md hover:ring-foreground/20 motion-safe:hover:-translate-y-0.5">
@@ -68,11 +94,19 @@ export function WizardProgressPanel({ steps, current }: { steps: WizardStep[]; c
         <ol className="space-y-0.5">
           {steps.map((step, i) => {
             const state = stateOf(i, current)
+            const clickable = onSelect !== undefined && i !== current && i <= reachable
             return (
-              <li
-                key={step.title}
-                className={cn("flex items-center gap-2 rounded p-1.5 transition-colors duration-150", state === "current" ? "bg-card shadow-xs" : "hover:bg-card/60")}
-              >
+              <li key={step.title}>
+                <div
+                  {...(clickable
+                    ? { role: "button" as const, tabIndex: 0, onClick: () => onSelect(i), onKeyDown: (e: React.KeyboardEvent) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onSelect(i)), title: `Go back to ${step.title}` }
+                    : {})}
+                  className={cn(
+                    "flex items-center gap-2 rounded p-1.5 transition-colors duration-150",
+                    state === "current" ? "bg-card shadow-xs" : "hover:bg-card/60",
+                    clickable && "cursor-pointer"
+                  )}
+                >
                 <step.icon className="size-3.5 shrink-0 text-brand-navy dark:text-foreground" />
                 <StepCircle index={i} state={state} />
                 <div className="min-w-0">
@@ -82,6 +116,7 @@ export function WizardProgressPanel({ steps, current }: { steps: WizardStep[]; c
                   </div>
                   <div className="truncate text-[0.65rem] text-muted-foreground">
                     {state === "done" && step.summary ? step.summary : step.description}
+                  </div>
                   </div>
                 </div>
               </li>
