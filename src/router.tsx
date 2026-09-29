@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router"
+import { createBrowserRouter, Navigate } from "react-router"
 
 import { AppLayout } from "@/layouts/app-layout"
 import { occNavigation } from "@/config/navigation"
@@ -12,7 +12,7 @@ import { CriticalAlertsPage } from "@/pages/critical-alerts"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
 
-const built = new Set(["/", "/customer-map", "/enterprise-onboarding", "/elpremars", "/critical-alerts"])
+const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts"])
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -22,7 +22,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "customer-map", element: <CustomerMapPage /> },
-      { path: "enterprise-onboarding", element: <EnterpriseOnboardingPage /> },
+      { path: "enterprises", element: <EnterpriseOnboardingPage /> },
+      // Old URL kept working so existing links and bookmarks do not break
+      { path: "enterprise-onboarding", element: <Navigate to="/enterprises" replace /> },
       { path: "elpremars", element: <ElpremarActivityPage /> },
       { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
       { path: "critical-alerts", element: <CriticalAlertsPage /> },

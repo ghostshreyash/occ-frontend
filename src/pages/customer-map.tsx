@@ -1,17 +1,18 @@
 import { useState } from "react"
-import { AlertTriangle, Building2, CloudCheck, Factory, FileCheck2, Maximize2, MapPin, Settings, ShieldCheck, TicketCheck, Users } from "lucide-react"
+import { AlertTriangle, Building2, CloudCheck, Factory, FileCheck2, Maximize2, Server, Settings, ShieldCheck, TicketCheck, Users } from "lucide-react"
 
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/common/page-header"
 import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
 import { DonutChart } from "@/components/common/donut-chart"
-import { CustomerMap, MapViewToggle, type MapView } from "@/components/common/customer-map"
-import { globalKpis, indiaOverview, liveActivity, mapPlants, mapRegionLabels, regionSummary, topCustomers } from "@/data/mock"
-import { chartSeries, healthStatus } from "@/lib/status"
+import { CustomerMap } from "@/components/common/customer-map"
+import { OperationsTables } from "@/components/common/operations-tables"
+import { liveActivity, mapPlants, topCustomers } from "@/data/mock"
+import { indiaEnterpriseStatus, indiaKpis, indiaPlantStatus } from "@/data/occ-tables"
+import { healthStatus } from "@/lib/status"
 
 const liveIcons = { plant: Building2, inspection: FileCheck2, alert: AlertTriangle, sync: CloudCheck, ticket: TicketCheck }
 const liveTone = {
@@ -21,156 +22,171 @@ const liveTone = {
   sync: "bg-healthy-soft text-healthy",
   ticket: "bg-info-soft text-info",
 }
+const onboardingSlice = { label: "Onboarded", color: "var(--neutral)" }
 
-/** India / Global Customer Map (mockup page 3) */
+/** India Customer Map — India-only view of customers, plants and asset health */
 export function CustomerMapPage() {
-  const [view, setView] = useState<MapView>("global")
   const [enterprise, setEnterprise] = useState("all")
-  const maxAssets = Math.max(...topCustomers.map((c) => c.assets))
-  const plants = enterprise === "all" ? mapPlants : mapPlants.filter((p) => p.enterprise === enterprise)
+
+  // India bounding box, so only domestic plants appear on this page
+  const indiaPlants = mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)
+  const plants = enterprise === "all" ? indiaPlants : indiaPlants.filter((p) => p.enterprise === enterprise)
+  const indiaCustomers = topCustomers.filter((c) => indiaPlants.some((p) => p.enterprise === c.name))
+  const maxAssets = Math.max(...indiaCustomers.map((c) => c.assets))
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <PageHeader
-        title="India / Global Customer Map"
-        description="Real-time view of all customer locations, plants and asset health status across India and worldwide."
+        title="India Customer Map"
+        description="Real-time view of customer locations, plants and asset health status across India."
+        breadcrumbs={[{ label: "India Customer Map" }]}
         actions={
           <>
             <Select value={enterprise} onValueChange={setEnterprise}>
-              <SelectTrigger className="w-44 bg-card">
+              <SelectTrigger size="sm" className="w-36 bg-card text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Customers</SelectItem>
-                {topCustomers.map((c) => (
+                {indiaCustomers.map((c) => (
                   <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <div className="inline-flex overflow-hidden rounded-md ring-1 ring-border">
-              <button type="button" className="bg-brand-navy px-6 py-1.5 text-sm font-medium text-brand-navy-foreground">Map</button>
-              <button type="button" className="bg-card px-6 py-1.5 text-sm font-medium hover:bg-muted">List</button>
+            <div className="inline-flex overflow-hidden rounded ring-1 ring-border">
+              <button type="button" className="bg-brand-navy px-3 py-1 text-xs font-medium text-brand-navy-foreground">Map</button>
+              <button type="button" className="bg-card px-3 py-1 text-xs font-medium hover:bg-muted">List</button>
             </div>
-            <Button variant="outline" size="icon" className="bg-card" aria-label="Full screen">
-              <Maximize2 />
+            <Button variant="outline" size="icon" className="size-7 bg-card" aria-label="Full screen">
+              <Maximize2 className="size-3.5" />
             </Button>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Total Customers" value={globalKpis.enterprises.value} change={globalKpis.enterprises.change} icon={Building2} tone="info" variant="plain" />
-        <StatCard label="Total Plants" value={globalKpis.plants.value} change={globalKpis.plants.change} icon={Factory} tone="success" variant="plain" />
-        <StatCard label="Countries" value={globalKpis.countries} icon={MapPin} tone="info" variant="plain" />
-        <StatCard label="Total Assets (Monitored)" value={globalKpis.assets.value} change={globalKpis.assets.change} icon={Users} tone="info" variant="plain" />
+      {/* Countries removed — this page is India only */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <StatCard label="Total Customers" value={indiaKpis.enterprises.value} change={indiaKpis.enterprises.change} icon={Building2} tone="info" variant="plain" />
+        <StatCard label="Total Plants" value={indiaKpis.plants.value} change={indiaKpis.plants.change} icon={Factory} tone="success" variant="plain" />
+        <StatCard label="Total Assets (Monitored)" value={indiaKpis.assets.value} change={indiaKpis.assets.change} icon={Server} tone="info" variant="plain" />
         <StatCard
           label="Overall Asset Health"
-          value={`${globalKpis.healthy.percent}%`}
+          value={`${indiaKpis.healthy.percent}%`}
           icon={ShieldCheck}
           tone="healthy"
           variant="plain"
-          footer={<Progress value={globalKpis.healthy.percent} className="mt-2 h-2.5 w-40 [&>[data-slot=progress-indicator]]:bg-healthy" />}
+          footer={<Progress value={indiaKpis.healthy.percent} className="mt-1 h-1.5 w-24 [&>[data-slot=progress-indicator]]:bg-healthy" />}
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_20rem]">
-        <CustomerMap plants={plants} view={view} regionLabels={mapRegionLabels} className="h-[27rem] rounded-xl">
-          <MapViewToggle value={view} onChange={setView} className="absolute top-3 left-3" />
-        </CustomerMap>
+      {/* Map keeps its right-hand column side by side from tablet up */}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <CustomerMap plants={plants} view="india" className="h-[21rem] rounded-lg" />
 
-        <div className="space-y-5">
-          <SectionCard title="India Overview" viewAllTo="/enterprise-status">
-            <div className="grid grid-cols-[1fr_8.5rem] gap-3">
-              <CustomerMap
-                plants={mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)}
-                view="india"
-                focusCountry="India"
-                interactive={false}
-                showLegend={false}
-                className="h-40"
-              />
-              <div className="space-y-3">
-                {[
-                  { icon: Users, label: "Customers", value: indiaOverview.customers },
-                  { icon: Factory, label: "Plants", value: indiaOverview.plants },
-                  { icon: Settings, label: "Assets", value: indiaOverview.assets },
-                ].map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex items-center gap-2.5">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-primary">
-                      <Icon className="size-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">{label}</div>
-                      <div className="text-lg leading-tight font-bold">{value.toLocaleString("en-IN")}</div>
-                    </div>
+        <div className="space-y-3">
+        <SectionCard title="India Overview" viewAllTo="/enterprise-status">
+          <div className="grid grid-cols-[1fr_1.25fr] items-center gap-2">
+            <CustomerMap
+              plants={indiaPlants}
+              view="india"
+              focusCountry="India"
+              interactive={false}
+              showLegend={false}
+              className="h-24"
+            />
+            <div className="space-y-1.5">
+              {[
+                { icon: Users, label: "Customers", value: indiaKpis.enterprises.value },
+                { icon: Factory, label: "Plants", value: indiaKpis.plants.value },
+                { icon: Settings, label: "Assets", value: indiaKpis.assets.value },
+              ].map(({ icon: Icon, label, value }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded bg-info-soft text-primary">
+                    <Icon className="size-3.5" />
                   </div>
-                ))}
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Top 5 Customers by Asset Count" viewAllTo="/enterprise-status">
-            <ul className="space-y-3 text-sm">
-              {topCustomers.map((c) => (
-                <li key={c.name} className="grid grid-cols-[2.25rem_7rem_1fr_3rem] items-center gap-2">
-                  <span className="flex h-6 items-center justify-center rounded bg-muted text-[0.6rem] font-bold text-brand-navy">
-                    {c.name.split(" ").map((w) => w[0]).join("").slice(0, 3).toUpperCase()}
-                  </span>
-                  <span className="truncate text-xs">{c.name}</span>
-                  <Progress value={(c.assets / maxAssets) * 100} className="h-2" />
-                  <span className="text-right text-xs font-semibold">{c.assets.toLocaleString("en-IN")}</span>
-                </li>
+                  <div className="min-w-0">
+                    <div className="text-[0.62rem] leading-none text-muted-foreground">{label}</div>
+                    <div className="text-sm leading-tight font-bold tabular-nums">{value.toLocaleString("en-IN")}</div>
+                  </div>
+                </div>
               ))}
-            </ul>
-          </SectionCard>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Top Customers by Asset Count" viewAllTo="/enterprise-status">
+          <ul className="space-y-2 text-xs">
+            {indiaCustomers.map((c) => (
+              <li key={c.name} className="grid grid-cols-[2rem_1fr_2.5rem] items-center gap-1.5">
+                <span className="flex h-5 items-center justify-center rounded bg-muted text-[0.55rem] font-bold text-brand-navy">
+                  {c.name.split(" ").map((w) => w[0]).join("").slice(0, 3).toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <div className="truncate text-[0.7rem]">{c.name}</div>
+                  <Progress value={(c.assets / maxAssets) * 100} className="mt-0.5 h-1.5" />
+                </div>
+                <span className="text-right text-[0.7rem] font-semibold tabular-nums">{c.assets.toLocaleString("en-IN")}</span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-        <SectionCard title={<span className="leading-tight">Customer Distribution<span className="block text-xs font-normal text-muted-foreground">(by Region)</span></span>}>
-          <DonutChart
-            centerLabel="Customers"
-            data={regionSummary.map((r, i) => ({ key: `r${i}`, label: r.region, value: r.customers, color: chartSeries[i % chartSeries.length] }))}
-          />
-        </SectionCard>
-
-        <SectionCard title="Asset Health (Global)">
+      {/* Three cards in one row, same grid as the OCC Global dashboard */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <SectionCard title="Asset Health (India)">
           <DonutChart
             centerLabel="Assets"
             data={(["healthy", "attention", "critical"] as const).map((s) => ({
               key: s,
               label: healthStatus[s].label,
-              value: globalKpis[s].value,
+              value: indiaKpis[s].value,
               color: healthStatus[s].color,
             }))}
           />
         </SectionCard>
 
-        <SectionCard
-          title="Real-time Activity"
-          actions={<Badge variant="healthy"><span className="size-1.5 animate-pulse rounded-full bg-healthy" /> Live</Badge>}
-          className="lg:col-span-2 xl:col-span-1"
-        >
-          <ol className="relative space-y-4 border-l border-dashed border-border pl-5">
-            {liveActivity.map((a) => {
-              const Icon = liveIcons[a.kind]
-              return (
-                <li key={a.time + a.title} className="relative flex items-start gap-3">
-                  <span className="absolute top-2 -left-[1.4rem] size-2 rounded-full bg-primary" />
-                  <span className="w-10 shrink-0 pt-1 text-xs text-muted-foreground">{a.time}</span>
-                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${liveTone[a.kind]}`}>
-                    <Icon className="size-4" />
-                  </span>
-                  <div className="min-w-0 text-sm">
-                    <div className="font-medium">{a.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">{a.detail}</div>
-                  </div>
-                </li>
-              )
+        <SectionCard title="Enterprise Status (India)" viewAllTo="/enterprise-status">
+          <DonutChart
+            centerLabel="Enterprises"
+            data={indiaEnterpriseStatus.map((s) => {
+              const meta = s.status === "onboarding" ? onboardingSlice : healthStatus[s.status]
+              return { key: s.status, label: meta.label, value: s.value, color: meta.color }
             })}
-          </ol>
+          />
+        </SectionCard>
+
+        <SectionCard title="Plant Status (India)" viewAllTo="/plant-status">
+          <DonutChart
+            centerLabel="Plants"
+            data={indiaPlantStatus.map((s) => ({ key: s.status, label: healthStatus[s.status].label, value: s.value, color: healthStatus[s.status].color }))}
+          />
         </SectionCard>
       </div>
+
+      {/* Same operations tables as the global dashboard, filtered to India */}
+      <OperationsTables country="India" />
+
+      <SectionCard title="Real-time Activity" disabled>
+        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {liveActivity.map((a) => {
+            const Icon = liveIcons[a.kind]
+            return (
+              <li key={a.time + a.title} className="flex items-start gap-2">
+                <span className="w-8 shrink-0 pt-1 text-[0.65rem] tabular-nums text-muted-foreground">{a.time}</span>
+                <span className={`flex size-6 shrink-0 items-center justify-center rounded ${liveTone[a.kind]}`}>
+                  <Icon className="size-3" />
+                </span>
+                <div className="min-w-0 text-xs">
+                  <div className="truncate font-medium">{a.title}</div>
+                  <div className="truncate text-[0.65rem] text-muted-foreground">{a.detail}</div>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </SectionCard>
     </div>
   )
 }

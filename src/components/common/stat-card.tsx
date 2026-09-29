@@ -25,6 +25,7 @@ export function StatCard({
   icon: Icon,
   tone,
   change,
+  delta,
   percent,
   footer,
   variant = "tinted",
@@ -34,7 +35,10 @@ export function StatCard({
   value: number | string
   icon: LucideIcon
   tone: StatTone
+  /** Percentage movement — only meaningful on large aggregates (assets, plants) */
   change?: number
+  /** Absolute movement — use for small counts, where a percentage reads as nonsense */
+  delta?: number
   percent?: number
   footer?: React.ReactNode
   variant?: "tinted" | "plain"
@@ -44,28 +48,39 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 rounded-xl px-4 py-3.5 shadow-xs ring-1",
+        "group/stat flex items-center gap-2.5 rounded-lg px-3 py-2 shadow-xs ring-1",
+        // Lift and brighten on hover; skipped entirely for reduced-motion users
+        "transition-[transform,box-shadow,--tw-ring-color] duration-200 ease-out",
+        "hover:shadow-md hover:ring-foreground/20 motion-safe:hover:-translate-y-0.5",
         variant === "tinted" ? t.card : "bg-card ring-foreground/8",
         className
       )}
     >
-      <div className={cn("flex size-14 shrink-0 items-center justify-center rounded-full", t.icon)}>
-        <Icon className="size-7" strokeWidth={2.2} />
+      <div
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-full transition-transform duration-200 ease-out",
+          "motion-safe:group-hover/stat:scale-110",
+          t.icon
+        )}
+      >
+        <Icon className="size-4.5" strokeWidth={2.2} />
       </div>
       <div className="min-w-0">
-        <div className="text-sm leading-tight font-medium text-foreground">{label}</div>
-        <div className="mt-0.5 text-[1.7rem] leading-tight font-bold text-brand-navy dark:text-foreground">
+        <div className="truncate text-[0.7rem] leading-tight font-medium text-muted-foreground">{label}</div>
+        <div className="text-lg leading-tight font-bold text-brand-navy dark:text-foreground">
           {typeof value === "number" ? value.toLocaleString("en-IN") : value}
         </div>
-        {change !== undefined ? (
-          <div className="mt-0.5 text-sm leading-tight">
-            <div className="flex items-center gap-1 font-semibold text-healthy">
-              <Triangle className="size-3 fill-current" /> +{change}%
-            </div>
-            <div className="text-muted-foreground">vs last month</div>
+        {/* Trend reads as one line: "▲ +6% vs last month" or "▲ +2 vs last month" */}
+        {change !== undefined || delta !== undefined ? (
+          <div className="flex items-center gap-1 text-[0.7rem] leading-tight whitespace-nowrap">
+            <Triangle className="size-2 shrink-0 fill-current text-healthy" />
+            <span className="font-semibold text-healthy">
+              +{change !== undefined ? `${change}%` : delta}
+            </span>
+            <span className="text-muted-foreground">vs last month</span>
           </div>
         ) : null}
-        {percent !== undefined ? <div className={cn("text-lg leading-tight font-bold", t.accent)}>{percent}%</div> : null}
+        {percent !== undefined ? <div className={cn("text-xs leading-tight font-bold", t.accent)}>{percent}%</div> : null}
         {footer}
       </div>
     </div>

@@ -238,7 +238,7 @@ export function ElpremarActivityPage() {
             <TextareaField control={control} name="description" label="Task Description" required rows={2} className="md:col-span-6" />
             <SelectField control={control} name="priority" label="Priority" required options={priorities} className="md:col-span-2" />
             <div className="md:col-span-4">
-              <div className="mb-2 text-sm font-medium">Attachments <span className="font-normal text-muted-foreground">(Optional)</span></div>
+              <div className="mb-2 text-sm font-medium">Attachments</div>
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-info-soft px-3 py-2 text-sm font-medium text-primary hover:bg-accent">
                 <Paperclip className="size-4" /> Upload Files
                 <input type="file" multiple accept=".pdf,image/png,image/jpeg" className="sr-only" />

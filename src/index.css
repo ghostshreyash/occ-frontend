@@ -320,7 +320,16 @@
   body {
     @apply bg-background text-foreground;
     }
+  /*
+   * Root scale. Every size in the app is in rem, so dialing this down zooms the
+   * whole UI out uniformly (denser dashboards, more above the fold) without
+   * touching a single component. Tablets get one more notch down.
+   */
   html {
     @apply font-sans;
+    font-size: 14px;
+    }
+  @media (max-width: 1024px) {
+    html { font-size: 13px; }
     }
 }

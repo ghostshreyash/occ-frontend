@@ -49,11 +49,11 @@ const departments = ["Electrical", "Maintenance", "Utilities", "Instrumentation"
 
 /* ---------- shared bits ---------- */
 
-function Card({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function Card({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-card p-5 shadow-xs ring-1 ring-foreground/10">
-      <h3 className="text-lg font-bold text-brand-navy dark:text-foreground">{title}</h3>
-      <p className="mb-5 text-sm text-primary">{description}</p>
+    <section className="rounded-lg bg-card p-3 shadow-xs ring-1 ring-foreground/10 transition-shadow duration-200 ease-out hover:shadow-md">
+      <h3 className="mb-2.5 text-sm font-bold text-brand-navy dark:text-foreground">{title}</h3>
+      {description ? <p className="-mt-2 mb-2.5 text-xs text-muted-foreground">{description}</p> : null}
       {children}
     </section>
   )
@@ -114,7 +114,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   })
   const { control } = form
   return (
-    <Card title="Step 1 of 4: Basic Details" description="Enter the basic information of the ELPREMAR.">
+    <Card title="Step 1 of 4: Basic Details">
       <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} className="flex flex-col gap-5 sm:flex-row" noValidate>
         <Controller
           control={control}
@@ -158,7 +158,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
           <SelectField control={control} name="plant" label="Plant" required options={plants} />
           <SelectField control={control} name="department" label="Department" required options={departments} />
           <SelectField control={control} name="supervisor" label="Reporting Supervisor" options={supervisors} />
-          <TextareaField control={control} name="address" label="Address" optional rows={2} maxLength={250} className="md:col-span-2" />
+          <TextareaField control={control} name="address" label="Address" rows={2} maxLength={250} className="md:col-span-2" />
         </div>
       </form>
       <Footer formId="elp-basic" onCancel={onCancel} />
@@ -187,7 +187,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   })
 
   return (
-    <Card title="Step 2 of 4: Work & Skills" description="Enter work information, skills and certifications of the ELPREMAR.">
+    <Card title="Step 2 of 4: Work & Skills">
       <form id="elp-work" onSubmit={form.handleSubmit(onNext)} noValidate>
         <div className="flex flex-col gap-5 sm:flex-row">
           <ProfileCard basic={draft.basic} />
@@ -308,7 +308,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
   ]
 
   return (
-    <Card title="Step 3 of 4: Account Credentials" description="Create a username and password for the ELPREMAR to access the system.">
+    <Card title="Step 3 of 4: Account Credentials">
       <div className="mb-5 flex flex-col gap-4 sm:flex-row">
         <ProfileCard basic={basic} />
         <div className="grid flex-1 grid-cols-2 gap-3 self-start rounded-lg bg-info-soft/60 p-4 text-sm md:grid-cols-4">
@@ -328,7 +328,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
 
       <form id="elp-credentials" onSubmit={form.handleSubmit(onNext)} className="rounded-lg ring-1 ring-border" noValidate>
         <h4 className="flex items-center gap-2 border-b bg-info-soft/60 px-4 py-2 font-semibold"><UserRoundCheck className="size-5 text-primary" /> System Access Details</h4>
-        <div className="grid gap-4 p-4 md:grid-cols-2">
+        <div className="grid gap-2.5 p-3 md:grid-cols-2">
           <TextField control={control} name="username" label="Username" required description="Username must be at least 6 characters. (Recommended format: firstname.lastname)" />
           <div>
             <SelectField control={control} name="role" label="User Role" required options={["ELPREMAR", "Senior ELPREMAR", "Team Leader"]} />
@@ -415,7 +415,7 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
         <Button variant="outline" className="text-primary" onClick={() => onEdit(0)}><Pencil /> Edit Details</Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-2.5 lg:grid-cols-2">
         <ReviewSection icon={UserRound} title="1. Basic Details" onEdit={() => onEdit(0)}>
           <div className="flex gap-4">
             <Avatar photo={basic?.photo} className="size-20 shrink-0" />
