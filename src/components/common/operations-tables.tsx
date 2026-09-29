@@ -121,13 +121,13 @@ export function OperationsTables({ country, className }: { country?: string; cla
       onValueChange={setActive}
       className={cn("rounded-lg bg-card shadow-xs ring-1 ring-foreground/10", className)}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2.5">
-        <TabsList className="h-7 gap-0.5">
+      <div className="flex items-center gap-4 px-3 pt-2.5">
+        <TabsList className="h-7 min-w-0 flex-1 gap-0.5">
           {tabs.map((t) => (
             <TabsTrigger
               key={t.value}
               value={t.value}
-              className="group/tab px-2 text-xs data-active:bg-primary! data-active:text-primary-foreground! data-active:shadow-sm"
+              className="group/tab flex-1 px-2 text-xs data-active:bg-primary! data-active:text-primary-foreground! data-active:shadow-sm"
             >
               <t.icon className="size-3.5" />
               <span className="hidden sm:inline">{t.label}</span>
@@ -138,7 +138,7 @@ export function OperationsTables({ country, className }: { country?: string; cla
             </TabsTrigger>
           ))}
         </TabsList>
-        <Link to={activeTab.to} className="flex items-center gap-1 text-[0.7rem] font-medium text-primary hover:underline">
+        <Link to={activeTab.to} className="flex shrink-0 items-center gap-1 text-[0.7rem] font-medium text-primary hover:underline">
           View All <ArrowRight className="size-3" />
         </Link>
       </div>
