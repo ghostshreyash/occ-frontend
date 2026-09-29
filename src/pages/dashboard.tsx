@@ -70,7 +70,7 @@ export function DashboardPage() {
 
       {/* KPI strip: 2-up on tablet, 3-up on md, 6-up on wide */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label={view === "india" ? "Total Customers" : "Total Enterprises"} value={kpis.enterprises.value} change={kpis.enterprises.change} icon={Building2} tone="info" />
+        <StatCard label={view === "india" ? "Total Enterprises" : "Total Enterprises"} value={kpis.enterprises.value} change={kpis.enterprises.change} icon={Building2} tone="info" />
         <StatCard label="Total Plants" value={kpis.plants.value} change={kpis.plants.change} icon={Factory} tone="success" />
         <StatCard label="Total Assets (Monitored)" value={kpis.assets.value} change={kpis.assets.change} icon={Server} tone="highlight" />
         <StatCard label="Healthy Assets (Green)" value={kpis.healthy.value} percent={kpis.healthy.percent} icon={HeartPulse} tone="healthy" />
@@ -78,10 +78,10 @@ export function DashboardPage() {
         <StatCard label="Critical (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
       </div>
 
-      {/* Map with Customer Distribution alongside it, side by side from tablet up */}
+      {/* Map with Enterprise Distribution alongside it, side by side from tablet up */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <SectionCard
-          title={view === "india" ? "India Customer Map" : "Global Customer Map"}
+          title={view === "india" ? "India Enterprise Map" : "Global Enterprise Map"}
           actions={
             <>
               <MapViewToggle value={view} onChange={setView} labels={{ global: "Global", india: "India" }} className="text-[0.7rem]" />
@@ -94,7 +94,7 @@ export function DashboardPage() {
             regionLabels={view === "global" ? mapRegionLabels : undefined}
             showLegend={false}
             expandable
-            title={view === "india" ? "India Customer Map" : "Global Customer Map"}
+            title={view === "india" ? "India Enterprise Map" : "Global Enterprise Map"}
             className="h-[24rem]"
           >
             {/* Countries + ELPREMARs only — enterprises and plants already lead the KPI strip above */}
@@ -124,7 +124,7 @@ export function DashboardPage() {
         </SectionCard>
 
         {view === "global" ? (
-          <SectionCard title={<span>Customer Distribution <span className="font-normal text-muted-foreground">(by Region)</span></span>}>
+          <SectionCard title={<span>Enterprise Distribution <span className="font-normal text-muted-foreground">(by Region)</span></span>}>
             <DonutChart
               centerLabel="Customers"
               size={140}
@@ -135,7 +135,7 @@ export function DashboardPage() {
         ) : (
           <SectionCard title="India Overview">
             <div className="grid grid-cols-[1fr_1.2fr] items-center gap-3">
-              <CustomerMap plants={indiaPlants} view="india" focusCountry="India" interactive={false} marker="dot" showLegend={false} className="h-32" />
+              <CustomerMap plants={indiaPlants} view="india" focusCountry="India" interactive={false} marker="pin-sm" showLegend={false} className="h-32" />
               <div className="space-y-2">
                 {[
                   ["Customers", indiaKpis.enterprises.value],
@@ -151,7 +151,7 @@ export function DashboardPage() {
             </div>
             <div className="mt-3 border-t pt-2.5">
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-semibold">Top 5 customers</span>
+                <span className="truncate text-xs font-semibold">Top 5 Enterprises By Assets</span>
                 <Link
                   to="/enterprise-status"
                   className="flex shrink-0 items-center gap-0.5 text-[0.7rem] font-medium whitespace-nowrap text-primary hover:underline"
@@ -217,7 +217,7 @@ export function DashboardPage() {
 
       {/*
        * Bottom block: Critical Alerts on the right; the two modules that are not
-       * live yet sit on the left, faded and marked Disabled.
+       * live yet sit on the left, under a "Coming in Phase 2" overlay.
        */}
       <div className="grid gap-3 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
