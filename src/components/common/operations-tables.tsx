@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { ArrowRight, ClipboardList, Eye, LifeBuoy, Wrench } from "lucide-react"
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, ClipboardList, Eye, LifeBuoy, Wrench } from "lucide-react"
 import { Link } from "react-router"
 import { cn } from "cn"
 
@@ -58,6 +58,64 @@ const newestFirst = <T,>(rows: T[], date: (r: T) => string | undefined) =>
     return kb.localeCompare(ka)
   })
 
+/* ---------- Column sorting ---------- */
+
+type Sort = { key: string; dir: "asc" | "desc" } | null
+type Accessors<T> = Record<string, (r: T) => string | number | undefined>
+
+const priorityRank: Record<string, number> = { Low: 0, Medium: 1, High: 2, Critical: 3 }
+const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, assigned: 2, in_progress: 3, completed: 4, closed: 5 }
+
+/** Sort by the chosen column; blank (unassigned) values always sink to the bottom */
+function sortRows<T>(rows: T[], sort: Sort, accessors: Accessors<T>) {
+  const get = sort && accessors[sort.key]
+  if (!sort || !get) return rows
+  const sign = sort.dir === "asc" ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const va = get(a)
+    const vb = get(b)
+    if (va === undefined || va === "" || vb === undefined || vb === "") return va === vb ? 0 : va === undefined || va === "" ? 1 : -1
+    const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), undefined, { numeric: true })
+    return cmp * sign
+  })
+}
+
+/** Click cycles ascending → descending → back to the default order */
+const nextSort = (current: Sort, key: string): Sort =>
+  current?.key !== key ? { key, dir: "asc" } : current.dir === "asc" ? { key, dir: "desc" } : null
+
+function SortHead({
+  label,
+  column,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string
+  column: string
+  sort: Sort
+  onSort: (column: string) => void
+  className?: string
+}) {
+  const active = sort?.key === column
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown
+  return (
+    <TableHead className={cn(th, className)} aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={cn(
+          "-mx-1 inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 uppercase hover:bg-foreground/5 hover:text-foreground",
+          active && "text-primary"
+        )}
+      >
+        {label}
+        <Icon className={cn("size-3", !active && "opacity-40")} />
+      </button>
+    </TableHead>
+  )
+}
+
 /**
  * Maintenance / Tasks / Tickets as one tabbed panel.
  * `country` filters every tab to a single country (used by the India page);
@@ -72,9 +130,39 @@ export function OperationsTables({ country, className }: { country?: string; cla
   const [taskRows, setTaskRows] = useState(taskQueue)
   const [ticketRows, setTicketRows] = useState(supportTickets)
 
-  const maintenance = newestFirst(where(maintenanceRows), (r) => r.scheduled)
-  const tasks = newestFirst(where(taskRows), (r) => r.due)
-  const tickets = newestFirst(where(ticketRows), (r) => r.raised)
+  // Per-tab column sort; null keeps the default newest-first order
+  const [sorts, setSorts] = useState<Record<Tab, Sort>>({ maintenance: null, tasks: null, tickets: null })
+  const sortOn = (tab: Tab) => (column: string) => setSorts((s) => ({ ...s, [tab]: nextSort(s[tab], column) }))
+
+  const maintenance = sortRows(newestFirst(where(maintenanceRows), (r) => r.scheduled), sorts.maintenance, {
+    enterprise: (r) => r.enterprise,
+    plant: (r) => r.plant,
+    asset: (r) => r.asset,
+    type: (r) => r.type,
+    elpremar: (r) => r.elpremar,
+    date: (r) => sortKey(r.scheduled),
+    status: (r) => statusRank[r.status],
+  })
+  const tasks = sortRows(newestFirst(where(taskRows), (r) => r.due), sorts.tasks, {
+    enterprise: (r) => r.enterprise,
+    plant: (r) => r.plant,
+    asset: (r) => r.asset,
+    activity: (r) => r.activity,
+    elpremar: (r) => r.elpremar,
+    date: (r) => sortKey(r.due),
+    priority: (r) => priorityRank[r.priority],
+    status: (r) => statusRank[r.status],
+  })
+  const tickets = sortRows(newestFirst(where(ticketRows), (r) => r.raised), sorts.tickets, {
+    enterprise: (r) => r.enterprise,
+    plant: (r) => r.plant,
+    subject: (r) => r.subject,
+    raised: (r) => sortKey(r.raised),
+    elpremar: (r) => r.elpremar,
+    date: (r) => sortKey(r.scheduled),
+    priority: (r) => priorityRank[r.priority],
+    status: (r) => statusRank[r.status],
+  })
 
   const tabs = [
     { value: "maintenance", label: "Maintenance Activities", icon: Wrench, count: maintenance.length, to: "/maintenance-progress" },
@@ -149,13 +237,13 @@ export function OperationsTables({ country, className }: { country?: string; cla
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={th}>#</TableHead>
-                <TableHead className={cn(th, "hidden md:table-cell")}>Enterprise</TableHead>
-                <TableHead className={th}>Plant</TableHead>
-                <TableHead className={th}>Asset</TableHead>
-                <TableHead className={cn(th, "hidden md:table-cell")}>Type</TableHead>
-                <TableHead className={cn(th, "hidden lg:table-cell")}>ELPREMAR</TableHead>
-                <TableHead className={cn(th, "hidden sm:table-cell")}>Scheduled</TableHead>
-                <TableHead className={th}>Status</TableHead>
+                <SortHead label="Enterprise" column="enterprise" sort={sorts.maintenance} onSort={sortOn("maintenance")} className="hidden md:table-cell" />
+                <SortHead label="Plant" column="plant" sort={sorts.maintenance} onSort={sortOn("maintenance")} />
+                <SortHead label="Asset" column="asset" sort={sorts.maintenance} onSort={sortOn("maintenance")} />
+                <SortHead label="Type" column="type" sort={sorts.maintenance} onSort={sortOn("maintenance")} className="hidden md:table-cell" />
+                <SortHead label="ELPREMAR" column="elpremar" sort={sorts.maintenance} onSort={sortOn("maintenance")} className="hidden lg:table-cell" />
+                <SortHead label="Scheduled" column="date" sort={sorts.maintenance} onSort={sortOn("maintenance")} className="hidden sm:table-cell" />
+                <SortHead label="Status" column="status" sort={sorts.maintenance} onSort={sortOn("maintenance")} />
                 <TableHead className={cn(th, "text-center")}>Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -190,14 +278,14 @@ export function OperationsTables({ country, className }: { country?: string; cla
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={th}>#</TableHead>
-                <TableHead className={cn(th, "hidden md:table-cell")}>Enterprise</TableHead>
-                <TableHead className={th}>Plant</TableHead>
-                <TableHead className={cn(th, "hidden md:table-cell")}>Asset</TableHead>
-                <TableHead className={th}>Activity</TableHead>
-                <TableHead className={cn(th, "hidden lg:table-cell")}>ELPREMAR</TableHead>
-                <TableHead className={cn(th, "hidden sm:table-cell")}>Due</TableHead>
-                <TableHead className={th}>Priority</TableHead>
-                <TableHead className={th}>Status</TableHead>
+                <SortHead label="Enterprise" column="enterprise" sort={sorts.tasks} onSort={sortOn("tasks")} className="hidden md:table-cell" />
+                <SortHead label="Plant" column="plant" sort={sorts.tasks} onSort={sortOn("tasks")} />
+                <SortHead label="Asset" column="asset" sort={sorts.tasks} onSort={sortOn("tasks")} className="hidden md:table-cell" />
+                <SortHead label="Activity" column="activity" sort={sorts.tasks} onSort={sortOn("tasks")} />
+                <SortHead label="ELPREMAR" column="elpremar" sort={sorts.tasks} onSort={sortOn("tasks")} className="hidden lg:table-cell" />
+                <SortHead label="Due" column="date" sort={sorts.tasks} onSort={sortOn("tasks")} className="hidden sm:table-cell" />
+                <SortHead label="Priority" column="priority" sort={sorts.tasks} onSort={sortOn("tasks")} />
+                <SortHead label="Status" column="status" sort={sorts.tasks} onSort={sortOn("tasks")} />
                 <TableHead className={cn(th, "text-center")}>Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -235,14 +323,14 @@ export function OperationsTables({ country, className }: { country?: string; cla
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={th}>#</TableHead>
-                <TableHead className={cn(th, "hidden md:table-cell")}>Enterprise</TableHead>
-                <TableHead className={th}>Plant</TableHead>
-                <TableHead className={th}>Subject</TableHead>
-                <TableHead className={cn(th, "hidden sm:table-cell")}>Raised</TableHead>
-                <TableHead className={cn(th, "hidden lg:table-cell")}>ELPREMAR</TableHead>
-                <TableHead className={cn(th, "hidden sm:table-cell")}>Scheduled</TableHead>
-                <TableHead className={th}>Priority</TableHead>
-                <TableHead className={th}>Status</TableHead>
+                <SortHead label="Enterprise" column="enterprise" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden md:table-cell" />
+                <SortHead label="Plant" column="plant" sort={sorts.tickets} onSort={sortOn("tickets")} />
+                <SortHead label="Subject" column="subject" sort={sorts.tickets} onSort={sortOn("tickets")} />
+                <SortHead label="Raised" column="raised" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden sm:table-cell" />
+                <SortHead label="ELPREMAR" column="elpremar" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden lg:table-cell" />
+                <SortHead label="Scheduled" column="date" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden sm:table-cell" />
+                <SortHead label="Priority" column="priority" sort={sorts.tickets} onSort={sortOn("tickets")} />
+                <SortHead label="Status" column="status" sort={sorts.tickets} onSort={sortOn("tickets")} />
                 <TableHead className={cn(th, "text-center")}>Action</TableHead>
               </TableRow>
             </TableHeader>
