@@ -17,8 +17,9 @@ import {
   Database,
 } from "lucide-react"
 
+import { Link } from "react-router"
+
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
@@ -51,7 +52,6 @@ export function DashboardPage() {
   const indiaPlants = mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)
   const plants = view === "india" ? indiaPlants : mapPlants
   const kpis = view === "india" ? indiaKpis : globalKpis
-  const maxAssets = Math.max(...topCustomers.map((c) => c.assets))
 
   return (
     <div className="space-y-3">
@@ -88,7 +88,15 @@ export function DashboardPage() {
             </>
           }
         >
-          <CustomerMap plants={plants} view={view} regionLabels={view === "global" ? mapRegionLabels : undefined} showControls={false} showLegend={false} className="h-[19rem]">
+          <CustomerMap
+            plants={plants}
+            view={view}
+            regionLabels={view === "global" ? mapRegionLabels : undefined}
+            showLegend={false}
+            expandable
+            title={view === "india" ? "India Customer Map" : "Global Customer Map"}
+            className="h-[24rem]"
+          >
             {/* Countries + ELPREMARs only — enterprises and plants already lead the KPI strip above */}
             <div className="absolute top-2 left-2 flex gap-1.5">
               {[
@@ -119,14 +127,15 @@ export function DashboardPage() {
           <SectionCard title={<span>Customer Distribution <span className="font-normal text-muted-foreground">(by Region)</span></span>}>
             <DonutChart
               centerLabel="Customers"
-              size={96}
+              size={140}
+              layout="stacked"
               data={regionSummary.map((r, i) => ({ key: `r${i}`, label: r.region, value: r.customers, color: chartSeries[i % chartSeries.length] }))}
             />
           </SectionCard>
         ) : (
           <SectionCard title="India Overview">
             <div className="grid grid-cols-[1fr_1.2fr] items-center gap-3">
-              <CustomerMap plants={indiaPlants} view="india" focusCountry="India" interactive={false} showLegend={false} className="h-24" />
+              <CustomerMap plants={indiaPlants} view="india" focusCountry="India" interactive={false} marker="dot" showLegend={false} className="h-32" />
               <div className="space-y-2">
                 {[
                   ["Customers", indiaKpis.enterprises.value],
@@ -140,15 +149,32 @@ export function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div className="mt-3 border-t pt-2">
-              <div className="mb-1 text-[0.68rem] font-semibold text-muted-foreground">Top customers by assets</div>
-              {topCustomers.slice(0, 3).map((customer) => (
-                <div key={customer.name} className="mb-1 flex items-center gap-2 text-[0.68rem]">
-                  <span className="w-24 truncate">{customer.name}</span>
-                  <Progress value={(customer.assets / maxAssets) * 100} className="h-1.5 flex-1" />
-                  <span className="w-10 text-right font-semibold tabular-nums">{customer.assets.toLocaleString("en-IN")}</span>
-                </div>
-              ))}
+            <div className="mt-3 border-t pt-2.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="truncate text-xs font-semibold">Top 5 customers</span>
+                <Link
+                  to="/enterprise-status"
+                  className="flex shrink-0 items-center gap-0.5 text-[0.7rem] font-medium whitespace-nowrap text-primary hover:underline"
+                >
+                  View All <ArrowRight className="size-3" />
+                </Link>
+              </div>
+              <ul className="divide-y text-xs">
+                {topCustomers.slice(0, 5).map((customer) => (
+                  <li key={customer.name} className="flex items-center gap-2 py-1.5 first:pt-0 last:pb-0">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[0.55rem] font-bold text-brand-navy">
+                      {customer.name
+                        .split(" ")
+                        .map((w) => w[0])
+                        .join("")
+                        .slice(0, 3)
+                        .toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{customer.name}</span>
+                    <span className="font-semibold tabular-nums">{customer.assets.toLocaleString("en-IN")}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </SectionCard>
         )}

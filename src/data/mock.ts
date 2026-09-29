@@ -100,8 +100,8 @@ export const mapPlants: MapPlant[] = [
 
 /** Region call-outs drawn on the global map */
 export const mapRegionLabels = [
-  { region: "North America", customers: 12, plants: 48, lng: -100, lat: 48 },
-  { region: "Europe", customers: 28, plants: 142, lng: 10, lat: 58 },
+  { region: "North America", customers: 12, plants: 48, lng: -100, lat: 45 },
+  { region: "Europe", customers: 28, plants: 142, lng: 12, lat: 51 },
   { region: "Middle East", customers: 6, plants: 32, lng: 45, lat: 33 },
   { region: "Asia", customers: 34, plants: 201, lng: 118, lat: 30 },
   { region: "South America", customers: 4, plants: 22, lng: -60, lat: -18 },

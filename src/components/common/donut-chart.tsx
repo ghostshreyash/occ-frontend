@@ -1,4 +1,5 @@
 import { Cell, Label, Pie, PieChart } from "recharts"
+import { cn } from "cn"
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 
@@ -9,16 +10,20 @@ export function DonutChart({
   data,
   centerLabel,
   size = 122,
+  layout = "row",
 }: {
   data: DonutSlice[]
   centerLabel: string
   size?: number
+  /** "stacked" centres the ring and puts the breakdown underneath it. */
+  layout?: "row" | "stacked"
 }) {
+  const stacked = layout === "stacked"
   const total = data.reduce((sum, d) => sum + d.value, 0)
   const config = Object.fromEntries(data.map((d) => [d.key, { label: d.label, color: d.color }])) satisfies ChartConfig
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className={cn(stacked ? "flex flex-col items-center gap-4" : "flex flex-wrap items-center gap-3")}>
       <ChartContainer config={config} className="aspect-square shrink-0" style={{ width: size }}>
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent nameKey="key" hideLabel />} />
@@ -45,11 +50,11 @@ export function DonutChart({
         </PieChart>
       </ChartContainer>
 
-      <ul className="min-w-24 flex-1 space-y-1 text-xs">
+      <ul className={cn("text-xs", stacked ? "w-full space-y-1.5 border-t pt-3" : "min-w-24 flex-1 space-y-1")}>
         {data.map((d) => (
-          <li key={d.key} className="flex items-center gap-1.5">
+          <li key={d.key} className={cn("flex items-center gap-1.5", stacked && "gap-2")}>
             <span className="size-2 shrink-0 rounded-full" style={{ background: d.color }} />
-            <span className="flex-1 truncate">{d.label}</span>
+            <span className={cn("flex-1", stacked ? "truncate" : "truncate")}>{d.label}</span>
             <span className="font-semibold tabular-nums">{d.value.toLocaleString("en-IN")}</span>
             <span className="w-9 text-right tabular-nums text-muted-foreground">({Math.round((d.value / total) * 100)}%)</span>
           </li>

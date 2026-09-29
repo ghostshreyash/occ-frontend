@@ -130,7 +130,7 @@ src/
   data/mock.ts             mock data
 public/
   brand/                   OLIVINE logo, emblem, sign-in photography
-  geo/                     world countries GeoJSON for the maps
+  geo/                     world countries GeoJSON, plus India outline and state boundaries
 ```
 
 ## Theming

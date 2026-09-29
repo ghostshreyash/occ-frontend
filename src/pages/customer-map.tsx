@@ -1,9 +1,8 @@
 import { useState } from "react"
-import { AlertTriangle, Building2, CloudCheck, Factory, FileCheck2, Maximize2, Server, Settings, ShieldCheck, TicketCheck, Users } from "lucide-react"
+import { AlertTriangle, Building2, CloudCheck, Factory, FileCheck2, Server, Settings, ShieldCheck, TicketCheck, Users } from "lucide-react"
 
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/common/page-header"
 import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
@@ -57,9 +56,6 @@ export function CustomerMapPage() {
               <button type="button" className="bg-brand-navy px-3 py-1 text-xs font-medium text-brand-navy-foreground">Map</button>
               <button type="button" className="bg-card px-3 py-1 text-xs font-medium hover:bg-muted">List</button>
             </div>
-            <Button variant="outline" size="icon" className="size-7 bg-card" aria-label="Full screen">
-              <Maximize2 className="size-3.5" />
-            </Button>
           </>
         }
       />
@@ -81,32 +77,35 @@ export function CustomerMapPage() {
 
       {/* Map keeps its right-hand column side by side from tablet up */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
-        <CustomerMap plants={plants} view="india" className="h-[21rem] rounded-lg" />
+        <CustomerMap plants={plants} view="india" expandable title="India Customer Map" className="h-[21rem] rounded-lg" />
 
         <div className="space-y-3">
         <SectionCard title="India Overview" viewAllTo="/enterprise-status">
-          <div className="grid grid-cols-[1fr_1.25fr] items-center gap-2">
+          <div className="grid grid-cols-[1fr_1.1fr] items-center gap-3">
             <CustomerMap
               plants={indiaPlants}
               view="india"
               focusCountry="India"
               interactive={false}
+              marker="dot"
               showLegend={false}
-              className="h-24"
+              className="h-36"
             />
-            <div className="space-y-1.5">
+            <div className="space-y-3">
               {[
                 { icon: Users, label: "Customers", value: indiaKpis.enterprises.value },
                 { icon: Factory, label: "Plants", value: indiaKpis.plants.value },
                 { icon: Settings, label: "Assets", value: indiaKpis.assets.value },
               ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  <div className="flex size-6 shrink-0 items-center justify-center rounded bg-info-soft text-primary">
-                    <Icon className="size-3.5" />
+                <div key={label} className="flex items-center gap-2.5">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-primary">
+                    <Icon className="size-4.5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[0.62rem] leading-none text-muted-foreground">{label}</div>
-                    <div className="text-sm leading-tight font-bold tabular-nums">{value.toLocaleString("en-IN")}</div>
+                    <div className="text-xs leading-none text-muted-foreground">{label}</div>
+                    <div className="mt-0.5 text-lg leading-tight font-bold tabular-nums text-brand-navy dark:text-foreground">
+                      {value.toLocaleString("en-IN")}
+                    </div>
                   </div>
                 </div>
               ))}
