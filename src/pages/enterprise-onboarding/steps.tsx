@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Building2, Check, CheckCircle2, Factory, Info, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Building2, CheckCircle2, Factory, Info, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -76,7 +76,7 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
   const { control } = form
   return (
     <StepCard
-      title="Step 1 of 5: Enterprise Name"
+      title="Step 1 of 6: Enterprise Name"
       formId="step-enterprise"
       nextLabel="Next: Location"
       onCancel={onCancel}
@@ -108,7 +108,7 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
 
   return (
     <StepCard
-      title="Step 2 of 5: Location Details"
+      title="Step 2 of 6: Location Details"
       formId="step-location"
       nextLabel="Next: Plant"
       onBack={onBack}
@@ -128,8 +128,8 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         <TextField control={control} name="city" label="City" required placeholder="Enter city" />
 
         <TextField control={control} name="pin" label="Postal Code (PIN)" required />
-        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" placeholder="19.0759" />
-        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" placeholder="72.8777" />
+        <TextField control={control} name="latitude" label="Latitude" required inputMode="decimal" placeholder="19.0759" />
+        <TextField control={control} name="longitude" label="Longitude" required inputMode="decimal" placeholder="72.8777" />
 
         <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
 
@@ -171,7 +171,7 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
   const loc = data.location
   return (
     <StepCard
-      title="Step 3 of 5: Plant Details"
+      title="Step 3 of 6: Plant Details"
       formId="step-plant"
       nextLabel="Next: Department"
       onBack={onBack}
@@ -231,7 +231,7 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
   const loc = data.location
   return (
     <StepCard
-      title="Step 4 of 5: Department Details"
+      title="Step 4 of 6: Department Details"
       formId="step-department"
       nextLabel="Next: Sub-department"
       onBack={onBack}
@@ -242,9 +242,9 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
         <Ctx icon={Factory} label="Plant" value={data.plant?.name} />
       </Context>
       <form id="step-department" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
-        <TextField control={control} name="name" label="Department Name" required placeholder="e.g. Electrical" />
-        <TextField control={control} name="code" label="Department Code" required placeholder="e.g. DEP-EL" />
-        <SelectField control={control} name="type" label="Department Type" required options={departmentTypes} />
+        <TextField control={control} name="name" label="Department Name" placeholder="e.g. Electrical" />
+        <TextField control={control} name="code" label="Department Code" placeholder="e.g. DEP-EL" />
+        <SelectField control={control} name="type" label="Department Type" options={departmentTypes} />
         <SelectField control={control} name="parent" label="Parent Department" options={["None", "Electrical Engineering", "Engineering Services", "Plant Operations"]} />
         <TextField control={control} name="head" label="Head of Department" />
         <TextField control={control} name="email" label="Email" type="email" />
@@ -267,7 +267,7 @@ export function SubDepartmentAccountStep({
   data: OnboardingData
   onBack: () => void
   onSubDepartmentsChange: (items: SubDepartmentValues[]) => void
-  onComplete: (account: AccountValues) => void | Promise<void>
+  onComplete: (account: AccountValues) => void
 }) {
   const [editing, setEditing] = useState<number | null>(null)
   const [listError, setListError] = useState("")
@@ -294,28 +294,14 @@ export function SubDepartmentAccountStep({
     sub.reset({ name: "", code: "", function: "", description: "" })
   })
 
-  const [submitting, setSubmitting] = useState(false)
-  const complete = account.handleSubmit(async (values) => {
-    if (data.subDepartments.length === 0) {
-      setListError("Add at least one sub-department before completing onboarding.")
-      return
-    }
-    setSubmitting(true)
-    try {
-      await onComplete(values)
-    } finally {
-      setSubmitting(false)
-    }
-  })
+  const complete = account.handleSubmit((values) => onComplete(values))
 
   const loc = data.location
   return (
     <StepCard
-      title="Step 5 of 5: Sub-department Details & Account Creation"
+      title="Step 5 of 6: Sub-department Details & Account Creation"
       formId="step-account"
-      nextLabel="Complete Onboarding"
-      nextIcon={<Check />}
-      pending={submitting}
+      nextLabel="Next: Review"
       onBack={onBack}
     >
       <Context>

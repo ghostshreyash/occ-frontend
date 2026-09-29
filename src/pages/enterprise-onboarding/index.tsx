@@ -1,12 +1,13 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
-import { Building2, Factory, Folder, MapPin, Network } from "lucide-react"
+import { Building2, ClipboardCheck, Factory, Folder, MapPin, Network } from "lucide-react"
 
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
 import { DepartmentStep, EnterpriseStep, LocationStep, PlantStep, SubDepartmentAccountStep } from "./steps"
 import { EnterpriseRegister } from "./register"
+import { ReviewStep } from "./review"
 import type { OnboardingData } from "./schemas"
 
 const keyInfo = [
@@ -42,6 +43,12 @@ const keyInfo = [
     "Ensure the account details are stored securely and shared only with authorised personnel.",
     "Fields marked with * are mandatory.",
   ],
+  [
+    "Everything you entered is shown here in view mode.",
+    "Use Edit on any section to go back and change it.",
+    "Department and sub-departments are optional and may be left empty.",
+    "Submitting creates the enterprise and its administrator account.",
+  ],
 ]
 
 /**
@@ -53,6 +60,7 @@ export function EnterpriseOnboardingPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
   const [data, setData] = useState<OnboardingData>({ subDepartments: [] })
 
   const closeWizard = () => {
@@ -74,6 +82,7 @@ export function EnterpriseOnboardingPage() {
     { title: "Plant", description: "Add plant under the enterprise", icon: Factory, summary: data.plant?.name },
     { title: "Department", description: "Add department under the plant", icon: Network, summary: data.department?.name },
     { title: step === 4 ? "Sub-department & Account" : "Sub-department", description: "Add sub-department under the department", icon: Folder },
+    { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
 
   const next = <K extends keyof OnboardingData>(key: K) => (values: OnboardingData[K]) => {
@@ -117,14 +126,28 @@ export function EnterpriseOnboardingPage() {
           data={data}
           onBack={back}
           onSubDepartmentsChange={(subDepartments) => setData((d) => ({ ...d, subDepartments }))}
-          onComplete={async () => {
-            // TODO: POST /enterprises with the full onboarding payload.
-            // Simulated latency so the Saving… state is visible until the API exists.
-            await new Promise((resolve) => setTimeout(resolve, 600))
-            toast.success(`${data.enterprise?.name} onboarded successfully`, {
-              description: "The enterprise administrator can now log in to EMMS-E.",
-            })
-            navigate("/enterprise-status")
+          onComplete={next("account")}
+        />
+      )}
+      {step === 5 && (
+        <ReviewStep
+          data={data}
+          onBack={back}
+          onEdit={goToStep}
+          submitting={submitting}
+          onSubmit={async () => {
+            setSubmitting(true)
+            try {
+              // TODO: POST /enterprises with the full onboarding payload.
+              // Simulated latency so the Saving… state is visible until the API exists.
+              await new Promise((resolve) => setTimeout(resolve, 600))
+              toast.success(`${data.enterprise?.name} onboarded successfully`, {
+                description: "The enterprise administrator can now log in to EMMS-E.",
+              })
+              navigate("/enterprise-status")
+            } finally {
+              setSubmitting(false)
+            }
           }}
         />
       )}
