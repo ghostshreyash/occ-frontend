@@ -1,13 +1,13 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Building2, Check, CheckCircle2, Factory, Info, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Building2, CheckCircle2, Factory, Info, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FieldLabel } from "@/components/ui/field"
-import { FileDropField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, FileDropField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { StepCard } from "@/components/common/wizard-layout"
 import { LocationPicker } from "@/components/common/location-picker"
@@ -18,6 +18,7 @@ import {
   indianStates,
   industrySectors,
   plantTypes,
+  salutations,
   subDepartmentFunctions,
   timeZones,
 } from "@/data/mock"
@@ -63,8 +64,6 @@ function Ctx({ icon: Icon, label, value }: { icon: typeof Building2; label: stri
   )
 }
 
-const years = Array.from({ length: 60 }, (_, i) => String(new Date().getFullYear() - i))
-
 /* ---------------- Step 1 ---------------- */
 
 export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseValues> & { onCancel: () => void }) {
@@ -75,8 +74,7 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
   const { control } = form
   return (
     <StepCard
-      title="Step 1 of 5: Enterprise Name"
-      description="Enter the enterprise details to begin the onboarding process."
+      title="Step 1 of 6: Enterprise Name"
       formId="step-enterprise"
       nextLabel="Next: Location"
       onCancel={onCancel}
@@ -108,8 +106,7 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
 
   return (
     <StepCard
-      title="Step 2 of 5: Location Details"
-      description="Add the geographical location for the enterprise."
+      title="Step 2 of 6: Location Details"
       formId="step-location"
       nextLabel="Next: Plant"
       onBack={onBack}
@@ -128,10 +125,11 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         )}
         <TextField control={control} name="city" label="City" required placeholder="Enter city" />
 
-        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={3} maxLength={250} className="md:row-span-2" />
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required className="md:col-span-2" />
-        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" />
-        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
+        <TextField control={control} name="latitude" label="Latitude" required inputMode="decimal" placeholder="19.0759" />
+        <TextField control={control} name="longitude" label="Longitude" required inputMode="decimal" placeholder="72.8777" />
+
+        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
 
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">
@@ -163,16 +161,15 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
   const form = useForm<PlantValues>({
     resolver: zodResolver(plantSchema),
     defaultValues: data.plant ?? {
-      name: "", type: "", code: "", address: "", head: "", email: "", phone: "",
-      capacity: "", commissioningYear: "", timeZone: timeZones[0], notes: "",
+      name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phone: "",
+      capacity: "", commissioningDate: "", timeZone: timeZones[0], notes: "",
     },
   })
   const { control } = form
   const loc = data.location
   return (
     <StepCard
-      title="Step 3 of 5: Plant Details"
-      description="Add plant(s) under the selected location."
+      title="Step 3 of 6: Plant Details"
       formId="step-plant"
       nextLabel="Next: Department"
       onBack={onBack}
@@ -192,21 +189,28 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
         <SelectField control={control} name="type" label="Plant Type" required options={plantTypes} />
         <TextField control={control} name="code" label="Plant Code" placeholder="e.g. TS-MUM-001" />
 
-        <TextareaField control={control} name="address" label="Plant Address" required rows={3} maxLength={250} className="md:row-span-2" />
-        <TextField control={control} name="head" label="Plant Head" required />
-        <TextField control={control} name="email" label="Email" type="email" />
-        <div className="hidden md:block" />
-        <TextField control={control} name="phone" label="Phone Number" type="tel" />
+        {/*
+          Contact details sit on one row, then the address spans the full width.
+          The previous row-span + spacer arrangement left a hole under Plant Head.
+        */}
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+          <SelectField control={control} name="salutation" label="Title" required options={salutations} />
+          <TextField control={control} name="head" label="Plant Head" required placeholder="e.g. S. Krishnan" />
+        </div>
+        <TextField control={control} name="email" label="Email" type="email" placeholder="name@company.com" />
+        <TextField control={control} name="phone" label="Phone Number" type="tel" placeholder="+91 98765 43210" />
+
+        <TextareaField control={control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
 
         <h4 className="text-sm font-semibold md:col-span-3">
           Additional Information
         </h4>
         <TextField control={control} name="capacity" label="Plant Capacity" placeholder="e.g. 5 MTPA" />
-        <SelectField control={control} name="commissioningYear" label="Commissioning Year" options={years} />
+        <DateField control={control} name="commissioningDate" label="Commissioning Date" />
         <SelectField control={control} name="timeZone" label="Time Zone" options={timeZones} />
 
         <FileDropField control={control} name="logo" label="Plant Logo" />
-        <TextareaField control={control} name="notes" label="Notes" rows={3} placeholder="Enter any additional information about the plant..." className="md:col-span-2" />
+        <TextareaField control={control} name="notes" label="Notes" rows={4} placeholder="Enter any additional information about the plant..." className="md:col-span-2" />
       </form>
     </StepCard>
   )
@@ -225,8 +229,7 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
   const loc = data.location
   return (
     <StepCard
-      title="Step 4 of 5: Department Details"
-      description="Add department details under the selected plant."
+      title="Step 4 of 6: Department Details"
       formId="step-department"
       nextLabel="Next: Sub-department"
       onBack={onBack}
@@ -237,9 +240,9 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
         <Ctx icon={Factory} label="Plant" value={data.plant?.name} />
       </Context>
       <form id="step-department" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
-        <TextField control={control} name="name" label="Department Name" required placeholder="e.g. Electrical" />
-        <TextField control={control} name="code" label="Department Code" required placeholder="e.g. DEP-EL" />
-        <SelectField control={control} name="type" label="Department Type" required options={departmentTypes} />
+        <TextField control={control} name="name" label="Department Name" placeholder="e.g. Electrical" />
+        <TextField control={control} name="code" label="Department Code" placeholder="e.g. DEP-EL" />
+        <SelectField control={control} name="type" label="Department Type" options={departmentTypes} />
         <SelectField control={control} name="parent" label="Parent Department" options={["None", "Electrical Engineering", "Engineering Services", "Plant Operations"]} />
         <TextField control={control} name="head" label="Head of Department" />
         <TextField control={control} name="email" label="Email" type="email" />
@@ -280,6 +283,12 @@ export function SubDepartmentAccountStep({
   const usernameState = account.getFieldState("username", account.formState)
 
   const saveSubDepartment = sub.handleSubmit((values) => {
+    // Fields are optional, but an entirely blank row would be meaningless
+    const isBlank = !values.name?.trim() && !values.code?.trim() && !values.function?.trim()
+    if (isBlank) {
+      setListError("Enter a name, code or function before adding a sub-department.")
+      return
+    }
     const items = [...data.subDepartments]
     if (editing !== null) items[editing] = values
     else items.push(values)
@@ -289,22 +298,14 @@ export function SubDepartmentAccountStep({
     sub.reset({ name: "", code: "", function: "", description: "" })
   })
 
-  const complete = account.handleSubmit((values) => {
-    if (data.subDepartments.length === 0) {
-      setListError("Add at least one sub-department before completing onboarding.")
-      return
-    }
-    onComplete(values)
-  })
+  const complete = account.handleSubmit((values) => onComplete(values))
 
   const loc = data.location
   return (
     <StepCard
-      title="Step 5 of 5: Sub-department Details & Account Creation"
-      description="Add sub-department(s) under the selected department and create the enterprise login account."
+      title="Step 5 of 6: Sub-department Details & Account Creation"
       formId="step-account"
-      nextLabel="Complete Onboarding"
-      nextIcon={<Check />}
+      nextLabel="Next: Review"
       onBack={onBack}
     >
       <Context>
@@ -317,16 +318,16 @@ export function SubDepartmentAccountStep({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h4 className="font-semibold">1. Sub-department Details</h4>
-          <p className="text-xs text-muted-foreground">Add one or more sub-departments under the selected department.</p>
+          <p className="text-xs text-muted-foreground">Optional — add one or more sub-departments, or continue without any.</p>
         </div>
         <Button type="button" onClick={saveSubDepartment}>
           <Plus /> {editing !== null ? "Update Sub-department" : "Add Sub-department"}
         </Button>
       </div>
       <div className="grid gap-2.5 md:grid-cols-3">
-        <TextField control={sub.control} name="name" label="Sub-department Name" required placeholder="e.g. HT Maintenance" />
-        <TextField control={sub.control} name="code" label="Sub-department Code" required placeholder="e.g. SUB-EL-HT" />
-        <SelectField control={sub.control} name="function" label="Function / Area" required options={subDepartmentFunctions} />
+        <TextField control={sub.control} name="name" label="Sub-department Name" placeholder="e.g. HT Maintenance" />
+        <TextField control={sub.control} name="code" label="Sub-department Code" placeholder="e.g. SUB-EL-HT" />
+        <SelectField control={sub.control} name="function" label="Function / Area" options={subDepartmentFunctions} />
         <TextField control={sub.control} name="description" label="Description" className="md:col-span-3" />
       </div>
 
@@ -351,7 +352,7 @@ export function SubDepartmentAccountStep({
               </TableRow>
             ) : (
               data.subDepartments.map((s, i) => (
-                <TableRow key={s.code + i} className={editing === i ? "bg-accent" : undefined}>
+                <TableRow key={`${s.code ?? ""}-${i}`} className={editing === i ? "bg-accent" : undefined}>
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>{s.name}</TableCell>
                   <TableCell>{s.code}</TableCell>

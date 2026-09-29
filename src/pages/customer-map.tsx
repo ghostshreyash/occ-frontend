@@ -21,7 +21,7 @@ const liveTone = {
   sync: "bg-healthy-soft text-healthy",
   ticket: "bg-info-soft text-info",
 }
-const onboardingSlice = { label: "Onboarding", color: "var(--neutral)" }
+const onboardingSlice = { label: "Onboarded", color: "var(--neutral)" }
 
 /** India Customer Map — India-only view of customers, plants and asset health */
 export function CustomerMapPage() {

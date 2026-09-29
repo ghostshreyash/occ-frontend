@@ -1,7 +1,8 @@
 import { Fragment } from "react"
 import { Link } from "react-router"
 
-type Crumb = { label: string; to?: string }
+/** A crumb links (`to`), runs an in-page action (`onClick`), or is the current page */
+type Crumb = { label: string; to?: string; onClick?: () => void }
 
 export function PageHeader({
   title,
@@ -22,11 +23,15 @@ export function PageHeader({
             <Link to="/" className="hover:text-foreground">Home</Link>
             {breadcrumbs.map((c) => (
               <Fragment key={c.label}>
-                <span>›</span>
+                <span aria-hidden="true">›</span>
                 {c.to ? (
-                  <Link to={c.to} className="hover:text-foreground">{c.label}</Link>
+                  <Link to={c.to} className="rounded-sm hover:text-foreground hover:underline">{c.label}</Link>
+                ) : c.onClick ? (
+                  <button type="button" onClick={c.onClick} className="rounded-sm hover:text-foreground hover:underline">
+                    {c.label}
+                  </button>
                 ) : (
-                  <span className="font-medium text-foreground">{c.label}</span>
+                  <span aria-current="page" className="font-medium text-foreground">{c.label}</span>
                 )}
               </Fragment>
             ))}

@@ -16,6 +16,7 @@ export function SectionCard({
   actions,
   disabled = false,
   disabledLabel = "Disabled",
+  hoverable = true,
   className,
   contentClassName,
   children,
@@ -26,6 +27,8 @@ export function SectionCard({
   actions?: React.ReactNode
   disabled?: boolean
   disabledLabel?: string
+  /** Set false for large table panels, where a lift on hover is distracting */
+  hoverable?: boolean
   className?: string
   contentClassName?: string
   children: React.ReactNode
@@ -39,7 +42,7 @@ export function SectionCard({
         // Live panels lift on hover; disabled ones stay put so they read as inert
         disabled
           ? "bg-muted/40 ring-foreground/5"
-          : "hover:shadow-md hover:ring-foreground/20 motion-safe:hover:-translate-y-0.5",
+          : hoverable && "hover:shadow-md hover:ring-foreground/20 motion-safe:hover:-translate-y-0.5",
         className
       )}
     >
