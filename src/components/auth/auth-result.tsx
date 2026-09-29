@@ -44,18 +44,18 @@ export function AuthResult({
         </span>
       </span>
 
-      <h2 className="text-lg font-bold text-brand-navy dark:text-foreground">{title}</h2>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <h2 className="text-lg font-bold text-current">{title}</h2>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-current opacity-70">{description}</p>
 
       {reference ? (
         <div className="mt-4 rounded-xl border border-brand-gold/40 bg-brand-gold-soft px-4 py-3">
-          <div className="text-xs tracking-wider text-muted-foreground uppercase">{referenceLabel}</div>
+          <div className="text-xs tracking-wider text-current uppercase opacity-70">{referenceLabel}</div>
           <div className="font-mono text-lg font-bold tracking-wide text-brand-gold-soft-foreground">{reference}</div>
         </div>
       ) : null}
 
       {notes?.length ? (
-        <ul className="mt-4 space-y-2 text-left text-sm text-muted-foreground">
+        <ul className="mt-4 space-y-2 text-left text-sm text-current opacity-80">
           {notes.map((note) => (
             <li key={note} className="flex gap-2">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-healthy" />

@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, LogIn, Mail, Phone, TriangleAlert, UserRound, Us
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { SelectField, TextField, TextareaField } from "@/components/form/fields"
-import { AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
+import { AuthAside, AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
 import { AuthResult } from "@/components/auth/auth-result"
 import { useBrand } from "@/lib/brand"
 import { AuthSteps } from "@/components/auth/auth-steps"
@@ -51,7 +51,7 @@ export function RegisterPage() {
   if (step === 2) {
     return (
       <AuthScreen brand={brand}>
-        <AuthCard title="Request submitted" above={<AuthSteps steps={STEPS} current={2} />}>
+        <AuthCard brand={brand} emblem={false} title="Request submitted" above={<AuthSteps steps={STEPS} current={2} />}>
           <AuthResult
             tone="pending"
             title="Your request is with the OLIVINE team"
@@ -79,6 +79,8 @@ export function RegisterPage() {
     return (
       <AuthScreen brand={brand}>
         <AuthCard
+          brand={brand}
+          emblem={false}
           title="Verify your mobile"
           description="Confirm the number so the team can reach you about this request."
           above={<AuthSteps steps={STEPS} current={1} />}
@@ -97,18 +99,20 @@ export function RegisterPage() {
           />
         </AuthCard>
 
-        <div className="mt-4 text-center">
-          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setStep(0)}>
-            <ArrowLeft /> Edit my details
-          </Button>
-        </div>
+        <AuthAside>
+          <button type="button" onClick={() => setStep(0)} className="inline-flex items-center gap-1.5 hover:text-brand-gold">
+            <ArrowLeft className="size-4" /> Edit my details
+          </button>
+        </AuthAside>
       </AuthScreen>
     )
   }
 
   return (
-    <AuthScreen brand={brand}>
+    <AuthScreen brand={brand} width="wide">
       <AuthCard
+        brand={brand}
+        emblem={false}
         title="Request access"
         description="Tell us who you are and an OLIVINE administrator will set up your account."
         above={<AuthSteps steps={STEPS} current={0} />}
@@ -180,12 +184,12 @@ export function RegisterPage() {
         </form>
       </AuthCard>
 
-      <div className="mt-4 text-center text-sm text-muted-foreground">
+      <AuthAside>
         Already have an account?{" "}
-        <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link to="/login" className="font-semibold text-brand-gold underline-offset-4 hover:underline">
           Sign in instead
         </Link>
-      </div>
+      </AuthAside>
     </AuthScreen>
   )
 }

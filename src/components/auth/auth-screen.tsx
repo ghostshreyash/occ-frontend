@@ -1,9 +1,9 @@
 import { Link } from "react-router"
-import { ChevronDown, Globe, LifeBuoy } from "lucide-react"
+import { ChevronDown, Globe, Leaf, LifeBuoy, Mail, Phone, ShieldCheck } from "lucide-react"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
-import { OlivineLogo } from "@/components/layout/olivine-logo"
+import { OlivineEmblem, OlivineLogo } from "@/components/layout/olivine-logo"
 import type { Brand } from "@/config/brands"
 
 /** Staggered entrance, so the screen assembles rather than appearing at once. */
@@ -34,16 +34,30 @@ export function Rise({
 export function AuthScreen({
   brand,
   story,
+  width = "default",
   children,
 }: {
   brand: Brand
   /** Left-hand panel; omitted on the short forms, which centre the card. */
   story?: React.ReactNode
+  /** "wide" gives the form-heavy screens room for their two-column fields. */
+  width?: "default" | "wide"
   children: React.ReactNode
 }) {
-  const immersive = Boolean(story)
+  const immersive = true
+  const occ = brand.key === "occ"
+  const emmse = brand.key === "emmse"
+  const evita = brand.key === "evita"
   const photo = brand.visual.kind === "photo"
   const photoSrc = brand.visual.kind === "photo" ? brand.visual.src : null
+  // Prefer the full-resolution CDN copy, falling back to the bundled plate if
+  // it cannot be reached (offline, blocked, link rot).
+  const photoHref = brand.photoUrl ?? photoSrc ?? ""
+  const onPhotoError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    if (photoSrc && event.currentTarget.src !== new URL(photoSrc, window.location.origin).href) {
+      event.currentTarget.src = photoSrc
+    }
+  }
 
   return (
     <div
@@ -55,17 +69,29 @@ export function AuthScreen({
     >
       {/* Ambient brand light */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        {immersive && photo ? (
+        {immersive && photo && brand.key === "emmse" ? (
           <>
             <img
-              src={photoSrc ?? ""}
+              src={photoHref}
+              onError={onPhotoError}
               alt=""
-              className="absolute inset-0 size-full object-cover object-center"
+              className="absolute inset-0 size-full object-cover object-top"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-brand-navy/85 via-brand-navy/25 via-45% to-brand-navy/35" />
+            <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/18 via-48% to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/55 to-transparent" />
+          </>
+        ) : immersive && photo ? (
+          <>
+            <img
+              src={photoHref}
+              onError={onPhotoError}
+              alt=""
+              className="absolute inset-0 size-full object-cover object-[center_22%]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-navy/90 via-brand-navy/15 via-42% to-brand-navy/25" />
             <div className="absolute inset-0 bg-gradient-to-t from-brand-navy/65 via-transparent to-brand-navy/10" />
-            <div className="absolute inset-y-0 left-0 w-[55%] bg-[#062957]/90 [clip-path:polygon(0_18%,100%_31%,78%_100%,0_100%)]" />
-            <div className="absolute inset-y-0 left-0 w-[42%] bg-[#0b3768]/55 [clip-path:polygon(0_0,100%_11%,100%_30%,0_18%)]" />
+            <div className="absolute inset-y-0 left-0 w-[46%] bg-[#062957]/92 [clip-path:polygon(0_12%,100%_27%,84%_100%,0_100%)]" />
+            <div className="absolute inset-y-0 left-0 w-[36%] bg-[#0b3768]/60 [clip-path:polygon(0_0,100%_9%,100%_28%,0_14%)]" />
           </>
         ) : immersive ? (
           <>
@@ -85,14 +111,20 @@ export function AuthScreen({
 
       <header
         className={cn(
-          "relative flex items-center justify-between gap-3 px-4 py-4 sm:px-8",
-          immersive && "bg-white/90 shadow-sm backdrop-blur-md lg:px-12",
-          brand.key === "evita" && "py-3 sm:py-4"
+          "relative flex items-center justify-between gap-3 px-4 py-2 sm:px-8",
+          immersive && !evita && "bg-white/90 shadow-sm backdrop-blur-md lg:px-12",
+          evita && "px-4 py-4 sm:px-8 lg:px-10",
+          occ && story ? "hidden" : undefined,
         )}
       >
         <Rise>
           <Link to="/welcome" aria-label="Olivine Global Systems" className="inline-block">
-            <OlivineLogo className={brand.key === "evita" ? "h-12 w-auto sm:h-16" : "h-10 w-auto"} />
+            <OlivineLogo
+              className={cn(
+                brand.key === "emmse" ? "h-12 w-auto sm:h-16" : "h-10 w-auto",
+                evita && "h-12 w-auto rounded-lg bg-[#f7f4ee] px-3 py-1.5 shadow-lg sm:h-14"
+              )}
+            />
           </Link>
         </Rise>
         <Rise delay={80} className="flex items-center gap-2">
@@ -128,21 +160,67 @@ export function AuthScreen({
       <main
         className={cn(
           "relative z-10 mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-4 pb-8 sm:px-8",
-          story && "lg:grid-cols-[minmax(0,1fr)_minmax(0,31rem)] lg:gap-16 lg:px-12"
+          story && (brand.key === "emmse"
+            ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:gap-12 lg:px-10"
+            : "lg:grid-cols-[minmax(0,1fr)_minmax(0,31rem)] lg:gap-16 lg:px-12")
         )}
       >
         {story ? <div className="min-w-0 max-lg:hidden">{story}</div> : null}
-        <div className={cn("w-full", story ? "lg:justify-self-end" : "mx-auto max-w-md")}>{children}</div>
+        <div
+          className={cn(
+            "w-full",
+            story ? "lg:justify-self-end" : cn("mx-auto", width === "wide" ? "max-w-2xl" : "max-w-md")
+          )}
+        >
+          {children}
+        </div>
       </main>
 
+      {evita ? (
+        <footer className="relative z-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-white px-4 py-2.5 text-xs text-brand-navy sm:px-8">
+          <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            {brand.promises.map(({ icon: Icon, label }) => (
+              <span key={label} className="flex items-center gap-1.5 font-semibold">
+                <Icon className="size-4 text-primary" />
+                {label}
+              </span>
+            ))}
+          </span>
+          <span className="flex items-center gap-3 text-brand-navy/70">
+            Version 1.0.0 <span className="text-brand-navy/30">|</span> © {new Date().getFullYear()} Olivine Global
+            Systems. All rights reserved.
+          </span>
+        </footer>
+      ) : brand.contacts ? (
+        <footer
+          id="support"
+          className="relative z-10 flex flex-wrap items-center justify-center gap-x-7 gap-y-2 bg-brand-navy px-4 py-3 text-xs text-brand-navy-foreground/85 sm:px-8"
+        >
+          <span className="flex items-center gap-1.5">
+            <Globe className="size-3.5 text-brand-gold" /> {brand.contacts.web}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Mail className="size-3.5 text-brand-gold" /> {brand.contacts.email}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Phone className="size-3.5 text-brand-gold" /> {brand.contacts.phone}
+          </span>
+          <span className="flex items-center gap-3">
+            <a href="#" className="hover:text-brand-gold">Terms of Use</a>|
+            <a href="#" className="hover:text-brand-gold">Privacy Policy</a>|
+            <Link to="/account-recovery" className="hover:text-brand-gold">Support</Link>
+          </span>
+          <span className="flex items-center gap-1.5 italic">
+            <Leaf className="size-3.5 text-healthy" /> People. Technology. Reliability. A Greener Future.
+          </span>
+        </footer>
+      ) : (
       <footer
         id="support"
         className={cn(
           "relative z-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t px-4 py-3 text-xs backdrop-blur-sm sm:px-8",
-          brand.key === "evita"
-            ? "hidden"
-            : immersive
-            ? "border-white/15 bg-brand-navy/80 text-brand-navy-foreground/80"
+          immersive
+            ? cn("border-white/15 bg-brand-navy/80 text-brand-navy-foreground/80", emmse && "absolute inset-x-0 bottom-0")
             : "bg-card/60 text-muted-foreground"
         )}
       >
@@ -161,6 +239,7 @@ export function AuthScreen({
         </span>
         <span>© {new Date().getFullYear()} Olivine Global Systems</span>
       </footer>
+      )}
     </div>
   )
 }
@@ -172,6 +251,7 @@ export function AuthScreen({
  */
 export function AuthCard({
   brand,
+  emblem = true,
   title,
   description,
   badge,
@@ -181,6 +261,8 @@ export function AuthCard({
   delay = 120,
 }: {
   brand?: Brand
+  /** OCC's sign-in cards carry the emblem; the rest of the flow does not. */
+  emblem?: boolean
   title: string
   description?: string
   /** Small pill over the title, e.g. the step. */
@@ -192,14 +274,22 @@ export function AuthCard({
   delay?: number
 }) {
   const evita = brand?.key === "evita"
+  const occ = brand?.key === "occ"
+  const centred = brand?.cardAlign === "center"
 
   return (
     <Rise delay={delay}>
       <section className={cn(
         "rounded-2xl border bg-card/95 p-6 text-card-foreground shadow-xl shadow-primary/5 backdrop-blur-sm sm:p-8",
-        evita && "border-white/70 bg-white/95 shadow-[0_18px_55px_rgba(5,35,75,0.24)] lg:p-9"
+        evita && "border-white/70 bg-white/95 shadow-[0_18px_55px_rgba(5,35,75,0.24)] lg:p-9",
+        occ && "border-brand-gold/70 bg-[#071f43]/95 text-white shadow-[0_18px_55px_rgba(0,0,0,0.35)] lg:p-9"
       )}>
-        {evita ? (
+        {occ && emblem ? (
+          <div className="mb-5 flex justify-center">
+            <OlivineEmblem className="size-36 rounded-full ring-4 ring-brand-gold/75 ring-offset-4 ring-offset-[#071f43]" />
+          </div>
+        ) : null}
+        {evita && emblem ? (
           <div className="mb-6 text-center">
             <div className="bg-gradient-to-r from-[#164d9b] via-[#0b3b80] to-[#68a83c] bg-clip-text text-[3.3rem] font-black leading-none tracking-[-0.06em] text-transparent">
               EVITA<sup className="ml-1 align-super text-sm font-bold text-[#164d9b]">™</sup>
@@ -216,13 +306,59 @@ export function AuthCard({
           </div>
         ) : null}
         {badge ? <div className="mb-3">{badge}</div> : null}
-        <h1 className={cn("font-bold tracking-tight text-brand-navy dark:text-foreground", evita ? "text-[1.8rem]" : "text-2xl")}>{title}</h1>
-        {description ? <p className="mt-1.5 text-sm text-muted-foreground">{description}</p> : null}
+        <h1
+          className={cn(
+            "font-bold tracking-tight",
+            occ ? "text-2xl text-white" : "text-brand-navy dark:text-foreground",
+            evita && "text-[1.8rem]",
+            centred && "mx-auto w-fit border-b-2 border-brand-gold pb-2 text-center text-3xl"
+          )}
+        >
+          {title}
+        </h1>
+        {description ? (
+          <p
+            className={cn(
+              "mt-1.5 text-sm",
+              occ ? "text-white/65" : "text-muted-foreground",
+              centred && "mx-auto mt-3 max-w-xs text-center"
+            )}
+          >
+            {description}
+          </p>
+        ) : null}
         {above ? <div className="mt-5">{above}</div> : null}
         <div className="mt-6">{children}</div>
-        {footer ? <div className="mt-6 border-t pt-5">{footer}</div> : null}
+        {footer ? (
+          centred ? (
+            <div className="mt-6">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <ShieldCheck className="size-5 text-muted-foreground" />
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              {footer}
+            </div>
+          ) : (
+            <div className="mt-6 border-t pt-5">{footer}</div>
+          )
+        ) : null}
       </section>
     </Rise>
+  )
+}
+
+/**
+ * Links that sit under the card. The scene behind them is navy on one brand and
+ * a bright photograph on another, so they carry their own backing.
+ */
+export function AuthAside({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-4 flex justify-center">
+      <div className="rounded-full bg-brand-navy/70 px-4 py-1.5 text-center text-sm text-brand-navy-foreground backdrop-blur-sm">
+        {children}
+      </div>
+    </div>
   )
 }
 

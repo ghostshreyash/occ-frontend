@@ -22,6 +22,7 @@ export function VerifyOtpPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { challenge, setChallenge, signIn } = useAuth()
+  const brandQuery = brand.key === "occ" ? "" : `?brand=${brand.key}`
 
   if (!challenge || challenge.purpose !== "login") return <Navigate to="/login" replace />
 
@@ -31,7 +32,13 @@ export function VerifyOtpPage() {
     <AuthScreen brand={brand} story={<BrandStory brand={brand} />}>
       <AuthCard
         brand={brand}
-        badge={<AuthBadge><ShieldCheck className="size-3.5" /> Step 2 of 2</AuthBadge>}
+        badge={
+          brand.key === "occ" || brand.visual.kind === "photo" ? undefined : (
+            <AuthBadge>
+              <ShieldCheck className="size-3.5" /> Step 2 of 2
+            </AuthBadge>
+          )
+        }
         title="Two-step verification"
         description="One more step to keep your account secure."
       >
@@ -48,7 +55,7 @@ export function VerifyOtpPage() {
       </AuthCard>
 
       <div className="mt-4 text-center">
-        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate("/login")}>
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate(`/login${brandQuery}`)}>
           <ArrowLeft /> Back to sign in
         </Button>
       </div>

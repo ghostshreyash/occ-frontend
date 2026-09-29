@@ -7,7 +7,7 @@ import { ArrowLeft, LifeBuoy, LogIn, Phone, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { TextField, TextareaField } from "@/components/form/fields"
-import { AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
+import { AuthAside, AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
 import { AuthResult } from "@/components/auth/auth-result"
 import { useBrand } from "@/lib/brand"
 import { submitRecovery } from "@/lib/auth/auth-service"
@@ -42,7 +42,7 @@ export function AccountRecoveryPage() {
   if (reference) {
     return (
       <AuthScreen brand={brand}>
-        <AuthCard title="Recovery request raised">
+        <AuthCard brand={brand} emblem={false} title="Recovery request raised">
           <AuthResult
             tone="pending"
             icon={LifeBuoy}
@@ -68,8 +68,10 @@ export function AccountRecoveryPage() {
   }
 
   return (
-    <AuthScreen brand={brand}>
+    <AuthScreen brand={brand} width="wide">
       <AuthCard
+        brand={brand}
+        emblem={false}
         title="Account recovery"
         description="Use this when you can no longer receive codes on your registered mobile number or e-mail address."
       >
@@ -127,13 +129,11 @@ export function AccountRecoveryPage() {
         </form>
       </AuthCard>
 
-      <div className="mt-4 text-center">
-        <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-          <Link to="/login">
-            <ArrowLeft /> Back to sign in
-          </Link>
-        </Button>
-      </div>
+      <AuthAside>
+        <Link to="/login" className="inline-flex items-center gap-1.5 hover:text-brand-gold">
+          <ArrowLeft className="size-4" /> Back to sign in
+        </Link>
+      </AuthAside>
     </AuthScreen>
   )
 }

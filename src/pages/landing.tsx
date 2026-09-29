@@ -1,5 +1,5 @@
 import { Link } from "react-router"
-import { ArrowRight, KeyRound, Leaf, LifeBuoy, LogIn, ShieldQuestion } from "lucide-react"
+import { ArrowRight, ChevronDown, Globe, KeyRound, Leaf, LifeBuoy, ShieldQuestion } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Rise } from "@/components/auth/auth-screen"
@@ -36,23 +36,25 @@ export function LandingPage() {
   const current = useBrand()
 
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden bg-background">
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-brand-navy text-brand-navy-foreground">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-32 size-[34rem] rounded-full bg-primary/10 blur-3xl animate-drift" />
-        <div className="absolute top-1/3 -right-40 size-[38rem] rounded-full bg-brand-gold/10 blur-3xl animate-drift-slow" />
-        <div className="absolute -bottom-48 left-1/3 size-[30rem] rounded-full bg-healthy/8 blur-3xl animate-drift" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-white/70 dark:hidden" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(30,83,145,0.34),transparent_38%),linear-gradient(135deg,#031a38_0%,#08264d_52%,#031a38_100%)]" />
+        <div className="absolute -right-24 bottom-[-13rem] size-[34rem] rounded-full border border-brand-gold/10" />
+        <div className="absolute -left-32 top-[-16rem] size-[30rem] rounded-full border border-white/5" />
       </div>
 
-      <header className="relative z-10 flex items-center justify-between gap-3 px-4 py-4 sm:px-8">
+      <header className="relative z-10 flex items-center justify-between gap-3 bg-white/90 px-4 py-2 shadow-sm backdrop-blur-md sm:px-8 lg:px-12">
         <Rise>
-          <OlivineLogo className="h-10 w-auto" />
+          <OlivineLogo className="h-12 w-auto sm:h-14" />
         </Rise>
-        <Rise delay={80}>
-          <Button variant="outline" size="sm" asChild className="bg-card/70 backdrop-blur-sm">
-            <Link to="/login">
-              <LogIn /> Log in
-            </Link>
+        <Rise delay={80} className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="border-slate-200 bg-white text-brand-navy shadow-sm hover:bg-slate-50" aria-label="Change language">
+            <Globe /> English <ChevronDown />
+          </Button>
+          <Button variant="outline" size="sm" asChild className="border-slate-200 bg-white text-brand-navy shadow-sm hover:bg-slate-50">
+            <a href="mailto:support@olivineglobalsystems.com">
+              <LifeBuoy /> Help
+            </a>
           </Button>
         </Rise>
       </header>
@@ -60,13 +62,13 @@ export function LandingPage() {
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-8 px-4 py-6 sm:px-8">
         <section className="text-center">
           <Rise>
-            <p className="text-xs font-semibold tracking-[0.25em] text-primary uppercase">
+            <p className="text-xs font-semibold tracking-[0.25em] text-brand-gold uppercase">
               Electrical Reliability Platform
             </p>
-            <h1 className="mt-2 font-serif text-3xl leading-tight font-semibold text-brand-navy sm:text-4xl dark:text-foreground">
-              One Platform. One Data. <span className="text-primary">One Command Centre.</span>
+            <h1 className="mt-2 font-serif text-3xl leading-tight font-semibold text-white sm:text-4xl">
+              One Platform. One Data. <span className="text-brand-gold">One Command Centre.</span>
             </h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
+            <p className="mx-auto mt-3 max-w-xl text-sm text-white/70">
               Real-time visibility, faster response and higher reliability across every enterprise, plant and electrical
               asset — for a safer, smarter tomorrow.
             </p>
@@ -75,7 +77,7 @@ export function LandingPage() {
 
         <section>
           <Rise delay={100}>
-            <h2 className="mb-4 text-center text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+            <h2 className="mb-4 text-center text-sm font-semibold tracking-wider text-white/70 uppercase">
               Choose your system
             </h2>
           </Rise>
@@ -93,11 +95,11 @@ export function LandingPage() {
         </section>
 
         <Rise delay={460}>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border bg-card/70 px-5 py-3 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-white/15 bg-white/8 px-5 py-3 backdrop-blur-sm">
             {stats.map((stat) => (
               <div key={stat.label} className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-primary">{stat.value}</span>
-                <span className="text-xs tracking-wider text-muted-foreground uppercase">{stat.label}</span>
+                <span className="text-lg font-bold text-brand-gold">{stat.value}</span>
+                <span className="text-xs tracking-wider text-white/60 uppercase">{stat.label}</span>
               </div>
             ))}
           </div>
@@ -109,14 +111,14 @@ export function LandingPage() {
               <Link
                 key={to}
                 to={to}
-                className="inline-flex items-center gap-1.5 text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-white/65 underline-offset-4 transition-colors hover:text-brand-gold hover:underline"
               >
                 <Icon className="size-4" /> {label}
               </Link>
             ))}
             <a
               href="mailto:support@olivineglobalsystems.com"
-              className="inline-flex items-center gap-1.5 text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-white/65 underline-offset-4 transition-colors hover:text-brand-gold hover:underline"
             >
               <LifeBuoy className="size-4" /> 24×7 helpdesk
               <ArrowRight className="size-3.5" />
@@ -125,14 +127,14 @@ export function LandingPage() {
         </Rise>
       </main>
 
-      <footer className="relative z-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t bg-card/60 px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm sm:px-8">
+      <footer className="relative z-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/15 bg-brand-navy/80 px-4 py-3 text-xs text-white/65 backdrop-blur-sm sm:px-8">
         <span className="flex items-center gap-1.5 italic">
           <Leaf className="size-3.5 text-healthy" /> Reliable Today. Sustainable Tomorrow.
         </span>
         <span className="flex items-center gap-3">
-          <a href="#" className="hover:text-foreground">Terms</a>|
-          <a href="#" className="hover:text-foreground">Privacy</a>|
-          <a href="mailto:support@olivineglobalsystems.com" className="hover:text-foreground">Support</a>
+          <a href="#" className="hover:text-white">Terms</a>|
+          <a href="#" className="hover:text-white">Privacy</a>|
+          <a href="mailto:support@olivineglobalsystems.com" className="hover:text-white">Support</a>
         </span>
         <span>© {new Date().getFullYear()} Olivine Global Systems</span>
       </footer>

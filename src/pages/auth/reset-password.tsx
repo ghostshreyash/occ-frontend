@@ -51,7 +51,7 @@ export function ResetPasswordPage() {
   if (done) {
     return (
       <AuthScreen brand={brand}>
-        <AuthCard title="Password updated" above={<AuthSteps steps={RESET_STEPS} current={3} />}>
+        <AuthCard brand={brand} emblem={false} title="Password updated" above={<AuthSteps steps={RESET_STEPS} current={3} />}>
           <AuthResult
             title="Your password has been changed"
             description="Use your new password the next time you sign in."
@@ -74,6 +74,8 @@ export function ResetPasswordPage() {
   return (
     <AuthScreen brand={brand}>
       <AuthCard
+        brand={brand}
+        emblem={false}
         title="Set a new password"
         description="Choose a strong password you have not used before."
         above={<AuthSteps steps={RESET_STEPS} current={2} />}

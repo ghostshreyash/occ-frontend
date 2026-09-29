@@ -5,10 +5,9 @@ import { Link, useNavigate } from "react-router"
 import { ArrowLeft, KeyRound, Mail, Smartphone, TriangleAlert } from "lucide-react"
 import { cn } from "cn"
 
-import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { TextField } from "@/components/form/fields"
-import { AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
+import { AuthAside, AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
 import { AuthSteps } from "@/components/auth/auth-steps"
 import { useBrand } from "@/lib/brand"
 import { useAuth } from "@/lib/auth/context"
@@ -42,6 +41,8 @@ export function ForgotPasswordPage() {
   return (
     <AuthScreen brand={brand}>
       <AuthCard
+        brand={brand}
+        emblem={false}
         title="Forgot your password?"
         description="We will send a one-time code to confirm it is you."
         above={<AuthSteps steps={RESET_STEPS} current={0} />}
@@ -105,16 +106,15 @@ export function ForgotPasswordPage() {
         </form>
       </AuthCard>
 
-      <div className="mt-4 flex items-center justify-between text-sm">
-        <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-          <Link to="/login">
-            <ArrowLeft /> Back to sign in
-          </Link>
-        </Button>
-        <Link to="/account-recovery" className="text-primary underline-offset-4 hover:underline">
+      <AuthAside>
+        <Link to="/login" className="inline-flex items-center gap-1.5 hover:text-brand-gold">
+          <ArrowLeft className="size-4" /> Back to sign in
+        </Link>
+        <span className="mx-2 opacity-40">|</span>
+        <Link to="/account-recovery" className="font-semibold text-brand-gold underline-offset-4 hover:underline">
           No access to either?
         </Link>
-      </div>
+      </AuthAside>
     </AuthScreen>
   )
 }

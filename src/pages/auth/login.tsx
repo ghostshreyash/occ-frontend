@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate, useSearchParams } from "react-router"
-import { ArrowRight, Info, KeyRound, Lock, Mail, ShieldAlert, TriangleAlert, UserRound } from "lucide-react"
+import { ArrowRight, Building2, Info, KeyRound, Lock, Mail, ShieldAlert, TriangleAlert, UserRound } from "lucide-react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -40,6 +40,7 @@ export function LoginPage() {
   const next = params.get("next") ?? undefined
   const reason = reasons[params.get("reason") ?? ""]
   const { login } = brand
+  const brandQuery = brand.key === "occ" ? "" : `?brand=${brand.key}`
 
   const form = useForm<PortalLoginValues>({
     resolver: zodResolver(portalLoginSchema),
@@ -50,7 +51,7 @@ export function LoginPage() {
     setError(null)
     try {
       setChallenge(await signIn(values.identifier, values.password, next))
-      navigate("/login/verify", { state: { remember: values.remember } })
+      navigate(`/login/verify${brandQuery}`, { state: { remember: values.remember } })
     } catch (e) {
       setError(e instanceof AuthError ? e.message : "Sign in failed. Please try again.")
     }
@@ -60,9 +61,28 @@ export function LoginPage() {
     <AuthScreen brand={brand} story={<BrandStory brand={brand} />}>
       <AuthCard
         brand={brand}
-        badge={brand.key === "evita" ? undefined : <AuthBadge><KeyRound className="size-3.5" /> Step 1 of 2</AuthBadge>}
+        badge={brand.key === "occ" || brand.visual.kind === "photo" ? undefined : <AuthBadge><KeyRound className="size-3.5" /> Step 1 of 2</AuthBadge>}
         title={login.heading}
         description={login.description}
+        footer={
+          login.footnote && brand.cardAlign === "center" ? (
+            <div className="flex items-start gap-3 rounded-lg bg-info-soft px-4 py-3 text-sm">
+              <Building2 className="mt-0.5 size-5 shrink-0 text-primary" />
+              <span>
+                <span className="block font-semibold text-brand-navy dark:text-foreground">
+                  {login.footnote.title}
+                </span>
+                <span className="text-muted-foreground">{login.footnote.body}</span>
+                <Link
+                  to={login.footnote.to}
+                  className="mt-0.5 block font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {login.footnote.linkLabel} →
+                </Link>
+              </span>
+            </div>
+          ) : undefined
+        }
       >
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
           {error ? (
@@ -112,7 +132,16 @@ export function LoginPage() {
             </Link>
           </div>
 
-          <AuthSubmit busy={form.formState.isSubmitting} className="mt-5">
+          <AuthSubmit
+            busy={form.formState.isSubmitting}
+            className={
+              brand.key === "occ"
+                ? "mt-5 bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+                : brand.key === "emmse"
+                  ? "mt-5 h-12 bg-brand-navy text-brand-navy-foreground hover:bg-brand-navy/90"
+                  : "mt-5"
+            }
+          >
             {form.formState.isSubmitting ? <Spinner /> : null}
             {login.submitLabel}
             {form.formState.isSubmitting ? null : <ArrowRight />}
@@ -137,7 +166,7 @@ export function LoginPage() {
         </form>
       </AuthCard>
 
-      {login.footnote ? (
+      {login.footnote && brand.cardAlign !== "center" ? (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border bg-card/70 px-4 py-3 text-sm backdrop-blur-sm">
           <Info className="mt-0.5 size-4 shrink-0 text-primary" />
           <span>
@@ -149,7 +178,13 @@ export function LoginPage() {
           </span>
         </div>
       ) : null}
-      <p className={brand.key === "evita" ? "hidden" : "mt-4 text-center text-sm text-muted-foreground"}>
+      <p
+        className={
+          brand.key === "evita" || brand.cardAlign === "center"
+            ? "hidden"
+            : "mt-4 text-center text-sm text-muted-foreground"
+        }
+      >
         Looking for a different system?{" "}
         <Link to="/welcome" className="font-medium text-primary underline-offset-4 hover:underline">
           See all Olivine systems →

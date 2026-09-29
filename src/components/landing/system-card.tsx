@@ -17,7 +17,7 @@ export function SystemCard({ brand, href, current }: { brand: Brand; href: strin
   return (
     <div
       className={cn(
-        "group flex flex-col rounded-2xl border bg-card/90 p-5 shadow-sm backdrop-blur-sm transition-all duration-300",
+        "group flex flex-col rounded-2xl border bg-card/90 p-5 text-brand-navy shadow-sm backdrop-blur-sm transition-all duration-300 dark:text-card-foreground",
         "hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10",
         current && "border-primary/40 shadow-lg shadow-primary/10"
       )}
@@ -37,21 +37,21 @@ export function SystemCard({ brand, href, current }: { brand: Brand; href: strin
               {brand.wordmark.lead}
               {brand.wordmark.accent ? <span className="text-primary">{brand.wordmark.accent}</span> : null}
             </h3>
-            {current ? (
+            {/* {current ? (
               <span className="rounded-full bg-healthy-soft px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-healthy-soft-foreground uppercase">
                 You are here
               </span>
-            ) : null}
+            ) : null} */}
           </div>
-          <p className="truncate text-xs text-muted-foreground">{brand.audience}</p>
+          <p className="truncate text-xs text-brand-navy/60 dark:text-muted-foreground">{brand.audience}</p>
         </div>
       </div>
 
-      <p className="text-sm leading-relaxed text-muted-foreground">{brand.summary}</p>
+      <p className="text-sm leading-relaxed text-brand-navy/70 dark:text-muted-foreground">{brand.summary}</p>
 
       <ul className="mt-4 space-y-1.5 text-sm">
         {brand.features.map(({ label }) => (
-          <li key={label} className="flex items-start gap-2">
+          <li key={label} className="flex items-start gap-2 text-brand-navy/80 dark:text-card-foreground/80">
             <Check className="mt-0.5 size-4 shrink-0 text-brand-gold" />
             {label}
           </li>
@@ -62,7 +62,12 @@ export function SystemCard({ brand, href, current }: { brand: Brand; href: strin
         <Button
           variant={current ? "default" : "outline"}
           asChild
-          className="h-10 w-full rounded-full text-sm font-semibold"
+          className={cn(
+            "h-10 w-full rounded-full text-sm font-semibold transition-colors",
+            current
+              ? "bg-brand-navy text-brand-navy-foreground hover:bg-brand-navy/90"
+              : "border-brand-navy/30 bg-transparent text-brand-navy hover:bg-brand-navy hover:text-brand-navy-foreground"
+          )}
         >
           {external ? (
             <a href={href}>

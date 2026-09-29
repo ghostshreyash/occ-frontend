@@ -1,8 +1,7 @@
 import { Link, Navigate, useNavigate } from "react-router"
 import { ArrowLeft } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { AuthCard, AuthScreen } from "@/components/auth/auth-screen"
+import { AuthAside, AuthCard, AuthScreen } from "@/components/auth/auth-screen"
 import { AuthSteps } from "@/components/auth/auth-steps"
 import { OtpForm } from "@/components/auth/otp-form"
 import { useBrand } from "@/lib/brand"
@@ -25,6 +24,8 @@ export function VerifyResetPage() {
   return (
     <AuthScreen brand={brand}>
       <AuthCard
+        brand={brand}
+        emblem={false}
         title="Verify it's you"
         description="Enter the code we sent so you can choose a new password."
         above={<AuthSteps steps={RESET_STEPS} current={1} />}
@@ -40,13 +41,11 @@ export function VerifyResetPage() {
         />
       </AuthCard>
 
-      <div className="mt-4 text-center">
-        <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-          <Link to="/forgot-password">
-            <ArrowLeft /> Use a different account
-          </Link>
-        </Button>
-      </div>
+      <AuthAside>
+        <Link to="/forgot-password" className="inline-flex items-center gap-1.5 hover:text-brand-gold">
+          <ArrowLeft className="size-4" /> Use a different account
+        </Link>
+      </AuthAside>
     </AuthScreen>
   )
 }

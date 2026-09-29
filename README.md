@@ -146,7 +146,7 @@ Use `src/lib/status.ts` for anything status-related so badges, charts and map ma
 
 ## Notes before production
 
-- **Brand images** in `public/brand/` were cropped from the mockups, so the sign-in photography is soft at large sizes; replace them with the original artwork.
+- **Brand images**: EMMS-E's scene in `public/brand/` was composed from the mockups and is soft at large sizes. EVITA loads a full-resolution photograph from the Pexels CDN (`photoUrl` in `src/config/brands.ts`), with the local plate as an `onError` fallback. Replace both with OLIVINE's own licensed photography on its own CDN before launch — a third-party hotlink is a availability and licensing risk in production.
 - **Hostnames** for each brand are assumed (`olivine.*`, `emmse.*`, `evita.*`); confirm them and update `hosts` in `src/config/brands.ts`.
 - **Location picker map** uses OpenStreetMap tiles, which are for development only. Switch to a licensed provider (e.g. MapTiler).
 - **Authentication** runs on the placeholders in `src/lib/auth/auth-service.ts`. Connect them to AWS Cognito (and SNS/SES for delivery) before any real use — until then every credential and every 6-digit code is accepted.

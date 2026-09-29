@@ -1,6 +1,8 @@
 import {
   Activity,
   Building2,
+  Users,
+  Zap,
   BarChart3,
   Bell,
   ClipboardCheck,
@@ -52,8 +54,24 @@ export type Brand = {
   features: { icon: LucideIcon; label: string; detail: string }[]
   /** Short promises along the foot of the screen. */
   promises: { icon: LucideIcon; label: string }[]
-  /** Photograph behind the story panel; OCC uses a live console motif instead. */
+  /** Photograph behind the screen; OCC uses a live console motif instead. */
   visual: { kind: "photo"; src: string } | { kind: "console" }
+  /**
+   * Full-resolution photograph served from a CDN, with `visual.src` as the
+   * local fallback if it cannot be reached.
+   *
+   * TODO: replace with OLIVINE's own licensed photography on its own CDN —
+   * this is a free Pexels image standing in so the screen is sharp at any size.
+   */
+  photoUrl?: string
+  /** Benefit medallions across the story panel, as on the EMMS-E artwork. */
+  medallions?: { icon: LucideIcon; lines: [string, string]; tone: string }[]
+  /** Line set over the scene beside the medallions. */
+  caption?: string
+  /** Contact bar along the foot of the screen. */
+  contacts?: { web: string; email: string; phone: string }
+  /** Card presentation: EMMS-E centres its title under a gold rule. */
+  cardAlign?: "start" | "center"
   login: {
     heading: string
     description: string
@@ -124,26 +142,40 @@ export const brands: Record<BrandKey, Brand> = {
       { icon: Gauge, label: "Improve asset reliability", detail: "Health, inspections and history per asset" },
       { icon: TrendingUp, label: "Optimize maintenance cost", detail: "Plan the work that actually prevents failure" },
       { icon: ShieldCheck, label: "Safety & compliance", detail: "Fire prevention and statutory records in order" },
+      { icon: Leaf, label: "Enable sustainability", detail: "Cleaner operations for a safer tomorrow" },
     ],
     promises: [
-      { icon: TrendingUp, label: "Higher asset uptime" },
-      { icon: Settings, label: "Operational excellence" },
-      { icon: Leaf, label: "Cleaner operations" },
-      { icon: ShieldCheck, label: "Safer workplaces" },
+      { icon: Zap, label: "Higher Asset Uptime" },
+      { icon: Users, label: "Operational Excellence" },
+      { icon: Leaf, label: "Cleaner Operations" },
+      { icon: ShieldCheck, label: "Safer Workplaces" },
     ],
-    visual: { kind: "photo", src: "/brand/emmse-login.jpg" },
+    visual: { kind: "photo", src: "/brand/emmse-scene.jpg" },
+    cardAlign: "center",
+    caption: "Powering Reliable Operations for a Greener Tomorrow.",
+    contacts: {
+      web: "www.olivineglobalsystems.com",
+      email: "support@olivineglobalsystems.com",
+      phone: "+91 22 4890 1000",
+    },
+    medallions: [
+      { icon: Settings, lines: ["Improve", "Asset Reliability"], tone: "text-primary" },
+      { icon: TrendingUp, lines: ["Optimize", "Maintenance Cost"], tone: "text-healthy" },
+      { icon: ShieldCheck, lines: ["Ensure", "Safety & Compliance"], tone: "text-brand-gold" },
+      { icon: Leaf, lines: ["Enable", "Sustainability"], tone: "text-healthy" },
+    ],
     login: {
-      heading: "Enterprise login",
+      heading: "Enterprise Login",
       description: "Access EMMS-E to manage, maintain and ensure the reliability of your electrical assets.",
-      identifierLabel: "Enterprise ID / Registered e-mail",
-      identifierPlaceholder: "Enter your Enterprise ID or e-mail",
+      identifierLabel: "Enterprise ID / Registered Email",
+      identifierPlaceholder: "Enter your Enterprise ID or Email",
       identifierType: "text",
       identifierIcon: "mail",
       submitLabel: "Login to EMMS-E",
       footnote: {
-        title: "New enterprise?",
+        title: "New Enterprise?",
         body: "Contact Olivine Global Systems to onboard your enterprise.",
-        linkLabel: "Request access",
+        linkLabel: "Request Access",
         to: "/register",
       },
     },
@@ -167,11 +199,13 @@ export const brands: Record<BrandKey, Brand> = {
       { icon: Leaf, label: "Enable a greener future", detail: "Safer work and more sustainable operations" },
     ],
     promises: [
-      { icon: ShieldCheck, label: "Work safely" },
-      { icon: Wrench, label: "Keep assets reliable" },
-      { icon: Leaf, label: "Support a greener tomorrow" },
+      { icon: ShieldCheck, label: "Work Safely" },
+      { icon: Wrench, label: "Keep Assets Reliable" },
+      { icon: Leaf, label: "Support a Greener Tomorrow" },
     ],
     visual: { kind: "photo", src: "/brand/evita-login.jpg" },
+    photoUrl:
+      "https://images.pexels.com/photos/13820149/pexels-photo-13820149.jpeg?auto=compress&cs=tinysrgb&w=2400",
     login: {
       heading: "Welcome Back",
       description: "Login to access your assigned activities",
