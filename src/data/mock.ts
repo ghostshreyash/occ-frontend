@@ -100,8 +100,8 @@ export const mapPlants: MapPlant[] = [
 
 /** Region call-outs drawn on the global map */
 export const mapRegionLabels = [
-  { region: "North America", customers: 12, plants: 48, lng: -100, lat: 48 },
-  { region: "Europe", customers: 28, plants: 142, lng: 10, lat: 58 },
+  { region: "North America", customers: 12, plants: 48, lng: -100, lat: 45 },
+  { region: "Europe", customers: 28, plants: 142, lng: 12, lat: 51 },
   { region: "Middle East", customers: 6, plants: 32, lng: 45, lat: 33 },
   { region: "Asia", customers: 34, plants: 201, lng: 118, lat: 30 },
   { region: "South America", customers: 4, plants: 22, lng: -60, lat: -18 },
@@ -162,13 +162,18 @@ export type Elpremar = {
   phone: string
   email: string
   available: boolean
+  skills: string[]
 }
 
 export const elpremars: Elpremar[] = [
-  { id: "EMP-EL-0047", name: "Suresh Kumar", department: "Electrical", plant: "Mumbai Works", enterprise: "Tata Steel Limited", phone: "+91 98765 43210", email: "suresh.kumar@tatasteel.com", available: true },
-  { id: "EMP-EL-0052", name: "Amit Sharma", department: "Electrical", plant: "Jamnagar", enterprise: "Reliance Industries", phone: "+91 98111 22334", email: "amit.sharma@ril.com", available: true },
-  { id: "EMP-EL-0061", name: "Ramesh Patil", department: "Maintenance", plant: "Dolvi", enterprise: "JSW Group", phone: "+91 99200 44556", email: "ramesh.patil@jsw.in", available: false },
-  { id: "EMP-EL-0073", name: "Anil Singh", department: "Electrical", plant: "Mundra", enterprise: "Adani Group", phone: "+91 97654 11223", email: "anil.singh@adani.com", available: true },
+  { id: "EMP-EL-0047", name: "Suresh Kumar", department: "Electrical", plant: "Mumbai Works", enterprise: "Tata Steel Limited", phone: "+91 98765 43210", email: "suresh.kumar@tatasteel.com", available: true, skills: ["HT Panels & Switchgear", "Thermography", "Routine Inspections"] },
+  { id: "EMP-EL-0052", name: "Amit Sharma", department: "Electrical", plant: "Jamnagar", enterprise: "Reliance Industries", phone: "+91 98111 22334", email: "amit.sharma@ril.com", available: true, skills: ["Transformers", "Condition Monitoring", "Cable Testing"] },
+  { id: "EMP-EL-0061", name: "Ramesh Patil", department: "Maintenance", plant: "Dolvi", enterprise: "JSW Group", phone: "+91 99200 44556", email: "ramesh.patil@jsw.in", available: false, skills: ["Breaker Maintenance", "INSTA CLEAN Application", "Routine Inspections"] },
+  { id: "EMP-EL-0073", name: "Anil Singh", department: "Electrical", plant: "Mundra", enterprise: "Adani Group", phone: "+91 97654 11223", email: "anil.singh@adani.com", available: true, skills: ["Protection & Relay Testing", "HT Panels & Switchgear", "Earthing & Lightning Protection"] },
+  { id: "EMP-EL-0081", name: "Priya Nair", department: "Electrical", plant: "Hyderabad", enterprise: "NTPC", phone: "+91 98480 55667", email: "priya.nair@ntpc.co.in", available: true, skills: ["Thermography", "Condition Monitoring", "Transformers"] },
+  { id: "EMP-EL-0094", name: "Khalid Rahman", department: "Electrical", plant: "Dubai", enterprise: "NTPC", phone: "+971 50 123 4567", email: "khalid.rahman@ntpc.ae", available: true, skills: ["HT Panels & Switchgear", "Breaker Maintenance", "Cable Testing"] },
+  { id: "EMP-EL-0102", name: "Lukas Weber", department: "Maintenance", plant: "Frankfurt", enterprise: "Tata Steel Limited", phone: "+49 151 2345 6789", email: "lukas.weber@tatasteel.de", available: true, skills: ["Earthing & Lightning Protection", "Routine Inspections", "INSTA CLEAN Application"] },
+  { id: "EMP-EL-0115", name: "Maria Lopez", department: "Electrical", plant: "Houston", enterprise: "Reliance Industries", phone: "+1 713 555 0142", email: "maria.lopez@ril.com", available: false, skills: ["Transformers", "Protection & Relay Testing", "Thermography"] },
 ]
 
 export const enterprises = ["Tata Steel Limited", "Reliance Industries", "JSW Group", "Adani Group", "NTPC", "ABC Industries Ltd."]

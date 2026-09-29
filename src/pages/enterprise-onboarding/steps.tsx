@@ -81,14 +81,14 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
       nextLabel="Next: Location"
       onCancel={onCancel}
     >
-      <form id="step-enterprise" onSubmit={form.handleSubmit(onNext)} className="grid gap-4 md:grid-cols-2" noValidate>
+      <form id="step-enterprise" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
         <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" className="md:col-span-2" />
         <SelectField control={control} name="type" label="Enterprise Type" required options={enterpriseTypes} placeholder="Select enterprise type" />
         <TextField control={control} name="shortName" label="Short Name / Abbreviation" required placeholder="Enter short name (e.g. TATA)" />
         <SelectField control={control} name="sector" label="Industry Sector" required options={industrySectors} placeholder="Select industry sector" />
-        <TextField control={control} name="website" label="Website" optional placeholder="https://www.yourcompany.com" />
-        <FileDropField control={control} name="logo" label="Company Logo" optional />
-        <TextareaField control={control} name="description" label="Description" optional rows={7} placeholder="Enter a brief description about the enterprise..." />
+        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
+        <FileDropField control={control} name="logo" label="Company Logo" />
+        <TextareaField control={control} name="description" label="Description" rows={3} placeholder="Enter a brief description about the enterprise..." />
       </form>
     </StepCard>
   )
@@ -119,7 +119,7 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         <Ctx icon={Building2} label="Enterprise Type" value={data.enterprise?.type} />
         <Ctx icon={Factory} label="Industry Sector" value={data.enterprise?.sector} />
       </Context>
-      <form id="step-location" onSubmit={form.handleSubmit(onNext)} className="grid gap-4 md:grid-cols-3" noValidate>
+      <form id="step-location" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-3" noValidate>
         <SelectField control={control} name="country" label="Country" required options={countries} />
         {isIndia ? (
           <SelectField control={control} name="state" label="State" required options={indianStates} placeholder="Select state" />
@@ -128,14 +128,14 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         )}
         <TextField control={control} name="city" label="City" required placeholder="Enter city" />
 
-        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={6} maxLength={250} className="md:row-span-2" />
+        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={3} maxLength={250} className="md:row-span-2" />
         <TextField control={control} name="pin" label="Postal Code (PIN)" required className="md:col-span-2" />
-        <TextField control={control} name="latitude" label="Latitude" optional inputMode="decimal" />
-        <TextField control={control} name="longitude" label="Longitude" optional inputMode="decimal" />
+        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" />
+        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" />
 
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">
-            Select Location on Map <span className="font-normal text-muted-foreground">(Optional)</span>
+            Select Location on Map
           </FieldLabel>
           <div className="relative">
             <div className="absolute top-3 left-3 z-10 flex w-72 max-w-[70%] items-center rounded-md bg-card shadow">
@@ -187,26 +187,26 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
         <Ctx icon={Building2} label="Enterprise" value={data.enterprise?.name} />
         <Ctx icon={MapPin} label="Location" value={loc ? `${loc.city}, ${loc.state}, ${loc.country}` : ""} />
       </Context>
-      <form id="step-plant" onSubmit={form.handleSubmit(onNext)} className="grid gap-4 md:grid-cols-3" noValidate>
+      <form id="step-plant" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-3" noValidate>
         <TextField control={control} name="name" label="Plant Name" required placeholder="e.g. Mumbai Works" />
         <SelectField control={control} name="type" label="Plant Type" required options={plantTypes} />
-        <TextField control={control} name="code" label="Plant Code" optional placeholder="e.g. TS-MUM-001" />
+        <TextField control={control} name="code" label="Plant Code" placeholder="e.g. TS-MUM-001" />
 
-        <TextareaField control={control} name="address" label="Plant Address" required rows={6} maxLength={250} className="md:row-span-2" />
+        <TextareaField control={control} name="address" label="Plant Address" required rows={3} maxLength={250} className="md:row-span-2" />
         <TextField control={control} name="head" label="Plant Head" required />
         <TextField control={control} name="email" label="Email" type="email" />
         <div className="hidden md:block" />
         <TextField control={control} name="phone" label="Phone Number" type="tel" />
 
         <h4 className="text-sm font-semibold md:col-span-3">
-          Additional Information <span className="font-normal text-muted-foreground">(Optional)</span>
+          Additional Information
         </h4>
         <TextField control={control} name="capacity" label="Plant Capacity" placeholder="e.g. 5 MTPA" />
         <SelectField control={control} name="commissioningYear" label="Commissioning Year" options={years} />
         <SelectField control={control} name="timeZone" label="Time Zone" options={timeZones} />
 
-        <FileDropField control={control} name="logo" label="Plant Logo" optional />
-        <TextareaField control={control} name="notes" label="Notes" optional rows={5} placeholder="Enter any additional information about the plant..." className="md:col-span-2" />
+        <FileDropField control={control} name="logo" label="Plant Logo" />
+        <TextareaField control={control} name="notes" label="Notes" rows={3} placeholder="Enter any additional information about the plant..." className="md:col-span-2" />
       </form>
     </StepCard>
   )
@@ -236,7 +236,7 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
         <Ctx icon={MapPin} label="Location" value={loc ? `${loc.city}, ${loc.state}, ${loc.country}` : ""} />
         <Ctx icon={Factory} label="Plant" value={data.plant?.name} />
       </Context>
-      <form id="step-department" onSubmit={form.handleSubmit(onNext)} className="grid gap-4 md:grid-cols-2" noValidate>
+      <form id="step-department" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
         <TextField control={control} name="name" label="Department Name" required placeholder="e.g. Electrical" />
         <TextField control={control} name="code" label="Department Code" required placeholder="e.g. DEP-EL" />
         <SelectField control={control} name="type" label="Department Type" required options={departmentTypes} />
@@ -244,8 +244,8 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
         <TextField control={control} name="head" label="Head of Department" />
         <TextField control={control} name="email" label="Email" type="email" />
         <TextField control={control} name="phone" label="Phone Number" type="tel" />
-        <SelectField control={control} name="location" label="Location" optional options={data.plant?.name ? [data.plant.name] : []} />
-        <TextareaField control={control} name="description" label="Department Description" optional rows={3} className="md:col-span-2" />
+        <SelectField control={control} name="location" label="Location" options={data.plant?.name ? [data.plant.name] : []} />
+        <TextareaField control={control} name="description" label="Department Description" rows={3} className="md:col-span-2" />
       </form>
     </StepCard>
   )
@@ -323,11 +323,11 @@ export function SubDepartmentAccountStep({
           <Plus /> {editing !== null ? "Update Sub-department" : "Add Sub-department"}
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-2.5 md:grid-cols-3">
         <TextField control={sub.control} name="name" label="Sub-department Name" required placeholder="e.g. HT Maintenance" />
         <TextField control={sub.control} name="code" label="Sub-department Code" required placeholder="e.g. SUB-EL-HT" />
         <SelectField control={sub.control} name="function" label="Function / Area" required options={subDepartmentFunctions} />
-        <TextField control={sub.control} name="description" label="Description" optional className="md:col-span-3" />
+        <TextField control={sub.control} name="description" label="Description" className="md:col-span-3" />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg ring-1 ring-border">
@@ -384,7 +384,7 @@ export function SubDepartmentAccountStep({
       <p className="mb-3 text-xs text-muted-foreground">
         Create a login account for the enterprise administrator. This will be used to access the EMMS-E portal.
       </p>
-      <form id="step-account" onSubmit={complete} className="grid gap-4 md:grid-cols-[1fr_1fr_1.1fr]" noValidate>
+      <form id="step-account" onSubmit={complete} className="grid gap-2.5 md:grid-cols-[1fr_1fr_1.1fr]" noValidate>
         <div className="relative">
           <TextField control={account.control} name="username" label="Username" required description="Username must be at least 6 characters." />
           {usernameState.isDirty && !usernameState.invalid ? (

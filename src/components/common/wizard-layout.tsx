@@ -36,9 +36,10 @@ export function WizardPage({
         }
       />
       <StepperBar steps={steps} current={current} />
-      <div className="grid gap-5 xl:grid-cols-[1fr_22rem]">
+      {/* Progress panel sits to the right from tablet up, and sticks while the form scrolls */}
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_17rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">{children}</div>
-        <div className="space-y-4">
+        <div className="space-y-2.5 md:sticky md:top-3 md:self-start">
           <WizardProgressPanel steps={steps} current={current} />
           {aside}
         </div>
@@ -69,22 +70,22 @@ export function StepCard({
   formId: string
 }) {
   return (
-    <section className="rounded-xl bg-card p-5 shadow-xs ring-1 ring-foreground/10">
-      <h3 className="text-lg font-bold text-brand-navy dark:text-foreground">{title}</h3>
-      <p className="mb-5 text-sm text-muted-foreground">{description}</p>
+    <section className="rounded-lg bg-card p-3 shadow-xs ring-1 ring-foreground/10 transition-shadow duration-200 ease-out hover:shadow-md">
+      <h3 className="text-sm font-bold text-brand-navy dark:text-foreground">{title}</h3>
+      <p className="mb-3 text-xs text-muted-foreground">{description}</p>
       {children}
-      <div className="mt-6 flex justify-end gap-3">
+      <div className="mt-4 flex justify-end gap-2">
         {onCancel ? (
-          <Button type="button" variant="outline" size="lg" onClick={onCancel}>
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
             Cancel
           </Button>
         ) : null}
         {onBack ? (
-          <Button type="button" variant="outline" size="lg" onClick={onBack}>
+          <Button type="button" variant="outline" size="sm" onClick={onBack}>
             <ArrowLeft /> Back
           </Button>
         ) : null}
-        <Button type="submit" form={formId} size="lg" className="min-w-40">
+        <Button type="submit" form={formId} size="sm" className="min-w-28">
           {nextLabel} {nextIcon}
         </Button>
       </div>

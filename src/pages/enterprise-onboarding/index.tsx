@@ -6,6 +6,7 @@ import { Building2, Factory, Folder, MapPin, Network } from "lucide-react"
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
 import { DepartmentStep, EnterpriseStep, LocationStep, PlantStep, SubDepartmentAccountStep } from "./steps"
+import { EnterpriseRegister } from "./register"
 import type { OnboardingData } from "./schemas"
 
 const keyInfo = [
@@ -43,11 +44,26 @@ const keyInfo = [
   ],
 ]
 
-/** Enterprise Onboarding, 5 steps (mockup pages 4–8) */
+/**
+ * Enterprise Onboarding.
+ * Lands on the enterprise register (KPIs + table); "Onboard Enterprise" opens the 5-step wizard.
+ */
 export function EnterpriseOnboardingPage() {
   const navigate = useNavigate()
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [data, setData] = useState<OnboardingData>({ subDepartments: [] })
+
+  const closeWizard = () => {
+    setWizardOpen(false)
+    setStep(0)
+    setData({ subDepartments: [] })
+    window.scrollTo({ top: 0 })
+  }
+
+  if (!wizardOpen) {
+    return <EnterpriseRegister onStart={() => { setWizardOpen(true); window.scrollTo({ top: 0 }) }} />
+  }
 
   const loc = data.location
   const steps: WizardStep[] = [
@@ -69,12 +85,12 @@ export function EnterpriseOnboardingPage() {
     <WizardPage
       title="Enterprise Onboarding"
       description="Register new enterprises and build the organisational structure for seamless electrical reliability management."
-      breadcrumbs={[{ label: "Enterprise Onboarding" }]}
+      breadcrumbs={[{ label: "Enterprise Onboarding", to: "/enterprise-onboarding" }, { label: "New Enterprise" }]}
       steps={steps}
       current={step}
       aside={<KeyInfo items={keyInfo[step]} />}
     >
-      {step === 0 && <EnterpriseStep data={data} onNext={next("enterprise")} onCancel={() => navigate("/")} />}
+      {step === 0 && <EnterpriseStep data={data} onNext={next("enterprise")} onCancel={closeWizard} />}
       {step === 1 && <LocationStep data={data} onNext={next("location")} onBack={back} />}
       {step === 2 && <PlantStep data={data} onNext={next("plant")} onBack={back} />}
       {step === 3 && <DepartmentStep data={data} onNext={next("department")} onBack={back} />}

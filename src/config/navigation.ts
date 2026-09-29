@@ -3,7 +3,6 @@ import {
   Building2,
   Factory,
   FileText,
-  Globe,
   HardHat,
   House,
   LifeBuoy,
@@ -26,7 +25,6 @@ export type NavItem = {
 /** OCC sidebar, in the order shown in the mockups */
 export const occNavigation: NavItem[] = [
   { title: "OCC Global Dashboard", path: "/", icon: House },
-  { title: "India/Global Customer Map", path: "/customer-map", icon: Globe },
   { title: "Enterprise Onboarding", path: "/enterprise-onboarding", icon: Building2 },
   { title: "Enterprise Status", path: "/enterprise-status", icon: Building2 },
   { title: "Plant Status", path: "/plant-status", icon: Factory },
