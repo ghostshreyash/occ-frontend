@@ -83,9 +83,10 @@ export function EnterpriseOnboardingPage() {
 
   return (
     <WizardPage
-      title="Enterprise Onboarding"
-      description="Register new enterprises and build the organisational structure for seamless electrical reliability management."
-      breadcrumbs={[{ label: "Enterprise Onboarding", to: "/enterprise-onboarding" }, { label: "New Enterprise" }]}
+      title="Onboard Enterprise"
+      description="Register a new enterprise and build its organisational structure for electrical reliability management."
+      breadcrumbs={[{ label: "Enterprises", onClick: closeWizard }, { label: "New Enterprise" }]}
+      onExit={closeWizard}
       steps={steps}
       current={step}
       aside={<KeyInfo items={keyInfo[step]} />}
@@ -99,8 +100,10 @@ export function EnterpriseOnboardingPage() {
           data={data}
           onBack={back}
           onSubDepartmentsChange={(subDepartments) => setData((d) => ({ ...d, subDepartments }))}
-          onComplete={() => {
-            // TODO: POST /enterprises with the full onboarding payload
+          onComplete={async () => {
+            // TODO: POST /enterprises with the full onboarding payload.
+            // Simulated latency so the Saving… state is visible until the API exists.
+            await new Promise((resolve) => setTimeout(resolve, 600))
             toast.success(`${data.enterprise?.name} onboarded successfully`, {
               description: "The enterprise administrator can now log in to EMMS-E.",
             })

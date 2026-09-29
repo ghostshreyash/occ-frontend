@@ -262,7 +262,7 @@ export function SubDepartmentAccountStep({
   data: OnboardingData
   onBack: () => void
   onSubDepartmentsChange: (items: SubDepartmentValues[]) => void
-  onComplete: (account: AccountValues) => void
+  onComplete: (account: AccountValues) => void | Promise<void>
 }) {
   const [editing, setEditing] = useState<number | null>(null)
   const [listError, setListError] = useState("")
@@ -289,12 +289,18 @@ export function SubDepartmentAccountStep({
     sub.reset({ name: "", code: "", function: "", description: "" })
   })
 
-  const complete = account.handleSubmit((values) => {
+  const [submitting, setSubmitting] = useState(false)
+  const complete = account.handleSubmit(async (values) => {
     if (data.subDepartments.length === 0) {
       setListError("Add at least one sub-department before completing onboarding.")
       return
     }
-    onComplete(values)
+    setSubmitting(true)
+    try {
+      await onComplete(values)
+    } finally {
+      setSubmitting(false)
+    }
   })
 
   const loc = data.location
@@ -305,6 +311,7 @@ export function SubDepartmentAccountStep({
       formId="step-account"
       nextLabel="Complete Onboarding"
       nextIcon={<Check />}
+      pending={submitting}
       onBack={onBack}
     >
       <Context>
