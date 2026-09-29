@@ -37,26 +37,33 @@ export function StepperBar({ steps, current, onSelect }: { steps: WizardStep[]; 
   return (
     <ol className="mb-3 flex items-center gap-1.5 overflow-x-auto rounded-lg bg-card px-3 py-2 shadow-xs ring-1 ring-foreground/10">
       {steps.map((step, i) => {
-        const done = i < current
-        const clickable = done && onSelect !== undefined
-        const Label = clickable ? "button" : "span"
+        const clickable = i < current && onSelect !== undefined
+        // Circle and label form one target, matching the side panel's row behaviour
+        const Item = clickable ? "button" : "div"
         return (
-        <li key={step.title} className="flex min-w-fit flex-1 items-center gap-2 last:flex-none">
-          <StepCircle index={i} state={stateOf(i, current)} />
-          <Label
-            {...(clickable ? { type: "button" as const, onClick: () => onSelect(i), title: `Go back to ${step.title}` } : {})}
-            className={cn(
-              "rounded-sm text-xs whitespace-nowrap",
-              i === current ? "font-semibold text-primary" : "text-foreground",
-              clickable && "cursor-pointer hover:text-primary hover:underline"
-            )}
-          >
-            {step.title}
-          </Label>
-          {i < steps.length - 1 ? (
-            <span className={cn("mx-1.5 h-px min-w-4 flex-1", i < current ? "bg-healthy" : "bg-border")} />
-          ) : null}
-        </li>
+          <li key={step.title} className="flex min-w-fit flex-1 items-center gap-2 last:flex-none">
+            <Item
+              {...(clickable ? { type: "button" as const, onClick: () => onSelect(i), title: `Go back to ${step.title}` } : {})}
+              className={cn(
+                "group flex items-center gap-2 rounded px-1 py-0.5 transition-colors duration-150",
+                clickable && "cursor-pointer hover:bg-muted"
+              )}
+            >
+              <StepCircle index={i} state={stateOf(i, current)} />
+              <span
+                className={cn(
+                  "text-xs whitespace-nowrap",
+                  i === current ? "font-semibold text-primary" : "text-foreground",
+                  clickable && "group-hover:text-primary"
+                )}
+              >
+                {step.title}
+              </span>
+            </Item>
+            {i < steps.length - 1 ? (
+              <span className={cn("mx-1.5 h-px min-w-4 flex-1", i < current ? "bg-healthy" : "bg-border")} />
+            ) : null}
+          </li>
         )
       })}
     </ol>
