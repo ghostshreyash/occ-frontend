@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react"
 import {
+  ArrowDown,
+  ArrowDownWideNarrow,
+  ArrowUp,
   Building2,
   CheckCircle2,
   ChevronLeft,
@@ -9,7 +12,6 @@ import {
   MapPin,
   Plus,
   Search,
-  SlidersHorizontal,
   UserPlus,
   X,
 } from "lucide-react"
@@ -17,7 +19,6 @@ import { cn } from "cn"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -33,6 +34,20 @@ const td = "px-2 py-1.5 text-xs"
 const PAGE_SIZES = [8, 15, 25]
 
 const onboardingBadge = { label: "Onboarding", badge: "neutral" as const }
+
+/** Onboarded dates are stored DD-MM-YYYY, so they need parsing before they can be compared */
+const onboardedTime = (s: string) => {
+  const [d, m, y] = s.split("-").map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
+
+const SORTS = {
+  newest: { label: "Latest added", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => onboardedTime(b.onboarded) - onboardedTime(a.onboarded) },
+  oldest: { label: "Oldest added", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => onboardedTime(a.onboarded) - onboardedTime(b.onboarded) },
+  name: { label: "Name A-Z", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => a.name.localeCompare(b.name) },
+  assets: { label: "Most assets", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => b.assets - a.assets },
+} as const
+type SortKey = keyof typeof SORTS
 const statusMeta = (s: EnterpriseRecord["status"]) => (s === "onboarding" ? onboardingBadge : healthStatus[s])
 
 /* Status drives the row stripe and the monogram tint — colour reinforces the badge, never replaces it */
@@ -53,7 +68,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const [type, setType] = useState("all")
   const [status, setStatus] = useState("all")
   const [location, setLocation] = useState("all")
-  const [selected, setSelected] = useState<string[]>([])
+  const [sort, setSort] = useState<SortKey>("newest")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
 
@@ -62,15 +77,17 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
 
   const rows = useMemo(
     () =>
-      enterpriseRecords.filter((e) => {
-        if (type !== "all" && e.type !== type) return false
-        if (status !== "all" && e.status !== status) return false
-        if (location !== "all" && e.country !== location) return false
-        const q = query.trim().toLowerCase()
-        if (!q) return true
-        return [e.name, e.id, e.sector, e.country, e.city].some((v) => v.toLowerCase().includes(q))
-      }),
-    [query, type, status, location]
+      enterpriseRecords
+        .filter((e) => {
+          if (type !== "all" && e.type !== type) return false
+          if (status !== "all" && e.status !== status) return false
+          if (location !== "all" && e.country !== location) return false
+          const q = query.trim().toLowerCase()
+          if (!q) return true
+          return [e.name, e.id, e.sector, e.country, e.city].some((v) => v.toLowerCase().includes(q))
+        })
+        .sort(SORTS[sort].compare),
+    [query, type, status, location, sort]
   )
 
   /*
@@ -78,7 +95,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
    * Adjusting during render (rather than in an effect) avoids a wasted commit —
    * see react.dev "You Might Not Need an Effect".
    */
-  const filterKey = `${query}|${type}|${status}|${location}|${pageSize}`
+  const filterKey = `${query}|${type}|${status}|${location}|${sort}|${pageSize}`
   const [lastFilterKey, setLastFilterKey] = useState(filterKey)
   if (lastFilterKey !== filterKey) {
     setLastFilterKey(filterKey)
@@ -97,12 +114,6 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
     setStatus("all")
     setLocation("all")
   }
-
-  const allShownSelected = pageRows.length > 0 && pageRows.every((r) => selected.includes(r.id))
-  const toggleAll = () =>
-    setSelected(allShownSelected ? selected.filter((id) => !pageRows.some((r) => r.id === id)) : [...new Set([...selected, ...pageRows.map((r) => r.id)])])
-  const toggleOne = (id: string) =>
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   return (
     <div className="space-y-3">
@@ -170,42 +181,49 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
             </Button>
           ) : null}
 
-          <Button variant="outline" size="sm" className="ml-auto h-7 text-xs">
+          <div className="ml-auto">
+            <Label htmlFor="ent-sort" className="mb-0.5 block text-[0.62rem] text-muted-foreground">Sort by</Label>
+            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+              <SelectTrigger id="ent-sort" size="sm" className="h-7 w-36 text-xs">
+                <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SORTS) as SortKey[]).map((k) => (
+                  <SelectItem key={k} value={k}>{SORTS[k].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button variant="outline" size="sm" className="h-7 self-end text-xs">
             <FileDown className="size-3.5" /> Export
           </Button>
         </div>
 
-        {/* Bulk action bar, only once something is selected */}
-        {selected.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 border-b bg-info-soft px-3 py-1.5 text-xs">
-            <span className="font-medium tabular-nums">{selected.length} selected</span>
-            <Button variant="outline" size="sm" className="h-6 bg-card text-[0.7rem]">
-              <SlidersHorizontal className="size-3" /> Change Status
-            </Button>
-            <Button variant="outline" size="sm" className="h-6 bg-card text-[0.7rem]">
-              <FileDown className="size-3" /> Export Selected
-            </Button>
-            <Button variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={() => setSelected([])}>
-              Clear selection
-            </Button>
-          </div>
-        ) : null}
 
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
-                <TableHead className={`${th} w-8 pl-3`}>
-                  <Checkbox checked={allShownSelected} onCheckedChange={toggleAll} aria-label="Select all on this page" className="size-3.5" />
-                </TableHead>
-                <TableHead className={th}>Enterprise</TableHead>
+                <TableHead className={`${th} pl-3`}>Enterprise</TableHead>
                 <TableHead className={th}>Type</TableHead>
                 <TableHead className={`${th} hidden md:table-cell`}>Industry Sector</TableHead>
                 <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
-                <TableHead className={`${th} text-right`}>Plants</TableHead>
-                <TableHead className={`${th} hidden text-right sm:table-cell`}>Assets</TableHead>
-                <TableHead className={`${th} hidden text-right lg:table-cell`}>ELPREMARs</TableHead>
-                <TableHead className={`${th} hidden md:table-cell`}>Onboarded</TableHead>
+                <TableHead className={th}>Plants</TableHead>
+                <TableHead className={`${th} hidden sm:table-cell`}>Assets</TableHead>
+                <TableHead className={`${th} hidden lg:table-cell`}>ELPREMARs</TableHead>
+                <TableHead className={`${th} hidden md:table-cell`}>
+                  <button
+                    type="button"
+                    onClick={() => setSort(sort === "newest" ? "oldest" : "newest")}
+                    className="inline-flex items-center gap-1 uppercase hover:text-foreground"
+                    aria-label={`Sort by date onboarded, currently ${sort === "oldest" ? "oldest" : "latest"} first`}
+                  >
+                    Onboarded
+                    {sort === "newest" ? <ArrowDown className="size-3" /> : sort === "oldest" ? <ArrowUp className="size-3" /> : null}
+                  </button>
+                </TableHead>
                 <TableHead className={th}>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -213,15 +231,11 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
               {pageRows.map((e) => {
                 const meta = statusMeta(e.status)
                 const accent = statusAccent[e.status]
-                const isSelected = selected.includes(e.id)
                 return (
-                  <TableRow key={e.id} data-state={isSelected ? "selected" : undefined} className="group/row">
-                    <TableCell className="relative px-2 py-1.5 pl-3">
+                  <TableRow key={e.id}>
+                    <TableCell className={`${td} relative pl-3`}>
                       {/* Status stripe: colour reinforcing the badge at the end of the row */}
                       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-0.5", accent.stripe)} />
-                      <Checkbox checked={isSelected} onCheckedChange={() => toggleOne(e.id)} aria-label={`Select ${e.name}`} className="size-3.5" />
-                    </TableCell>
-                    <TableCell className={td}>
                       <div className="flex items-center gap-2">
                         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded text-[0.55rem] font-bold", accent.chip)}>
                           {initials(e.name)}
@@ -238,9 +252,9 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                       <div>{e.city}</div>
                       <div className="text-[0.65rem] text-muted-foreground">{e.country}</div>
                     </TableCell>
-                    <TableCell className={`${td} text-right tabular-nums`}>{e.plants}</TableCell>
-                    <TableCell className={`${td} hidden text-right tabular-nums sm:table-cell`}>{e.assets.toLocaleString("en-IN")}</TableCell>
-                    <TableCell className={`${td} hidden text-right tabular-nums lg:table-cell`}>{e.elpremars}</TableCell>
+                    <TableCell className={`${td} tabular-nums`}>{e.plants}</TableCell>
+                    <TableCell className={`${td} hidden tabular-nums sm:table-cell`}>{e.assets.toLocaleString("en-IN")}</TableCell>
+                    <TableCell className={`${td} hidden tabular-nums lg:table-cell`}>{e.elpremars}</TableCell>
                     <TableCell className={`${td} hidden tabular-nums md:table-cell`}>{e.onboarded}</TableCell>
                     <TableCell className={td}>
                       <Badge variant={meta.badge} className="rounded px-1.5 py-0 text-[0.65rem]">{meta.label}</Badge>
