@@ -183,7 +183,7 @@ export function FileDropField<T extends FieldValues>({
             <label
               htmlFor={name}
               className={cn(
-                "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 p-5 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
+                "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
               )}
             >
               <UploadCloud className="size-8 text-primary" />

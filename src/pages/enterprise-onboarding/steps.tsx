@@ -18,6 +18,7 @@ import {
   indianStates,
   industrySectors,
   plantTypes,
+  salutations,
   subDepartmentFunctions,
   timeZones,
 } from "@/data/mock"
@@ -128,10 +129,11 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         )}
         <TextField control={control} name="city" label="City" required placeholder="Enter city" />
 
-        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={3} maxLength={250} className="md:row-span-2" />
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required className="md:col-span-2" />
-        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" />
-        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
+        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" placeholder="19.0759" />
+        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" placeholder="72.8777" />
+
+        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
 
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">
@@ -163,7 +165,7 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
   const form = useForm<PlantValues>({
     resolver: zodResolver(plantSchema),
     defaultValues: data.plant ?? {
-      name: "", type: "", code: "", address: "", head: "", email: "", phone: "",
+      name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phone: "",
       capacity: "", commissioningYear: "", timeZone: timeZones[0], notes: "",
     },
   })
@@ -192,11 +194,18 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
         <SelectField control={control} name="type" label="Plant Type" required options={plantTypes} />
         <TextField control={control} name="code" label="Plant Code" placeholder="e.g. TS-MUM-001" />
 
-        <TextareaField control={control} name="address" label="Plant Address" required rows={3} maxLength={250} className="md:row-span-2" />
-        <TextField control={control} name="head" label="Plant Head" required />
-        <TextField control={control} name="email" label="Email" type="email" />
-        <div className="hidden md:block" />
-        <TextField control={control} name="phone" label="Phone Number" type="tel" />
+        {/*
+          Contact details sit on one row, then the address spans the full width.
+          The previous row-span + spacer arrangement left a hole under Plant Head.
+        */}
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+          <SelectField control={control} name="salutation" label="Title" required options={salutations} />
+          <TextField control={control} name="head" label="Plant Head" required placeholder="e.g. S. Krishnan" />
+        </div>
+        <TextField control={control} name="email" label="Email" type="email" placeholder="name@company.com" />
+        <TextField control={control} name="phone" label="Phone Number" type="tel" placeholder="+91 98765 43210" />
+
+        <TextareaField control={control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
 
         <h4 className="text-sm font-semibold md:col-span-3">
           Additional Information
@@ -206,7 +215,7 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
         <SelectField control={control} name="timeZone" label="Time Zone" options={timeZones} />
 
         <FileDropField control={control} name="logo" label="Plant Logo" />
-        <TextareaField control={control} name="notes" label="Notes" rows={3} placeholder="Enter any additional information about the plant..." className="md:col-span-2" />
+        <TextareaField control={control} name="notes" label="Notes" rows={4} placeholder="Enter any additional information about the plant..." className="md:col-span-2" />
       </form>
     </StepCard>
   )

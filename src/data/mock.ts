@@ -147,6 +147,7 @@ export const indianStates = ["Maharashtra", "Gujarat", "Karnataka", "Tamil Nadu"
 export const plantTypes = ["Integrated Steel Plant", "Refinery", "Power Plant", "Cement Plant", "Manufacturing Unit", "Data Centre", "Substation", "Other"]
 export const departmentTypes = ["Engineering", "Operations", "Maintenance", "Utilities", "Quality", "Safety"]
 export const subDepartmentFunctions = ["Maintenance", "Operations", "Testing", "Projects"]
+export const salutations = ["Mr.", "Ms.", "Mrs.", "Dr.", "Er.", "Prof."]
 export const timeZones = ["(UTC+05:30) India Standard Time", "(UTC+04:00) Gulf Standard Time", "(UTC+03:00) Arabia Standard Time", "(UTC+08:00) Singapore Time", "(UTC+00:00) GMT", "(UTC+01:00) Central European Time"]
 
 /* ---------- ELPREMAR ---------- */

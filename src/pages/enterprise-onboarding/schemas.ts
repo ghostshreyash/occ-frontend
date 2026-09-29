@@ -30,6 +30,7 @@ export const plantSchema = z.object({
   type: required("Plant type"),
   code: optionalText,
   address: required("Plant address"),
+  salutation: required("Salutation"),
   head: required("Plant head"),
   email: optionalEmail,
   phone: optionalText,
