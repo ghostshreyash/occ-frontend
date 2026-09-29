@@ -133,7 +133,7 @@ export function EnterpriseOnboardingPage() {
         <ReviewStep
           data={data}
           onBack={back}
-          onEdit={goToStep}
+          onChange={(patch) => setData((d) => ({ ...d, ...patch }))}
           submitting={submitting}
           onSubmit={async () => {
             setSubmitting(true)

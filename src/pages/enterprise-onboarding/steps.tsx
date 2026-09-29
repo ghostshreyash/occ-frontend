@@ -285,6 +285,12 @@ export function SubDepartmentAccountStep({
   const usernameState = account.getFieldState("username", account.formState)
 
   const saveSubDepartment = sub.handleSubmit((values) => {
+    // Fields are optional, but an entirely blank row would be meaningless
+    const isBlank = !values.name?.trim() && !values.code?.trim() && !values.function?.trim()
+    if (isBlank) {
+      setListError("Enter a name, code or function before adding a sub-department.")
+      return
+    }
     const items = [...data.subDepartments]
     if (editing !== null) items[editing] = values
     else items.push(values)
@@ -314,16 +320,16 @@ export function SubDepartmentAccountStep({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h4 className="font-semibold">1. Sub-department Details</h4>
-          <p className="text-xs text-muted-foreground">Add one or more sub-departments under the selected department.</p>
+          <p className="text-xs text-muted-foreground">Optional — add one or more sub-departments, or continue without any.</p>
         </div>
         <Button type="button" onClick={saveSubDepartment}>
           <Plus /> {editing !== null ? "Update Sub-department" : "Add Sub-department"}
         </Button>
       </div>
       <div className="grid gap-2.5 md:grid-cols-3">
-        <TextField control={sub.control} name="name" label="Sub-department Name" required placeholder="e.g. HT Maintenance" />
-        <TextField control={sub.control} name="code" label="Sub-department Code" required placeholder="e.g. SUB-EL-HT" />
-        <SelectField control={sub.control} name="function" label="Function / Area" required options={subDepartmentFunctions} />
+        <TextField control={sub.control} name="name" label="Sub-department Name" placeholder="e.g. HT Maintenance" />
+        <TextField control={sub.control} name="code" label="Sub-department Code" placeholder="e.g. SUB-EL-HT" />
+        <SelectField control={sub.control} name="function" label="Function / Area" options={subDepartmentFunctions} />
         <TextField control={sub.control} name="description" label="Description" className="md:col-span-3" />
       </div>
 
@@ -348,7 +354,7 @@ export function SubDepartmentAccountStep({
               </TableRow>
             ) : (
               data.subDepartments.map((s, i) => (
-                <TableRow key={s.code + i} className={editing === i ? "bg-accent" : undefined}>
+                <TableRow key={`${s.code ?? ""}-${i}`} className={editing === i ? "bg-accent" : undefined}>
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>{s.name}</TableCell>
                   <TableCell>{s.code}</TableCell>

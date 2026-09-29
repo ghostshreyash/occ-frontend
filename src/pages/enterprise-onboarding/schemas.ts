@@ -59,11 +59,11 @@ export const departmentSchema = z.object({
   description: optionalText,
 })
 
-/** Sub-department is optional, but if one is being added its key fields are needed */
+/** Sub-departments are optional - the whole section can be skipped */
 export const subDepartmentSchema = z.object({
-  name: required("Sub-department name"),
-  code: required("Sub-department code"),
-  function: required("Function / Area"),
+  name: optionalText,
+  code: optionalText,
+  function: optionalText,
   description: optionalText,
 })
 
