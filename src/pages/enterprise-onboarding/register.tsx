@@ -41,6 +41,9 @@ const onboardedTime = (s: string) => {
   return new Date(y, m - 1, d).getTime()
 }
 
+/** Every filter menu opens below its trigger and never flips upward */
+const DROP_DOWN = { position: "popper", side: "bottom", align: "start", sideOffset: 4, avoidCollisions: false } as const
+
 const SORTS = {
   newest: { label: "Latest added", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => onboardedTime(b.onboarded) - onboardedTime(a.onboarded) },
   oldest: { label: "Oldest added", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => onboardedTime(a.onboarded) - onboardedTime(b.onboarded) },
@@ -146,7 +149,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
         }
       >
         {/* Filter bar */}
-        <div className="flex flex-wrap items-end gap-2 border-b px-3 pb-2.5">
+        <div className="flex flex-wrap items-center gap-2 border-b px-3 pb-2.5">
           <div className="min-w-0 flex-1 sm:max-w-52">
             <Label htmlFor="ent-search" className="sr-only">Search enterprises</Label>
             <div className="relative">
@@ -181,22 +184,19 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
             </Button>
           ) : null}
 
-          <div className="ml-auto">
-            <Label htmlFor="ent-sort" className="mb-0.5 block text-[0.62rem] text-muted-foreground">Sort by</Label>
-            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-              <SelectTrigger id="ent-sort" size="sm" className="h-7 w-36 text-xs">
-                <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(SORTS) as SortKey[]).map((k) => (
-                  <SelectItem key={k} value={k}>{SORTS[k].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger id="ent-sort" size="sm" aria-label="Sort by" className="ml-auto h-7 w-36 text-xs">
+              <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent {...DROP_DOWN}>
+              {(Object.keys(SORTS) as SortKey[]).map((k) => (
+                <SelectItem key={k} value={k}>{SORTS[k].label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <Button variant="outline" size="sm" className="h-7 self-end text-xs">
+          <Button variant="outline" size="sm" className="h-7 text-xs">
             <FileDown className="size-3.5" /> Export
           </Button>
         </div>
@@ -295,10 +295,10 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
             <div className="flex items-center gap-2">
               <Label htmlFor="ent-page-size" className="text-[0.7rem] text-muted-foreground">Rows</Label>
               <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-                <SelectTrigger id="ent-page-size" size="sm" className="h-6 w-14 text-[0.7rem]">
+                <SelectTrigger id="ent-page-size" size="sm" aria-label="Rows per page" className="h-6 w-14 text-[0.7rem]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent {...DROP_DOWN}>
                   {PAGE_SIZES.map((n) => (
                     <SelectItem key={n} value={String(n)}>{n}</SelectItem>
                   ))}
@@ -371,20 +371,19 @@ function FilterSelect({
   renderOption?: (v: string) => string
 }) {
   return (
-    <div>
-      <Label htmlFor={id} className="mb-0.5 block text-[0.62rem] text-muted-foreground">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} size="sm" className={cn("h-7 text-xs", width)}>
-          {Icon ? <Icon className="size-3.5 text-muted-foreground" /> : null}
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{allLabel}</SelectItem>
-          {options.map((o) => (
-            <SelectItem key={o} value={o}>{renderOption(o)}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={value} onValueChange={onChange}>
+      {/* The selected value already reads as the label ("All Locations"), so the
+          name is carried by aria-label instead of a visible caption. */}
+      <SelectTrigger id={id} size="sm" aria-label={label} className={cn("h-7 text-xs", width)}>
+        {Icon ? <Icon className="size-3.5 text-muted-foreground" /> : null}
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent {...DROP_DOWN}>
+        <SelectItem value="all">{allLabel}</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o} value={o}>{renderOption(o)}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
