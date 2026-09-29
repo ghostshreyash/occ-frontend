@@ -178,7 +178,7 @@ export function LoginPage() {
           </span>
         </div>
       ) : null}
-      <p
+      {/* <p
         className={
           brand.key === "evita" || brand.cardAlign === "center"
             ? "hidden"
@@ -189,7 +189,7 @@ export function LoginPage() {
         <Link to="/welcome" className="font-medium text-primary underline-offset-4 hover:underline">
           See all Olivine systems →
         </Link>
-      </p>
+      </p> */}
     </AuthScreen>
   )
 }
