@@ -136,6 +136,16 @@ export const enterpriseRecords: EnterpriseRecord[] = [
   { id: "SBC-ENT-008", name: "SABIC", type: "Oil & Gas", sector: "Petrochemicals", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy" },
   { id: "THY-ENT-009", name: "Thyssenkrupp AG", type: "Manufacturing", sector: "Steel & Metals", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy" },
   { id: "SGX-ENT-010", name: "Singapore Grid Co.", type: "Data Centre", sector: "IT / Data Centres", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy" },
+  { id: "HIN-ENT-011", name: "Hindalco Industries", type: "Manufacturing", sector: "Steel & Metals", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention" },
+  { id: "VED-ENT-012", name: "Vedanta Limited", type: "Power & Utilities", sector: "Power Generation", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy" },
+  { id: "BPC-ENT-013", name: "Bharat Petroleum", type: "Oil & Gas", sector: "Petrochemicals", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical" },
+  { id: "UTC-ENT-014", name: "UltraTech Cement", type: "Manufacturing", sector: "Cement", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy" },
+  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", type: "Manufacturing", sector: "Pharmaceuticals", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention" },
+  { id: "TAT-ENT-016", name: "Tata Steel Europe", type: "Manufacturing", sector: "Steel & Metals", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention" },
+  { id: "LYB-ENT-017", name: "LyondellBasell", type: "Oil & Gas", sector: "Petrochemicals", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy" },
+  { id: "VAL-ENT-018", name: "Vale S.A.", type: "Manufacturing", sector: "Steel & Metals", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical" },
+  { id: "ESK-ENT-019", name: "Eskom Holdings", type: "Power & Utilities", sector: "Power Generation", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy" },
+  { id: "BHP-ENT-020", name: "BHP Group", type: "Infrastructure", sector: "Steel & Metals", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding" },
 ]
 
 export const enterpriseRegisterKpis = {
