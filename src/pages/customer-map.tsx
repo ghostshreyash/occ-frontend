@@ -36,9 +36,9 @@ export function CustomerMapPage() {
   return (
     <div className="space-y-3">
       <PageHeader
-        title="India Customer Map"
-        description="Real-time view of customer locations, plants and asset health status across India."
-        breadcrumbs={[{ label: "India Customer Map" }]}
+        title="India Enterprise Map"
+        description="Real-time view of enterprise locations, plants and asset health status across India."
+        breadcrumbs={[{ label: "India Enterprise Map" }]}
         actions={
           <>
             <Select value={enterprise} onValueChange={setEnterprise}>
@@ -46,7 +46,7 @@ export function CustomerMapPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Customers</SelectItem>
+                <SelectItem value="all">All Enterprises</SelectItem>
                 {indiaCustomers.map((c) => (
                   <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                 ))}
@@ -62,7 +62,7 @@ export function CustomerMapPage() {
 
       {/* Countries removed — this page is India only */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <StatCard label="Total Customers" value={indiaKpis.enterprises.value} change={indiaKpis.enterprises.change} icon={Building2} tone="info" variant="plain" />
+        <StatCard label="Total Enterprises" value={indiaKpis.enterprises.value} change={indiaKpis.enterprises.change} icon={Building2} tone="info" variant="plain" />
         <StatCard label="Total Plants" value={indiaKpis.plants.value} change={indiaKpis.plants.change} icon={Factory} tone="success" variant="plain" />
         <StatCard label="Total Assets (Monitored)" value={indiaKpis.assets.value} change={indiaKpis.assets.change} icon={Server} tone="info" variant="plain" />
         <StatCard
@@ -77,7 +77,7 @@ export function CustomerMapPage() {
 
       {/* Map keeps its right-hand column side by side from tablet up */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
-        <CustomerMap plants={plants} view="india" expandable title="India Customer Map" className="h-[21rem] rounded-lg" />
+        <CustomerMap plants={plants} view="india" expandable title="India Enterprise Map" className="h-[21rem] rounded-lg" />
 
         <div className="space-y-3">
         <SectionCard title="India Overview" viewAllTo="/enterprise-status">
@@ -87,7 +87,7 @@ export function CustomerMapPage() {
               view="india"
               focusCountry="India"
               interactive={false}
-              marker="dot"
+              marker="pin-sm"
               showLegend={false}
               className="h-36"
             />

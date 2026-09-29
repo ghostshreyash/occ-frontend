@@ -14,6 +14,8 @@ const VIEWS: Record<MapView, [[number, number], [number, number]]> = {
   india: [[67.5, 6], [97.5, 36.5]],
 }
 
+export type MarkerKind = "pin" | "pin-sm"
+
 export type RegionLabel = { region: string; customers: number; plants: number; lng: number; lat: number }
 
 /*
@@ -96,7 +98,11 @@ const pinSvg = (width: number, height: number) => `
   <circle cx="12" cy="12" r="4" fill="white" />
 </svg>`
 
-const PIN_SIZE = [20, 27] as const
+/** Full size on the main maps; the thumbnail insets use a pin scaled down to roughly dot size. */
+const PIN_SIZE: Record<MarkerKind, readonly [number, number]> = {
+  pin: [20, 27],
+  "pin-sm": [11, 15],
+}
 
 const PIN_TONE: Record<HealthStatus, string> = {
   healthy: "text-healthy",
@@ -128,8 +134,8 @@ export function CustomerMap({
   interactive?: boolean
   /** Zoom buttons; off when overlays occupy the map corners */
   showControls?: boolean
-  /** Thumbnail insets use a small dot, so the country shape stays readable. */
-  marker?: "pin" | "dot"
+  /** Thumbnail insets use the same pin scaled right down, so the country shape stays readable. */
+  marker?: MarkerKind
   /** Adds a button that opens the same map full size in a dialog. */
   expandable?: boolean
   /** Heading for the expanded view. */
@@ -165,17 +171,15 @@ export function CustomerMap({
     for (const plant of plants) {
       const el = document.createElement("div")
       // The pin inherits its fill from these theme tokens via `currentColor`.
-      const dot = marker === "dot"
+      const [w, h] = PIN_SIZE[marker]
       el.className = cn(
         "transition-transform duration-200",
-        dot
-          ? cn("size-2 rounded-full ring-2 ring-white/70 shadow-[0_0_7px_2px_currentColor]", healthStatus[plant.status].dot)
-          : "drop-shadow-[0_2px_3px_rgba(0,0,0,0.55)]",
-        !dot && interactive && "cursor-pointer hover:-translate-y-0.5 hover:drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]",
+        marker === "pin-sm" ? "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" : "drop-shadow-[0_2px_3px_rgba(0,0,0,0.55)]",
+        interactive && "cursor-pointer hover:-translate-y-0.5 hover:drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]",
         PIN_TONE[plant.status]
       )
-      if (!dot) el.innerHTML = pinSvg(PIN_SIZE[0], PIN_SIZE[1])
-      const pin = new maplibregl.Marker({ element: el, anchor: dot ? "center" : "bottom" }).setLngLat([
+      el.innerHTML = pinSvg(w, h)
+      const pin = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([
         plant.lng,
         plant.lat,
       ])
