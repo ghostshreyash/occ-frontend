@@ -39,7 +39,7 @@ import {
 } from "@/data/mock"
 import { alertSeverity, chartSeries, healthStatus, workStatus } from "@/lib/status"
 
-const onboardingSlice = { label: "Onboarding", color: "var(--neutral)" }
+const onboardingSlice = { label: "Onboarded", color: "var(--neutral)" }
 
 const connectivityIcons = [Server, Cloud, Waypoints, RefreshCw]
 const activityIcons = { enterprise: Building2, plant: Factory, inspection: FileCheck2, ticket: Database }

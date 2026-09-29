@@ -33,7 +33,7 @@ const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
 const PAGE_SIZES = [8, 15, 25]
 
-const onboardingBadge = { label: "Onboarding", badge: "neutral" as const }
+const onboardingBadge = { label: "Onboarded", badge: "neutral" as const }
 
 /** Onboarded dates are stored DD-MM-YYYY, so they need parsing before they can be compared */
 const onboardedTime = (s: string) => {
@@ -134,7 +134,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <StatCard label="Total Enterprises" value={enterpriseRegisterKpis.total} delta={enterpriseRegisterKpis.delta.total} icon={Building2} tone="info" variant="plain" />
         <StatCard label="Active" value={enterpriseRegisterKpis.active} delta={enterpriseRegisterKpis.delta.active} icon={CheckCircle2} tone="healthy" variant="plain" />
-        <StatCard label="In Onboarding" value={enterpriseRegisterKpis.onboarding} icon={UserPlus} tone="attention" variant="plain" />
+        <StatCard label="Onboarded" value={enterpriseRegisterKpis.onboarding} icon={UserPlus} tone="attention" variant="plain" />
         <StatCard label="Total Plants" value={enterpriseRegisterKpis.plants} delta={enterpriseRegisterKpis.delta.plants} icon={Factory} tone="success" variant="plain" />
       </div>
 

@@ -156,7 +156,7 @@ export const enterpriseRegisterKpis = {
   /*
    * Absolute month-over-month movement. These are counts in the tens, so a
    * percentage would round to a fraction of an enterprise and read as noise.
-   * "In Onboarding" gets no trend at all - it is a live queue, not a trend.
+   * "Onboarded" gets no trend at all - it is a running count, not a trend.
    */
   delta: { total: 2, active: 2, plants: 9 },
 }
