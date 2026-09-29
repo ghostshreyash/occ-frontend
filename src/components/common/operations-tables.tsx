@@ -122,12 +122,12 @@ export function OperationsTables({ country, className }: { country?: string; cla
       className={cn("rounded-lg bg-card shadow-xs ring-1 ring-foreground/10", className)}
     >
       <div className="flex items-center gap-4 px-3 pt-2.5">
-        <TabsList className="h-7 min-w-0 flex-1 gap-0.5">
+        <TabsList className="h-9 min-w-0 flex-1 gap-2.5 bg-transparent! p-0!">
           {tabs.map((t) => (
             <TabsTrigger
               key={t.value}
               value={t.value}
-              className="group/tab flex-1 px-2 text-xs data-active:bg-primary! data-active:text-primary-foreground! data-active:shadow-sm"
+              className="group/tab h-full! flex-1 cursor-pointer border-foreground/20! bg-card px-2 text-xs text-foreground/75 shadow-xs hover:border-primary/50! hover:bg-info-soft hover:text-primary data-active:border-primary! data-active:bg-primary! data-active:text-primary-foreground! data-active:shadow-sm"
             >
               <t.icon className="size-3.5" />
               <span className="hidden sm:inline">{t.label}</span>
