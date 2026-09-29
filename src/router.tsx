@@ -17,6 +17,7 @@ import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
 import { CriticalAlertsPage } from "@/pages/critical-alerts"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
+import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
 
 const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts"])
 
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
           { index: true, element: <DashboardPage /> },
           // Global and India map views now live inside the OCC dashboard.
           { path: "customer-map", element: <Navigate to="/" replace /> },
+          { path: "enterprises", element: <EnterpriseOnboardingPage /> },
           { path: "enterprise-onboarding", element: <Navigate to="/enterprises" replace /> },
           { path: "elpremars", element: <ElpremarActivityPage /> },
           { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
