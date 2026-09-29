@@ -118,14 +118,15 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
       />
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <StatCard label="Total Enterprises" value={enterpriseRegisterKpis.total} icon={Building2} tone="info" variant="plain" />
-        <StatCard label="Active" value={enterpriseRegisterKpis.active} icon={CheckCircle2} tone="healthy" variant="plain" />
+        <StatCard label="Total Enterprises" value={enterpriseRegisterKpis.total} delta={enterpriseRegisterKpis.delta.total} icon={Building2} tone="info" variant="plain" />
+        <StatCard label="Active" value={enterpriseRegisterKpis.active} delta={enterpriseRegisterKpis.delta.active} icon={CheckCircle2} tone="healthy" variant="plain" />
         <StatCard label="In Onboarding" value={enterpriseRegisterKpis.onboarding} icon={UserPlus} tone="attention" variant="plain" />
-        <StatCard label="Total Plants" value={enterpriseRegisterKpis.plants} icon={Factory} tone="success" variant="plain" />
+        <StatCard label="Total Plants" value={enterpriseRegisterKpis.plants} delta={enterpriseRegisterKpis.delta.plants} icon={Factory} tone="success" variant="plain" />
       </div>
 
       <SectionCard
         title="Registered Enterprises"
+        hoverable={false}
         contentClassName="px-0 pb-0"
         actions={
           <span className="text-[0.7rem] tabular-nums text-muted-foreground">
