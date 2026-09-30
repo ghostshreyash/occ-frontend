@@ -2,12 +2,14 @@ import { useState } from "react"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format, isValid, parseISO } from "date-fns"
-import { Building2, Check, Factory, Folder, MapPin, Network, Pencil, Trash2, X } from "lucide-react"
+import { Building2, Check, Factory, Folder, MapPin, Network, Pencil, Trash2 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { StepCard } from "@/components/common/wizard-layout"
+import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import {
   countries,
   indianStates,
@@ -28,96 +30,25 @@ import {
   type PlantValues,
 } from "./schemas"
 
-type Row = { label: string; value?: string }
-type SectionKey = "enterprise" | "location" | "plant" | "department" | "subs" | "account"
 
 /** ISO date in form state, readable date on screen */
+/** Initials for the identity card */
+const monogram = (name?: string) =>
+  (name ?? "")
+    .replace(/[^A-Za-z ]/g, "")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 3)
+    .toUpperCase() || "NEW"
+
+const SECTION_COUNT = 6
+
 const formatDate = (iso?: string) => {
   if (!iso) return undefined
   const d = parseISO(iso)
   return isValid(d) ? format(d, "dd MMM yyyy") : iso
-}
-
-/** Read-only value grid; optional sections say so rather than showing blanks */
-function ValueGrid({ rows }: { rows: Row[] }) {
-  const filled = rows.filter((r) => r.value && r.value.trim() !== "")
-  if (filled.length === 0) {
-    return <p className="text-xs text-muted-foreground">Not provided — this section is optional.</p>
-  }
-  return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
-      {filled.map((r) => (
-        <div key={r.label} className="min-w-0">
-          <dt className="text-[0.65rem] text-muted-foreground">{r.label}</dt>
-          <dd className="truncate text-xs font-medium">{r.value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
-
-/**
- * A reviewable section. Edit swaps the value grid for the same fields used in the
- * wizard, inline — the review screen is never left.
- */
-function Section({
-  icon: Icon,
-  title,
-  sectionKey,
-  editing,
-  onEditingChange,
-  onSave,
-  formId,
-  view,
-  edit,
-}: {
-  icon: typeof Building2
-  title: string
-  sectionKey: SectionKey
-  editing: SectionKey | null
-  onEditingChange: (k: SectionKey | null) => void
-  onSave?: () => void
-  formId?: string
-  view: React.ReactNode
-  edit?: React.ReactNode
-}) {
-  const isEditing = editing === sectionKey
-  const locked = editing !== null && !isEditing
-
-  return (
-    <section className={`rounded-lg ring-1 ${isEditing ? "ring-primary/40" : "ring-foreground/10"}`}>
-      <header className={`flex items-center justify-between gap-2 rounded-t-lg px-3 py-1.5 ${isEditing ? "bg-info-soft" : "bg-muted/60"}`}>
-        <h4 className="flex items-center gap-1.5 text-xs font-semibold">
-          <Icon className="size-3.5 text-primary" />
-          {title}
-        </h4>
-        {edit ? (
-          isEditing ? (
-            <div className="flex items-center gap-1">
-              <Button type="button" variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={() => onEditingChange(null)}>
-                <X className="size-3" /> Cancel
-              </Button>
-              <Button type="button" size="sm" className="h-6 text-[0.7rem]" onClick={onSave} form={formId}>
-                <Check className="size-3" /> Save
-              </Button>
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 text-[0.7rem]"
-              disabled={locked}
-              onClick={() => onEditingChange(sectionKey)}
-            >
-              <Pencil className="size-3" /> Edit
-            </Button>
-          )
-        ) : null}
-      </header>
-      <div className="p-3">{isEditing ? edit : view}</div>
-    </section>
-  )
 }
 
 /** Wraps a section's fields in their own form so Enter and validation behave normally */
@@ -154,7 +85,7 @@ export function ReviewStep({
   onSubmit: () => void
   submitting: boolean
 }) {
-  const [editing, setEditing] = useState<SectionKey | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const { enterprise: e, location: l, plant: p, department: d, subDepartments: subs, account } = data
 
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: e })
@@ -176,6 +107,18 @@ export function ReviewStep({
 
   const isIndia = locationForm.watch("country") === "India"
 
+  /* Which sections carry data, so the header can report readiness honestly */
+  const done = {
+    enterprise: Boolean(e?.name),
+    location: Boolean(l?.city),
+    plant: Boolean(p?.name),
+    department: Boolean(d?.name),
+    subs: subs.length > 0,
+    account: Boolean(account?.username),
+  }
+  const completeCount = Object.values(done).filter(Boolean).length
+  const emptyOptional = [done.department, done.subs].filter((v) => !v).length
+
   return (
     <StepCard
       title="Step 6 of 6: Review & Submit"
@@ -194,17 +137,63 @@ export function ReviewStep({
       />
 
       <div className="space-y-2.5">
-        <p className="text-xs text-muted-foreground">
-          Check the details below. <strong>Edit</strong> any section in place, then submit.
-        </p>
+        {/* Identity card: what is actually being created, at a glance */}
+        <div className="overflow-hidden rounded-lg bg-brand-navy text-brand-navy-foreground ring-1 ring-foreground/10">
+          <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-white/10 text-sm font-bold ring-1 ring-white/15">
+              {monogram(e?.name)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-bold">{e?.name || "New enterprise"}</div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.7rem] text-brand-navy-foreground/75">
+                {e?.sectorType ? <span className="rounded bg-white/10 px-1.5 py-0.5">{e.sectorType}</span> : null}
+                {e?.sector ? <span>{e.sector}</span> : null}
+                {l?.city ? <span className="flex items-center gap-1"><MapPin className="size-3" />{l.city}, {l.country}</span> : null}
+              </div>
+            </div>
+            <dl className="flex gap-4 text-center">
+              {[
+                { label: "Plant", value: p?.name ? 1 : 0 },
+                { label: "Dept", value: d?.name ? 1 : 0 },
+                { label: "Sub-depts", value: subs.length },
+              ].map((s) => (
+                <div key={s.label}>
+                  <dd className="text-base leading-none font-bold tabular-nums">{s.value}</dd>
+                  <dt className="mt-0.5 text-[0.6rem] text-brand-navy-foreground/70">{s.label}</dt>
+                </div>
+              ))}
+            </dl>
+          </div>
 
-        <Section
+          {/* Readiness: required sections done, optional ones called out rather than hidden */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/10 bg-white/5 px-3 py-1.5 text-[0.7rem]">
+            <span className="font-medium">
+              {completeCount} of {SECTION_COUNT} sections complete
+            </span>
+            <Progress
+              value={(completeCount / SECTION_COUNT) * 100}
+              className="h-1.5 w-28 bg-white/15 [&>[data-slot=progress-indicator]]:bg-healthy"
+            />
+            <span className="text-brand-navy-foreground/70">
+              {emptyOptional > 0
+                ? `${emptyOptional} optional section${emptyOptional > 1 ? "s" : ""} left empty — that is fine`
+                : "Everything filled in"}
+            </span>
+            <span className="ml-auto flex items-center gap-1 text-brand-navy-foreground/70">
+              <Pencil className="size-3" /> Edit any section below
+            </span>
+          </div>
+        </div>
+
+        <DetailSection
           icon={Building2}
           title="Enterprise"
+          step={1}
+          complete={done.enterprise}
+          summary={[e?.sectorType, e?.sector, e?.shortName].filter(Boolean).join(" · ")}
           sectionKey="enterprise"
           editing={editing}
           onEditingChange={setEditing}
-          formId="edit-enterprise"
           onSave={save(enterpriseForm, "enterprise")}
           view={
             <ValueGrid
@@ -244,13 +233,15 @@ export function ReviewStep({
           }
         />
 
-        <Section
+        <DetailSection
           icon={MapPin}
           title="Location"
+          step={2}
+          complete={done.location}
+          summary={[l?.city, l?.state, l?.country].filter(Boolean).join(", ")}
           sectionKey="location"
           editing={editing}
           onEditingChange={setEditing}
-          formId="edit-location"
           onSave={save(locationForm, "location")}
           view={
             <ValueGrid
@@ -282,13 +273,15 @@ export function ReviewStep({
           }
         />
 
-        <Section
+        <DetailSection
           icon={Factory}
           title="Plant"
+          step={3}
+          complete={done.plant}
+          summary={[p?.name, p?.type].filter(Boolean).join(" · ")}
           sectionKey="plant"
           editing={editing}
           onEditingChange={setEditing}
-          formId="edit-plant"
           onSave={save(plantForm, "plant")}
           view={
             <ValueGrid
@@ -327,13 +320,16 @@ export function ReviewStep({
           }
         />
 
-        <Section
+        <DetailSection
           icon={Network}
           title="Department"
+          step={4}
+          complete={done.department}
+          optional
+          summary={[d?.name, d?.type].filter(Boolean).join(" · ")}
           sectionKey="department"
           editing={editing}
           onEditingChange={setEditing}
-          formId="edit-department"
           onSave={save(departmentForm, "department")}
           view={
             <ValueGrid
@@ -363,9 +359,13 @@ export function ReviewStep({
         />
 
         {/* Sub-departments are a list, so rows are removed here rather than re-keyed into a form */}
-        <Section
+        <DetailSection
           icon={Folder}
-          title={`Sub-departments (${subs.length})`}
+          title="Sub-departments"
+          step={5}
+          complete={done.subs}
+          optional
+          summary={subs.length > 0 ? subs.map((s) => s.name).filter(Boolean).join(", ") : undefined}
           sectionKey="subs"
           editing={editing}
           onEditingChange={setEditing}
@@ -414,9 +414,12 @@ export function ReviewStep({
           }
         />
 
-        <Section
+        <DetailSection
           icon={Building2}
-          title="Enterprise Administrator Account"
+          title="Administrator Account"
+          step={6}
+          complete={done.account}
+          summary={account?.username}
           sectionKey="account"
           editing={editing}
           onEditingChange={setEditing}
