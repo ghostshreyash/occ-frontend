@@ -1,6 +1,8 @@
 import { Triangle, type LucideIcon } from "lucide-react"
 import { cn } from "cn"
 
+import { CountUp } from "@/components/common/count-up"
+
 export type StatTone = "info" | "success" | "highlight" | "healthy" | "attention" | "critical" | "neutral"
 
 /* Card tint, icon circle and accent text per tone (all from theme tokens) */
@@ -68,7 +70,7 @@ export function StatCard({
       <div className="min-w-0">
         <div className="truncate text-[0.7rem] leading-tight font-medium text-muted-foreground">{label}</div>
         <div className="text-lg leading-tight font-bold text-brand-navy dark:text-foreground">
-          {typeof value === "number" ? value.toLocaleString("en-IN") : value}
+          <CountUp value={value} />
         </div>
         {/* Trend reads as one line: "▲ +6% vs last month" or "▲ +2 vs last month" */}
         {change !== undefined || delta !== undefined ? (
@@ -80,7 +82,11 @@ export function StatCard({
             <span className="text-muted-foreground">vs last month</span>
           </div>
         ) : null}
-        {percent !== undefined ? <div className={cn("text-xs leading-tight font-bold", t.accent)}>{percent}%</div> : null}
+        {percent !== undefined ? (
+          <div className={cn("text-xs leading-tight font-bold", t.accent)}>
+            <CountUp value={`${percent}%`} />
+          </div>
+        ) : null}
         {footer}
       </div>
     </div>
