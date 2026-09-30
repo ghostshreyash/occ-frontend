@@ -121,9 +121,22 @@ function SortHead({
  * `country` filters every tab to a single country (used by the India page);
  * omit it for the global view.
  */
-export function OperationsTables({ country, className }: { country?: string; className?: string }) {
-  const where = <T extends { country: string }>(rows: T[]) =>
-    country ? rows.filter((r) => r.country === country) : rows
+/**
+ * Maintenance / Inspection Tasks / Support Tickets as one tabbed panel.
+ * `country` narrows to a region (India page) and `enterprise` to a single
+ * customer (enterprise detail); omit both for the global dashboard view.
+ */
+export function OperationsTables({
+  country,
+  enterprise,
+  className,
+}: {
+  country?: string
+  enterprise?: string
+  className?: string
+}) {
+  const where = <T extends { country: string; enterprise: string }>(rows: T[]) =>
+    rows.filter((r) => (country ? r.country === country : true) && (enterprise ? r.enterprise === enterprise : true))
 
   // Local copies so assignments made in the dialog show up straight away (mock data, no API yet)
   const [maintenanceRows, setMaintenanceRows] = useState(maintenanceProgress)
