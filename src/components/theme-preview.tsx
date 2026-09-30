@@ -24,7 +24,7 @@ export function ThemePreview() {
       <aside className="hidden w-60 shrink-0 flex-col gap-1 bg-sidebar p-3 text-sidebar-foreground md:flex">
         <div className="mb-4 px-2 text-lg font-bold text-brand-gold">OLIVINE</div>
         <div className="rounded-md bg-sidebar-primary px-3 py-2 text-sm text-sidebar-primary-foreground">
-          OCC Global Dashboard
+          Dashboard
         </div>
         {["Customer Map", "Enterprise Onboarding", "Critical Alerts"].map((item) => (
           <div key={item} className="rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">

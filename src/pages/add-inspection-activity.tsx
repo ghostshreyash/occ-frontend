@@ -16,22 +16,16 @@ import {
   startOfWeek,
 } from "date-fns"
 import {
-  ArrowRight,
-  BookOpen,
+  ArrowLeft,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  Eye,
   HardHat,
   Mail,
   Paperclip,
   Phone,
   Send,
-  UserPlus,
   UserRound,
-  UserRoundCheck,
-  UserRoundX,
 } from "lucide-react"
 import { cn } from "cn"
 
@@ -46,15 +40,13 @@ import {
   areas,
   assetCategories,
   durations,
-  elpremarKpis,
   elpremars,
   enterprises,
   plants,
   priorities,
-  recentAssignedTasks,
   todaysTasks,
-  type AssignedTask,
 } from "@/data/mock"
+import { control as controlSize, td, th } from "@/lib/data-table"
 import { workStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
 
@@ -74,13 +66,6 @@ const schema = z.object({
 type AssignValues = z.infer<typeof schema>
 
 const elpremarOptions = elpremars.map((e) => `${e.name} (${e.id})`)
-
-const priorityBadge: Record<string, "neutral" | "warning" | "critical"> = {
-  Low: "neutral",
-  Medium: "warning",
-  High: "critical",
-  Critical: "critical",
-}
 
 /* Mock availability for the calendar: day-of-month → state */
 const availability: Record<number, "assigned" | "completed" | "leave" | "unavailable"> = {
@@ -142,28 +127,8 @@ function AvailabilityCalendar() {
   )
 }
 
-function KpiCard({ icon: Icon, tone, label, value, link }: { icon: typeof UserRound; tone: string; label: string; value: number; link?: string }) {
-  return (
-    <div className="flex items-center gap-4 rounded-xl bg-card p-4 shadow-xs ring-1 ring-foreground/10">
-      <div className={cn("flex size-12 items-center justify-center rounded-xl", tone)}>
-        <Icon className="size-6" />
-      </div>
-      <div className="flex-1">
-        <div className="text-sm text-muted-foreground">{label}</div>
-        <div className="text-2xl font-bold">{value}</div>
-      </div>
-      {link ? (
-        <Link to={link} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-          View All <ArrowRight className="size-3.5" />
-        </Link>
-      ) : null}
-    </div>
-  )
-}
-
-/** ELPREMAR Activity & Availability (mockup page 13) */
-export function ElpremarActivityPage() {
-  const [tasks, setTasks] = useState<AssignedTask[]>(recentAssignedTasks)
+/** The intake form for a new inspection activity, reached from the Inspection Activities list */
+export function AddInspectionActivityPage() {
   const form = useForm<AssignValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -175,48 +140,29 @@ export function ElpremarActivityPage() {
   const selectedLabel = watch("elpremar")
   const selected = useMemo(() => elpremars.find((e) => selectedLabel?.includes(e.id)) ?? elpremars[0], [selectedLabel])
 
-  const assign = form.handleSubmit((v) => {
-    // TODO: POST /tasks
-    setTasks((t) => [
-      {
-        date: v.date.split("-").reverse().join("-"),
-        elpremar: selected.name,
-        enterprise: v.enterprise,
-        location: v.area,
-        activity: v.activity,
-        priority: v.priority as AssignedTask["priority"],
-        status: "assigned",
-      },
-      ...t,
-    ])
-    toast.success(`Task assigned to ${selected.name}`)
+  const assign = form.handleSubmit(() => {
+    // TODO: POST /inspection-activities
+    toast.success(`Activity assigned to ${selected.name}`)
     form.reset()
   })
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="ELPREMAR Activity & Availability"
-        description="Assign and manage electrical asset assessment and maintenance activities for ELPREMAR."
-        breadcrumbs={[{ label: "ELPREMAR Activity & Availability" }]}
+        title="Add Inspection Activity"
+        breadcrumbs={[{ label: "Inspection Activities", to: "/inspection-activities" }, { label: "Add Inspection Activity" }]}
         actions={
           <>
-            <Button variant="outline" className="bg-card"><BookOpen /> View User Guide</Button>
-            <Button asChild><Link to="/elpremars/onboard"><UserPlus /> Onboard ELPREMAR</Link></Button>
+            <Button variant="outline" size="sm" className={cn(controlSize, "bg-card")} asChild>
+              <Link to="/inspection-activities"><ArrowLeft className="size-3.5" /> Back to Inspection Activities</Link>
+            </Button>
           </>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard icon={HardHat} tone="bg-info-soft text-primary" label="Total ELPREMAR" value={elpremarKpis.total} link="/elpremars" />
-        <KpiCard icon={UserRoundCheck} tone="bg-healthy text-healthy-foreground" label="On Duty" value={elpremarKpis.onDuty} />
-        <KpiCard icon={Clock} tone="bg-attention text-attention-foreground" label="On Leave" value={elpremarKpis.onLeave} />
-        <KpiCard icon={UserRoundX} tone="bg-critical text-critical-foreground" label="Not Assigned" value={elpremarKpis.notAssigned} />
-      </div>
-
       <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
-        <SectionCard title={<span className="text-lg">Assign Activity to ELPREMAR</span>}>
-          <p className="-mt-2 mb-4 text-sm text-muted-foreground">Create and assign a new task for electrical asset assessment at the selected location.</p>
+        <SectionCard title="Assign Activity to ELPREMAR" hoverable={false}>
+          <p className="-mt-1 mb-4 text-xs text-muted-foreground">Create and assign a new inspection activity for electrical asset assessment at the selected location.</p>
           <form onSubmit={assign} className="grid gap-4 md:grid-cols-6" noValidate>
             <SelectField control={control} name="elpremar" label="Select ELPREMAR" required options={elpremarOptions} className="md:col-span-3" />
             <div className="flex items-center gap-3 self-end rounded-lg bg-info-soft p-2 md:col-span-3">
@@ -246,8 +192,8 @@ export function ElpremarActivityPage() {
               <span className="ml-3 text-xs text-muted-foreground">PDF, JPG, PNG (Max 5 MB)</span>
             </div>
             <div className="flex justify-between gap-3 md:col-span-6">
-              <Button type="button" variant="outline" size="lg" className="min-w-24" onClick={() => form.reset()}>Clear</Button>
-              <Button type="submit" size="lg" className="min-w-36"><Send /> Assign Task</Button>
+              <Button type="button" variant="outline" className="min-w-24" onClick={() => form.reset()}>Clear</Button>
+              <Button type="submit" className="min-w-36"><Send /> Add Activity</Button>
             </div>
           </form>
         </SectionCard>
@@ -274,21 +220,21 @@ export function ElpremarActivityPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title={`Today's Tasks (${format(new Date(), "d MMM yyyy")})`} viewAllTo="/elpremars" contentClassName="px-2">
+          <SectionCard title={`Today's Tasks (${format(new Date(), "d MMM yyyy")})`} viewAllTo="/inspection-activities" contentClassName="px-2">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/60">
-                  <TableHead>#</TableHead><TableHead>Time</TableHead><TableHead>Location / Asset</TableHead><TableHead>Activity</TableHead><TableHead>Status</TableHead>
+                  <TableHead className={th}>#</TableHead><TableHead className={th}>Time</TableHead><TableHead className={th}>Location / Asset</TableHead><TableHead className={th}>Activity</TableHead><TableHead className={th}>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {todaysTasks.map((t, i) => (
                   <TableRow key={t.time}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>{t.time}</TableCell>
-                    <TableCell>{t.asset}</TableCell>
-                    <TableCell>{t.activity}</TableCell>
-                    <TableCell><Badge variant={workStatus[t.status].badge}>{workStatus[t.status].label}</Badge></TableCell>
+                    <TableCell className={td}>{i + 1}</TableCell>
+                    <TableCell className={td}>{t.time}</TableCell>
+                    <TableCell className={td}>{t.asset}</TableCell>
+                    <TableCell className={td}>{t.activity}</TableCell>
+                    <TableCell className={td}><Badge variant={workStatus[t.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">{workStatus[t.status].label}</Badge></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -297,34 +243,6 @@ export function ElpremarActivityPage() {
         </div>
       </div>
 
-      <SectionCard title="Recent Assigned Tasks" viewAllTo="/elpremars" contentClassName="px-2">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/60">
-              <TableHead>#</TableHead><TableHead>Date</TableHead><TableHead>ELPREMAR</TableHead><TableHead>Enterprise</TableHead>
-              <TableHead>Location / Asset</TableHead><TableHead>Activity</TableHead><TableHead>Priority</TableHead><TableHead>Status</TableHead>
-              <TableHead className="text-center">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.map((t, i) => (
-              <TableRow key={`${t.date}-${t.location}-${i}`}>
-                <TableCell>{i + 1}</TableCell>
-                <TableCell>{t.date}</TableCell>
-                <TableCell>{t.elpremar}</TableCell>
-                <TableCell>{t.enterprise}</TableCell>
-                <TableCell>{t.location}</TableCell>
-                <TableCell>{t.activity}</TableCell>
-                <TableCell><Badge variant={priorityBadge[t.priority]}>{t.priority}</Badge></TableCell>
-                <TableCell><Badge variant={workStatus[t.status].badge}>{workStatus[t.status].label}</Badge></TableCell>
-                <TableCell className="text-center">
-                  <Button variant="ghost" size="icon-sm" className="text-primary" aria-label="View task"><Eye /></Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </SectionCard>
     </div>
   )
 }

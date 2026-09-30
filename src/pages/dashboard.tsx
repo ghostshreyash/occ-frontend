@@ -47,7 +47,7 @@ const onboardingSlice = { label: "Onboarded", color: "var(--neutral)" }
 const connectivityIcons = [Server, Cloud, Waypoints, RefreshCw]
 const activityIcons = { enterprise: Building2, plant: Factory, inspection: FileCheck2, ticket: Database }
 
-/** OCC Global Dashboard */
+/** Dashboard */
 export function DashboardPage() {
   const [view, setView] = useState<MapView>("global")
   const indiaPlants = mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)
