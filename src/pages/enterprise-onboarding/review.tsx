@@ -17,7 +17,7 @@ import {
   salutations,
   timeZones,
 } from "@/data/mock"
-import { departmentTypes, sectorTypes, sectorsFor } from "@/data/master-data"
+import { sectorLabelFor, departmentTypes, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -200,8 +200,8 @@ export function ReviewStep({
               rows={[
                 { label: "Enterprise Name", value: e?.name },
                 { label: "Short Name", value: e?.shortName },
-                { label: "Sector", value: e?.sectorType },
-                { label: e?.sectorType === "Retail" ? "Retail Sector" : "Industry Sector", value: e?.sector },
+                { label: "Type", value: e?.sectorType },
+                { label: sectorLabelFor(e?.sectorType), value: e?.sector },
                 { label: "Website", value: e?.website },
                 { label: "Description", value: e?.description },
               ]}
@@ -214,7 +214,7 @@ export function ReviewStep({
               <SelectField
                 control={enterpriseForm.control}
                 name="sectorType"
-                label="Sector"
+                label="Type"
                 required
                 options={sectorTypes}
                 onValueChange={() => enterpriseForm.setValue("sector", "")}
@@ -222,7 +222,7 @@ export function ReviewStep({
               <SelectField
                 control={enterpriseForm.control}
                 name="sector"
-                label={enterpriseForm.watch("sectorType") === "Retail" ? "Retail Sector" : "Industry Sector"}
+                label={sectorLabelFor(enterpriseForm.watch("sectorType"))}
                 required
                 options={sectorsFor(enterpriseForm.watch("sectorType"))}
                 disabled={!enterpriseForm.watch("sectorType")}

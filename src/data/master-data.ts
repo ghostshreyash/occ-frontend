@@ -43,6 +43,10 @@ export const retailSectors = [
 export const sectorsFor = (type?: string): readonly string[] =>
   type === "Industry" ? industrySectors : type === "Retail" ? retailSectors : []
 
+/** Label for the dependent sector field - stays generic until a type is picked */
+export const sectorLabelFor = (type?: string) =>
+  type === "Industry" ? "Industry Sector" : type === "Retail" ? "Retail Sector" : "Sector"
+
 /** Default landing screen per sector type */
 export const defaultScreenFor = (type?: string) =>
   type === "Retail" ? "Monitoring" : "Management"

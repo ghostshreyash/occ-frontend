@@ -31,9 +31,10 @@ import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
+import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import { OperationsTables } from "@/components/common/operations-tables"
 import { countries, indianStates, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
-import { departmentTypes, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { departmentTypes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import {
   enterpriseRecords,
   maintenanceProgress,
@@ -177,7 +178,6 @@ export function EnterpriseDetailPage() {
   }
 
   const { enterprise: e, location: l, plant: p, department: d, subDepartments: subs, account } = profile
-  const isRetail = enterpriseForm.watch("sectorType") === "Retail"
   const editingCountryIsIndia = locationForm.watch("country") === "India"
   const openTickets = tickets.filter((t) => t.status !== "closed").length
   const completedWork = activities.filter((a) => a.status === "completed").length
@@ -210,6 +210,8 @@ export function EnterpriseDetailPage() {
         <StatCard label="Asset Health" value={`${overallHealth}%`} icon={ShieldCheck} tone="healthy" variant="plain" />
       </div>
 
+      <WorkSummaryCard enterprise={e.name} />
+
       {/* Full onboarding profile, section by section, editable in place */}
       <SectionCard title="Enterprise Profile" hoverable={false} contentClassName="space-y-2.5 px-3 pb-3">
         <DetailSection
@@ -225,8 +227,8 @@ export function EnterpriseDetailPage() {
                 { label: "Enterprise ID", value: record.id },
                 { label: "Enterprise Name", value: e.name },
                 { label: "Short Name", value: e.shortName },
-                { label: "Sector", value: e.sectorType },
-                { label: isRetailValue(e.sectorType) ? "Retail Sector" : "Industry Sector", value: e.sector },
+                { label: "Type", value: e.sectorType },
+                { label: sectorLabelFor(e.sectorType), value: e.sector },
                 { label: "Website", value: e.website },
                 { label: "Onboarded", value: record.onboarded },
                 { label: "Description", value: e.description },
@@ -240,7 +242,7 @@ export function EnterpriseDetailPage() {
               <SelectField
                 control={enterpriseForm.control}
                 name="sectorType"
-                label="Sector"
+                label="Type"
                 required
                 options={sectorTypes}
                 onValueChange={() => enterpriseForm.setValue("sector", "")}
@@ -248,7 +250,7 @@ export function EnterpriseDetailPage() {
               <SelectField
                 control={enterpriseForm.control}
                 name="sector"
-                label={isRetail ? "Retail Sector" : "Industry Sector"}
+                label={sectorLabelFor(enterpriseForm.watch("sectorType"))}
                 required
                 options={sectorsFor(enterpriseForm.watch("sectorType"))}
                 disabled={!enterpriseForm.watch("sectorType")}
@@ -484,8 +486,6 @@ export function EnterpriseDetailPage() {
     </div>
   )
 }
-
-const isRetailValue = (v?: string) => v === "Retail"
 
 /** Sub-department list; row actions appear only while the section is being edited */
 function SubTable({

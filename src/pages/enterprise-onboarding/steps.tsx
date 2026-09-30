@@ -19,7 +19,7 @@ import {
   subDepartmentFunctions,
   timeZones,
 } from "@/data/mock"
-import { departmentTypes, sectorTypes, sectorsFor } from "@/data/master-data"
+import { departmentTypes, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   accountSchema,
   departmentSchema,
@@ -79,13 +79,14 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
       onCancel={onCancel}
     >
       <form id="step-enterprise" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
-        <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" className="md:col-span-2" />
+        <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" />
         <TextField control={control} name="shortName" label="Short Name / Abbreviation" required placeholder="Enter short name (e.g. TATA)" />
-        {/* Sector type drives the sector list; changing it clears a now-invalid sector */}
+
+        {/* Type drives the sector list; changing it clears a now-invalid sector */}
         <SelectField
           control={control}
           name="sectorType"
-          label="Sector"
+          label="Type"
           required
           options={sectorTypes}
           placeholder="Select Industry or Retail"
@@ -94,15 +95,17 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
         <SelectField
           control={control}
           name="sector"
-          label={sectorType === "Retail" ? "Retail Sector" : "Industry Sector"}
+          label={sectorLabelFor(sectorType)}
           required
           options={sectorsFor(sectorType)}
-          placeholder={sectorType ? "Select sector" : "Select a sector type first"}
+          placeholder={sectorType ? "Select sector" : "Select a type first"}
           disabled={!sectorType}
         />
-        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
+
+        <TextareaField control={control} name="description" label="Description" rows={2} placeholder="Enter a brief description about the enterprise..." className="md:col-span-2" />
+
         <FileDropField control={control} name="logo" label="Company Logo" />
-        <TextareaField control={control} name="description" label="Description" rows={3} placeholder="Enter a brief description about the enterprise..." />
+        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
       </form>
     </StepCard>
   )
@@ -129,7 +132,7 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
     >
       <Context>
         <Ctx icon={Building2} label="Enterprise Name" value={data.enterprise?.name} />
-        <Ctx icon={Building2} label="Sector" value={data.enterprise?.sectorType} />
+        <Ctx icon={Building2} label="Type" value={data.enterprise?.sectorType} />
         <Ctx icon={Factory} label="Industry Sector" value={data.enterprise?.sector} />
       </Context>
       <form id="step-location" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-3" noValidate>
