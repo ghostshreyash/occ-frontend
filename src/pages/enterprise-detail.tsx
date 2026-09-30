@@ -21,30 +21,28 @@ import {
   Wrench,
   X,
 } from "lucide-react"
-import { cn } from "cn"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
+import { OperationsTables } from "@/components/common/operations-tables"
 import { countries, indianStates, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
-import { departmentTypes, healthBandFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { departmentTypes, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import {
-  activitiesFor,
   enterpriseRecords,
-  priorityTone,
+  maintenanceProgress,
   profileFor,
-  ticketsFor,
+  supportTickets,
   type EnterpriseProfile,
   type EnterpriseRecord,
 } from "@/data/occ-tables"
-import { healthStatus, workStatus } from "@/lib/status"
+import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
 import {
   departmentSchema,
@@ -100,22 +98,6 @@ const showDate = (iso?: string) => {
   return isValid(d) ? format(d, "dd MMM yyyy") : iso
 }
 
-/** Health score pill, coloured by the platform spec's bands */
-function HealthPill({ score }: { score: number }) {
-  const band = healthBandFor(score)
-  const tone =
-    band.tone === "healthy"
-      ? "bg-healthy-soft text-healthy-soft-foreground"
-      : band.tone === "attention"
-        ? "bg-attention-soft text-attention-soft-foreground"
-        : "bg-critical-soft text-critical-soft-foreground"
-  return (
-    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums", tone)}>
-      {score}
-    </span>
-  )
-}
-
 /** Enterprise detail: the full onboarding profile, editable, plus its work history */
 export function EnterpriseDetailPage() {
   const { id } = useParams()
@@ -129,8 +111,9 @@ export function EnterpriseDetailPage() {
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
 
-  const activities = useMemo(() => (record ? activitiesFor(record.id) : []), [record])
-  const tickets = useMemo(() => (record ? ticketsFor(record.id) : []), [record])
+  // Counts for the KPI row come from the same rows the tables below render
+  const activities = useMemo(() => (record ? maintenanceProgress.filter((m) => m.enterprise === record.name) : []), [record])
+  const tickets = useMemo(() => (record ? supportTickets.filter((s) => s.enterprise === record.name) : []), [record])
 
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: profile?.enterprise })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: profile?.location })
@@ -480,108 +463,8 @@ export function EnterpriseDetailPage() {
         />
       </SectionCard>
 
-      {/* History */}
-      <Tabs defaultValue="maintenance" className="rounded-lg bg-card shadow-xs ring-1 ring-foreground/10">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2.5">
-          <TabsList className="h-7 gap-0.5">
-            <TabsTrigger value="maintenance" className="px-2 text-xs">
-              <Wrench className="size-3.5" />
-              Maintenance History
-              <span className="rounded bg-foreground/8 px-1 text-[0.62rem] font-semibold tabular-nums">{activities.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="tickets" className="px-2 text-xs">
-              <LifeBuoy className="size-3.5" />
-              Support Tickets
-              <span className="rounded bg-foreground/8 px-1 text-[0.62rem] font-semibold tabular-nums">{tickets.length}</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="overflow-x-auto px-1 pb-2">
-          <TabsContent value="maintenance">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/60 hover:bg-muted/60">
-                  <TableHead className={th}>ID</TableHead>
-                  <TableHead className={th}>Date</TableHead>
-                  <TableHead className={th}>Asset / Plant</TableHead>
-                  <TableHead className={`${th} hidden md:table-cell`}>Type</TableHead>
-                  <TableHead className={`${th} hidden lg:table-cell`}>ELPREMAR</TableHead>
-                  <TableHead className={th}>Health</TableHead>
-                  <TableHead className={th}>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activities.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className={`${td} font-medium text-primary`}>{a.id}</TableCell>
-                    <TableCell className={`${td} tabular-nums`}>{a.date}</TableCell>
-                    <TableCell className={td}>
-                      <div className="font-medium">{a.asset}</div>
-                      <div className="text-[0.65rem] text-muted-foreground">{a.plant}</div>
-                    </TableCell>
-                    <TableCell className={`${td} hidden md:table-cell`}>{a.type}</TableCell>
-                    <TableCell className={`${td} hidden lg:table-cell`}>{a.elpremar}</TableCell>
-                    <TableCell className={td}>
-                      {a.healthBefore !== undefined ? (
-                        <span className="flex items-center gap-1">
-                          <HealthPill score={a.healthBefore} />
-                          {a.healthAfter !== undefined ? (
-                            <>
-                              <span className="text-muted-foreground">→</span>
-                              <HealthPill score={a.healthAfter} />
-                            </>
-                          ) : null}
-                        </span>
-                      ) : (
-                        <span className="text-[0.65rem] text-muted-foreground">Not assessed</span>
-                      )}
-                    </TableCell>
-                    <TableCell className={td}>
-                      <Badge variant={workStatus[a.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
-                        {workStatus[a.status].label}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TabsContent>
-
-          <TabsContent value="tickets">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/60 hover:bg-muted/60">
-                  <TableHead className={th}>Ticket</TableHead>
-                  <TableHead className={th}>Raised</TableHead>
-                  <TableHead className={th}>Subject</TableHead>
-                  <TableHead className={`${th} hidden md:table-cell`}>Category</TableHead>
-                  <TableHead className={th}>Priority</TableHead>
-                  <TableHead className={th}>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tickets.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className={`${td} font-medium text-primary`}>#{t.id}</TableCell>
-                    <TableCell className={`${td} tabular-nums`}>{t.raised}</TableCell>
-                    <TableCell className={`${td} max-w-72 whitespace-normal`}>{t.subject}</TableCell>
-                    <TableCell className={`${td} hidden md:table-cell`}>{t.category}</TableCell>
-                    <TableCell className={td}>
-                      <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
-                    </TableCell>
-                    <TableCell className={td}>
-                      <Badge variant={workStatus[t.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
-                        {workStatus[t.status].label}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TabsContent>
-        </div>
-      </Tabs>
+      {/* Same tables as the dashboard, filtered to this enterprise */}
+      <OperationsTables enterprise={e.name} />
 
       <SectionCard title="Asset Health" hoverable={false}>
         <div className="flex flex-wrap items-center gap-4">
