@@ -171,11 +171,6 @@ export const enterpriseRecords: EnterpriseRecord[] = [
   { id: "BHP-ENT-020", name: "BHP Group", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding" },
 ]
 
-/* Generated after enterpriseRecords, which they read from */
-export const maintenanceProgress: MaintenanceRow[] = enterpriseRecords.flatMap(buildMaintenance)
-export const taskQueue: TaskRow[] = enterpriseRecords.flatMap(buildTasks)
-export const supportTickets: TicketRow[] = enterpriseRecords.flatMap(buildTickets)
-
 export const enterpriseRegisterKpis = {
   total: enterpriseRecords.length,
   active: enterpriseRecords.filter((e) => e.status !== "onboarding").length,
@@ -447,3 +442,12 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
     },
   }
 }
+
+/*
+ * Generated last: these read enterpriseRecords *and* the pools/helpers above.
+ * Keep them at the end of the module - hoisted function declarations still
+ * close over `const` pools, which are in the temporal dead zone until declared.
+ */
+export const maintenanceProgress: MaintenanceRow[] = enterpriseRecords.flatMap(buildMaintenance)
+export const taskQueue: TaskRow[] = enterpriseRecords.flatMap(buildTasks)
+export const supportTickets: TicketRow[] = enterpriseRecords.flatMap(buildTickets)
