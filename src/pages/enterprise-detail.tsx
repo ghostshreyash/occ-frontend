@@ -9,22 +9,21 @@ import {
   Building2,
   Factory,
   Folder,
-  HardHat,
   LifeBuoy,
   MapPin,
   Network,
   Pencil,
   Plus,
+  HeartPulse,
   Server,
-  ShieldCheck,
+  ShieldAlert,
   Trash2,
-  Wrench,
+  TriangleAlert,
   X,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateField, PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
@@ -32,12 +31,11 @@ import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
-import { OperationsTables } from "@/components/common/operations-tables"
 import { countries, indianStates, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
 import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import {
+  assetHealthFor,
   enterpriseRecords,
-  maintenanceProgress,
   profileFor,
   supportTickets,
   type EnterpriseProfile,
@@ -111,9 +109,6 @@ export function EnterpriseDetailPage() {
 
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
-
-  // Counts for the KPI row come from the same rows the tables below render
-  const activities = useMemo(() => (record ? maintenanceProgress.filter((m) => m.enterprise === record.name) : []), [record])
   const tickets = useMemo(() => (record ? supportTickets.filter((s) => s.enterprise === record.name) : []), [record])
 
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: profile?.enterprise })
@@ -180,8 +175,8 @@ export function EnterpriseDetailPage() {
   const { enterprise: e, location: l, plant: p, department: d, subDepartments: subs, account } = profile
   const editingCountryIsIndia = locationForm.watch("country") === "India"
   const openTickets = tickets.filter((t) => t.status !== "closed").length
-  const completedWork = activities.filter((a) => a.status === "completed").length
-  const overallHealth = record.status === "critical" ? 48 : record.status === "attention" ? 64 : 86
+  const health = assetHealthFor(record)
+  const pct = (n: number) => Math.round((n / record.assets) * 100)
 
   return (
     <div className="space-y-3">
@@ -204,10 +199,11 @@ export function EnterpriseDetailPage() {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Plants" value={record.plants} icon={Factory} tone="success" variant="plain" />
         <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
-        <StatCard label="ELPREMARs" value={record.elpremars} icon={HardHat} tone="highlight" variant="plain" />
-        <StatCard label="Work Completed" value={completedWork} icon={Wrench} tone="healthy" variant="plain" />
         <StatCard label="Open Tickets" value={openTickets} icon={LifeBuoy} tone={openTickets > 0 ? "attention" : "neutral"} variant="plain" />
-        <StatCard label="Asset Health" value={`${overallHealth}%`} icon={ShieldCheck} tone="healthy" variant="plain" />
+        {/* Asset health split, using the platform's three bands */}
+        <StatCard label="Healthy Assets" value={health.healthy} percent={pct(health.healthy)} icon={HeartPulse} tone="healthy" variant="plain" />
+        <StatCard label="Attention Required" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
+        <StatCard label="Poor Condition" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
       </div>
 
       <WorkSummaryCard enterprise={e.name} />
@@ -471,24 +467,7 @@ export function EnterpriseDetailPage() {
         />
       </SectionCard>
 
-      {/* Same tables as the dashboard, filtered to this enterprise */}
-      <OperationsTables enterprise={e.name} />
 
-      <SectionCard title="Asset Health" hoverable={false}>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="min-w-44 flex-1">
-            <div className="mb-1 flex items-center justify-between text-[0.7rem]">
-              <span className="text-muted-foreground">Across {record.assets.toLocaleString("en-IN")} monitored assets</span>
-              <span className="font-semibold tabular-nums">{overallHealth}/100</span>
-            </div>
-            <Progress value={overallHealth} className="h-2 [&>[data-slot=progress-indicator]]:bg-healthy" />
-          </div>
-          <div className="flex items-center gap-2 text-[0.65rem] text-muted-foreground">
-            <MapPin className="size-3.5" />
-            {record.plants} plants · {l.city}, {l.country}
-          </div>
-        </div>
-      </SectionCard>
     </div>
   )
 }
