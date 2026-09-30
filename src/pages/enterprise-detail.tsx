@@ -212,7 +212,7 @@ export function EnterpriseDetailPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Plants" value={record.plants} icon={Factory} tone="success" variant="plain" />
         <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
         {/* Asset health split, using the platform's three bands */}
