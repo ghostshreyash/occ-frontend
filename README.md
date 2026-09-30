@@ -29,7 +29,7 @@ The app currently runs on mock data (`src/data/mock.ts`); API calls will replace
 | `/forgot-password` → `/forgot-password/verify` → `/reset-password` | Password reset |
 | `/register` | Request access → verify mobile → pending approval |
 | `/account-recovery` | Recovery when the mobile and e-mail are unreachable |
-| `/` | OCC Global Dashboard |
+| `/` | Dashboard |
 | `/customer-map` | India / Global Customer Map |
 | `/enterprise-onboarding` | Enterprise Onboarding (5 steps) |
 | `/elpremars` | ELPREMAR Activity & Availability |
