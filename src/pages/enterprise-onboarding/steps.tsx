@@ -144,10 +144,11 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         )}
         <TextField control={control} name="city" label="City" required placeholder="Enter city" />
 
-        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
+        {/* Postal code sits in line with the address it belongs to */}
+        <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
 
         {/* Coordinates sit directly above the map that fills them in */}
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
         <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" placeholder="19.0759" />
         <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" placeholder="72.8777" />
 
