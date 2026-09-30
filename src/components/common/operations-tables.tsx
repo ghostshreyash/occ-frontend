@@ -5,46 +5,54 @@ import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, ClipboardList, Eye, LifeBu
 import { Link } from "react-router"
 import { cn } from "cn"
 
-import { AssignElpremarDialog, type AssignTarget, type Booking } from "@/components/common/assign-elpremar-dialog"
+import { AssignElpremarDialog, type AssignResult, type AssignTarget, type Booking } from "@/components/common/assign-elpremar-dialog"
+import { ResolveTicketDialog, type ResolveTarget } from "@/components/common/resolve-ticket-dialog"
+import { occNavigation } from "@/config/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import type { Elpremar } from "@/data/mock"
-import { maintenanceProgress, priorityTone, supportTickets, taskQueue } from "@/data/occ-tables"
-import { workStatus, type WorkStatus } from "@/lib/status"
+import { maintenanceProgress, priorityTone, slotLabel, supportTickets, taskQueue } from "@/data/occ-tables"
+import { inspectionStatus, maintenanceStatus, workStatus, type WorkStatus } from "@/lib/status"
 
 /* Compact cells so three dense tables still fit above the fold */
 const th = "h-7 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
 const serial = cn(td, "w-8 tabular-nums text-muted-foreground")
 
-function StatusBadge({ status }: { status: keyof typeof workStatus }) {
+type StatusLook = (typeof workStatus)[WorkStatus]
+
+function StatusBadge({ status, as }: { status: WorkStatus; as?: StatusLook }) {
+  const { label, badge } = as ?? workStatus[status]
   return (
-    <Badge variant={workStatus[status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
-      {workStatus[status].label}
+    <Badge variant={badge} className="rounded px-1.5 py-0 text-[0.65rem]">
+      {label}
     </Badge>
   )
 }
 
+/** A row on its way to becoming a Booking: not one until it has both a person and a date */
+type Draft = Omit<Booking, "elpremar" | "date"> & { elpremar?: string; date?: string }
+
 /** ELPREMAR / date cells stay blank until the row is assigned */
 const Unassigned = () => <span className="text-muted-foreground/60">—</span>
 
-/** Same icon button as Recent Assigned Tasks; opens the assign dialog */
-function ActionButton({ assigned, status, onClick }: { assigned: boolean; status: WorkStatus; onClick: () => void }) {
-  // (Re)assigning only makes sense before work starts
-  const locked = status === "in_progress" || status === "completed" || status === "closed"
-  const label = locked
-    ? status === "in_progress" ? "Work is already in progress" : "Work is already finished"
-    : assigned ? "Reassign ELPREMAR" : "Assign ELPREMAR"
+/** Same icon button as Recent Assigned Tasks; opens the row's dialog */
+function ActionButton({ onClick }: { onClick: () => void }) {
   return (
-    <Button variant="ghost" size="icon-sm" className="text-primary" disabled={locked} onClick={onClick} aria-label={label} title={label}>
+    <Button variant="ghost" size="icon-sm" className="text-primary" onClick={onClick} aria-label="View" title="View">
       <Eye />
     </Button>
   )
 }
 
 type Tab = "maintenance" | "tasks" | "tickets"
+
+/**
+ * Each tab is named after its sidebar entry, so "View All" can look its page up
+ * rather than repeat the path — the link then follows whatever the sidebar says.
+ */
+const sidebarPath = (title: string) => occNavigation.find((n) => n.title === title)?.path ?? "/"
 
 /** dd-MM-yyyy → yyyyMMdd, so dates compare as plain strings */
 const sortKey = (d?: string) => (d ? d.split("-").reverse().join("") : "")
@@ -64,7 +72,7 @@ type Sort = { key: string; dir: "asc" | "desc" } | null
 type Accessors<T> = Record<string, (r: T) => string | number | undefined>
 
 const priorityRank: Record<string, number> = { Low: 0, Medium: 1, High: 2, Critical: 3 }
-const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, assigned: 2, in_progress: 3, completed: 4, closed: 5 }
+const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, rejected: 2, assigned: 3, in_progress: 4, completed: 5, closed: 6 }
 
 /** Sort by the chosen column; blank (unassigned) values always sink to the bottom */
 function sortRows<T>(rows: T[], sort: Sort, accessors: Accessors<T>) {
@@ -121,9 +129,22 @@ function SortHead({
  * `country` filters every tab to a single country (used by the India page);
  * omit it for the global view.
  */
-export function OperationsTables({ country, className }: { country?: string; className?: string }) {
-  const where = <T extends { country: string }>(rows: T[]) =>
-    country ? rows.filter((r) => r.country === country) : rows
+/**
+ * Maintenance / Inspection Tasks / Support Tickets as one tabbed panel.
+ * `country` narrows to a region (India page) and `enterprise` to a single
+ * customer (enterprise detail); omit both for the global dashboard view.
+ */
+export function OperationsTables({
+  country,
+  enterprise,
+  className,
+}: {
+  country?: string
+  enterprise?: string
+  className?: string
+}) {
+  const where = <T extends { country: string; enterprise: string }>(rows: T[]) =>
+    rows.filter((r) => (country ? r.country === country : true) && (enterprise ? r.enterprise === enterprise : true))
 
   // Local copies so assignments made in the dialog show up straight away (mock data, no API yet)
   const [maintenanceRows, setMaintenanceRows] = useState(maintenanceProgress)
@@ -154,52 +175,57 @@ export function OperationsTables({ country, className }: { country?: string; cla
     status: (r) => statusRank[r.status],
   })
   const tickets = sortRows(newestFirst(where(ticketRows), (r) => r.raised), sorts.tickets, {
+    id: (r) => r.id,
     enterprise: (r) => r.enterprise,
     plant: (r) => r.plant,
     subject: (r) => r.subject,
+    category: (r) => r.category,
     raised: (r) => sortKey(r.raised),
     elpremar: (r) => r.elpremar,
-    date: (r) => sortKey(r.scheduled),
     priority: (r) => priorityRank[r.priority],
     status: (r) => statusRank[r.status],
   })
 
   const tabs = [
-    { value: "maintenance", label: "Maintenance Activities", icon: Wrench, count: maintenance.length, to: "/maintenance-progress" },
-    { value: "tasks", label: "Inspection Tasks", icon: ClipboardList, count: tasks.length, to: "/elpremars" },
-    { value: "tickets", label: "Support Tickets", icon: LifeBuoy, count: tickets.length, to: "/support-tickets" },
-  ]
+    { value: "maintenance", label: "Maintenance Activities", icon: Wrench, count: maintenance.length },
+    { value: "tasks", label: "Inspection Activities", icon: ClipboardList, count: tasks.length },
+    { value: "tickets", label: "Support Tickets", icon: LifeBuoy, count: tickets.length },
+  ].map((t) => ({ ...t, to: sidebarPath(t.label) }))
 
   // Controlled, so the header's "View All" can point at the active tab's page
   const [active, setActive] = useState("maintenance")
   const activeTab = tabs.find((t) => t.value === active) ?? tabs[0]
 
-  const [assigning, setAssigning] = useState<(AssignTarget & { tab: Tab }) | null>(null)
+  const [assigning, setAssigning] = useState<(AssignTarget & { tab: Exclude<Tab, "tickets"> }) | null>(null)
+  const [resolving, setResolving] = useState<ResolveTarget | null>(null)
 
   // Everything already on someone's books, so the dialog's calendar and job location reflect it
   const bookings = useMemo(
     () =>
-      [
-        ...maintenanceRows.map((m) => ({ elpremar: m.elpremar, date: m.scheduled, label: m.asset, plant: m.plant, enterprise: m.enterprise })),
-        ...taskRows.map((t) => ({ elpremar: t.elpremar, date: t.due, label: t.activity, plant: t.plant, enterprise: t.enterprise })),
-        ...ticketRows.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise })),
-      ].filter((b): b is Booking => !!b.elpremar && !!b.date),
+      ([
+        ...maintenanceRows.map((m) => ({ elpremar: m.elpremar, date: m.scheduled, label: m.asset, plant: m.plant, enterprise: m.enterprise, slot: m.slot })),
+        ...taskRows.map((t) => ({ elpremar: t.elpremar, date: t.due, label: t.activity, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
+        ...ticketRows.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
+      ] as Draft[]).filter((b): b is Booking => !!b.elpremar && !!b.date),
     [maintenanceRows, taskRows, ticketRows]
   )
 
-  const assign = (elpremar: Elpremar, date: Date) => {
+  const assign = ({ elpremar, date, slot, approved }: AssignResult) => {
     if (!assigning) return
     const { tab, id, title } = assigning
     const d = format(date, "dd-MM-yyyy")
+    // Approving a maintenance activity is what puts it on the books
+    const booked = { elpremar: elpremar.name, slot, status: (approved ? "assigned" : "open") as WorkStatus }
 
     if (tab === "maintenance")
-      setMaintenanceRows((rows) => rows.map((r) => (r.id === id ? { ...r, elpremar: elpremar.name, scheduled: d, status: "assigned" } : r)))
+      setMaintenanceRows((rows) => rows.map((r) => (r.id === id ? { ...r, ...booked, scheduled: d } : r)))
+    // A task has no assigned state: booked or approved, it is simply To Be Started
     if (tab === "tasks")
-      setTaskRows((rows) => rows.map((r) => (r.id === id ? { ...r, elpremar: elpremar.name, due: d, status: "assigned" } : r)))
-    if (tab === "tickets")
-      setTicketRows((rows) => rows.map((r) => (r.id === id ? { ...r, elpremar: elpremar.name, scheduled: d, status: "assigned" } : r)))
+      setTaskRows((rows) => rows.map((r) => (r.id === id ? { ...r, elpremar: elpremar.name, slot, due: d, status: "pending" } : r)))
 
-    toast.success(`${elpremar.name} assigned`, { description: `${title} · ${format(date, "d MMM yyyy")}` })
+    toast.success(approved ? `${title} approved` : `${elpremar.name} assigned`, {
+      description: `${title} · ${elpremar.name} · ${format(date, "d MMM yyyy")}, ${slotLabel(slot)}`,
+    })
     setAssigning(null)
   }
 
@@ -254,16 +280,17 @@ export function OperationsTables({ country, className }: { country?: string; cla
                   <TableCell className={cn(td, "hidden md:table-cell")}>{m.enterprise}</TableCell>
                   <TableCell className={td}>{m.plant}</TableCell>
                   <TableCell className={cn(td, "font-medium")}>{m.asset}</TableCell>
-                  <TableCell className={cn(td, "hidden md:table-cell")}>{m.type}</TableCell>
-                  <TableCell className={cn(td, "hidden lg:table-cell")}>{m.elpremar ?? <Unassigned />}</TableCell>
-                  <TableCell className={cn(td, "hidden tabular-nums sm:table-cell")}>{m.scheduled ?? <Unassigned />}</TableCell>
-                  <TableCell className={td}><StatusBadge status={m.status} /></TableCell>
+                  <TableCell className={cn(td, "hidden max-w-32 whitespace-normal md:table-cell")}>{m.type}</TableCell>
+                  <TableCell className={cn(td, "hidden lg:table-cell")}>{m.elpremar}</TableCell>
+                  <TableCell className={cn(td, "hidden tabular-nums whitespace-nowrap sm:table-cell")}>
+                    {m.scheduled}
+                    <span className="block text-[0.65rem] text-muted-foreground">{slotLabel(m.slot)}</span>
+                  </TableCell>
+                  <TableCell className={td}><StatusBadge status={m.status} as={maintenanceStatus[m.status]} /></TableCell>
                   <TableCell className={cn(td, "py-0.5 text-center")}>
                     <ActionButton
-                      assigned={!!m.elpremar}
-                      status={m.status}
                       onClick={() =>
-                        setAssigning({ tab: "maintenance", plant: m.plant, id: m.id, title: m.asset, subtitle: `${m.type} · ${m.plant}, ${m.enterprise}`, elpremar: m.elpremar, date: m.scheduled })
+                        setAssigning({ tab: "maintenance", plant: m.plant, id: m.id, title: m.asset, subtitle: `${m.type} · ${m.plant}, ${m.enterprise}`, elpremar: m.elpremar, date: m.scheduled, slot: m.slot })
                       }
                     />
                   </TableCell>
@@ -297,18 +324,19 @@ export function OperationsTables({ country, className }: { country?: string; cla
                   <TableCell className={td}>{t.plant}</TableCell>
                   <TableCell className={cn(td, "hidden font-medium md:table-cell")}>{t.asset}</TableCell>
                   <TableCell className={cn(td, "max-w-44 whitespace-normal")}>{t.activity}</TableCell>
-                  <TableCell className={cn(td, "hidden lg:table-cell")}>{t.elpremar ?? <Unassigned />}</TableCell>
-                  <TableCell className={cn(td, "hidden tabular-nums sm:table-cell")}>{t.due ?? <Unassigned />}</TableCell>
+                  <TableCell className={cn(td, "hidden lg:table-cell")}>{t.elpremar}</TableCell>
+                  <TableCell className={cn(td, "hidden tabular-nums whitespace-nowrap sm:table-cell")}>
+                    {t.due}
+                    <span className="block text-[0.65rem] text-muted-foreground">{slotLabel(t.slot)}</span>
+                  </TableCell>
                   <TableCell className={td}>
                     <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
                   </TableCell>
-                  <TableCell className={td}><StatusBadge status={t.status} /></TableCell>
+                  <TableCell className={td}><StatusBadge status={t.status} as={inspectionStatus[t.status]} /></TableCell>
                   <TableCell className={cn(td, "py-0.5 text-center")}>
                     <ActionButton
-                      assigned={!!t.elpremar}
-                      status={t.status}
                       onClick={() =>
-                        setAssigning({ tab: "tasks", plant: t.plant, id: t.id, title: t.activity, subtitle: `${t.asset} · ${t.plant}, ${t.enterprise}`, elpremar: t.elpremar, date: t.due })
+                        setAssigning({ tab: "tasks", approvable: false, plant: t.plant, id: t.id, title: t.activity, subtitle: `${t.asset} · ${t.plant}, ${t.enterprise}`, elpremar: t.elpremar, date: t.due, slot: t.slot })
                       }
                     />
                   </TableCell>
@@ -323,12 +351,13 @@ export function OperationsTables({ country, className }: { country?: string; cla
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={th}>#</TableHead>
+                <SortHead label="Ticket #" column="id" sort={sorts.tickets} onSort={sortOn("tickets")} />
                 <SortHead label="Enterprise" column="enterprise" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden md:table-cell" />
                 <SortHead label="Plant" column="plant" sort={sorts.tickets} onSort={sortOn("tickets")} />
                 <SortHead label="Subject" column="subject" sort={sorts.tickets} onSort={sortOn("tickets")} />
+                <SortHead label="Category" column="category" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden lg:table-cell" />
                 <SortHead label="Raised" column="raised" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden sm:table-cell" />
-                <SortHead label="ELPREMAR" column="elpremar" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden lg:table-cell" />
-                <SortHead label="Scheduled" column="date" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden sm:table-cell" />
+                <SortHead label="Assigned To" column="elpremar" sort={sorts.tickets} onSort={sortOn("tickets")} className="hidden lg:table-cell" />
                 <SortHead label="Priority" column="priority" sort={sorts.tickets} onSort={sortOn("tickets")} />
                 <SortHead label="Status" column="status" sort={sorts.tickets} onSort={sortOn("tickets")} />
                 <TableHead className={cn(th, "text-center")}>Action</TableHead>
@@ -338,24 +367,19 @@ export function OperationsTables({ country, className }: { country?: string; cla
               {tickets.map((t, i) => (
                 <TableRow key={t.id}>
                   <TableCell className={serial}>{i + 1}</TableCell>
+                  <TableCell className={cn(td, "font-medium whitespace-nowrap tabular-nums")}>{t.id}</TableCell>
                   <TableCell className={cn(td, "hidden md:table-cell")}>{t.enterprise}</TableCell>
                   <TableCell className={td}>{t.plant}</TableCell>
                   <TableCell className={cn(td, "max-w-56 whitespace-normal")}>{t.subject}</TableCell>
+                  <TableCell className={cn(td, "hidden lg:table-cell")}>{t.category}</TableCell>
                   <TableCell className={cn(td, "hidden tabular-nums sm:table-cell")}>{t.raised}</TableCell>
                   <TableCell className={cn(td, "hidden lg:table-cell")}>{t.elpremar ?? <Unassigned />}</TableCell>
-                  <TableCell className={cn(td, "hidden tabular-nums sm:table-cell")}>{t.scheduled ?? <Unassigned />}</TableCell>
                   <TableCell className={td}>
                     <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
                   </TableCell>
                   <TableCell className={td}><StatusBadge status={t.status} /></TableCell>
                   <TableCell className={cn(td, "py-0.5 text-center")}>
-                    <ActionButton
-                      assigned={!!t.elpremar}
-                      status={t.status}
-                      onClick={() =>
-                        setAssigning({ tab: "tickets", plant: t.plant, id: t.id, title: t.subject, subtitle: `${t.priority} priority · ${t.plant}, ${t.enterprise}`, elpremar: t.elpremar, date: t.scheduled })
-                      }
-                    />
+                    <ActionButton onClick={() => setResolving(t)} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -363,6 +387,18 @@ export function OperationsTables({ country, className }: { country?: string; cla
           </Table>
         </TabsContent>
       </div>
+
+      <ResolveTicketDialog
+        key={resolving ? `resolve-${resolving.id}` : "resolve-closed"}
+        target={resolving}
+        onOpenChange={(open) => !open && setResolving(null)}
+        onResolve={(resolution) => {
+          if (!resolving) return
+          setTicketRows((rows) => rows.map((r) => (r.id === resolving.id ? { ...r, resolution, status: "closed" } : r)))
+          toast.success(`${resolving.id} closed`, { description: resolving.subject })
+          setResolving(null)
+        }}
+      />
 
       <AssignElpremarDialog
         key={assigning ? `${assigning.tab}-${assigning.id}` : "closed"}

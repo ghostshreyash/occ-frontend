@@ -69,6 +69,8 @@ export type WorkStatus =
   | "assigned"
   | "completed"
   | "closed"
+  /** An approver sent the work back for correction */
+  | "rejected"
 
 export const workStatus: Record<
   WorkStatus,
@@ -80,7 +82,32 @@ export const workStatus: Record<
   assigned: { label: "Assigned", badge: "info" },
   completed: { label: "Completed", badge: "success" },
   closed: { label: "Closed", badge: "neutral" },
+  rejected: { label: "Rejected", badge: "critical" },
 }
+
+/**
+ * A maintenance activity is planned work an approver signs off, so those screens
+ * word two of the shared statuses in approval terms. Everything else uses
+ * `workStatus` as-is.
+ */
+export const maintenanceStatus: Partial<Record<WorkStatus, (typeof workStatus)[WorkStatus]>> = {
+  open: { label: "Pending For Approval", badge: "warning" },
+  assigned: { label: "Approved", badge: "success" },
+}
+
+/** The statuses a maintenance activity moves through, in order */
+export const maintenanceStatuses: WorkStatus[] = ["open", "assigned", "rejected", "in_progress", "completed"]
+
+/**
+ * An inspection activity is signed off before it starts, so what the shared map
+ * calls Pending reads as Approved. There is no separate assigned state.
+ */
+export const inspectionStatus: Partial<Record<WorkStatus, (typeof workStatus)[WorkStatus]>> = {
+  pending: { label: "Approved", badge: "success" },
+}
+
+/** The statuses an inspection activity moves through, in order */
+export const inspectionStatuses: WorkStatus[] = ["pending", "in_progress", "completed"]
 
 /** Categorical series colours, in order, for charts with arbitrary groups */
 export const chartSeries = [

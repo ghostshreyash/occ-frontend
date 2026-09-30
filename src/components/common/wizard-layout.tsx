@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, BookOpen, Loader2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/common/page-header"
@@ -39,16 +39,11 @@ export function WizardPage({
         description={description}
         breadcrumbs={breadcrumbs}
         actions={
-          <>
-            {onExit ? (
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onExit}>
-                <ArrowLeft className="size-3.5" /> Back to Enterprises
-              </Button>
-            ) : null}
-            <Button variant="outline" size="sm" className="h-7 bg-card text-xs">
-              <BookOpen className="size-3.5" /> Onboarding Guide
+          onExit ? (
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onExit}>
+              <ArrowLeft className="size-3.5" /> Back to Enterprises
             </Button>
-          </>
+          ) : null
         }
       />
       <StepperBar steps={steps} current={current} furthest={furthest} onSelect={onStepSelect} />

@@ -14,10 +14,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { OlivineEmblem, OlivineLogo } from "@/components/layout/olivine-logo"
-import { occNavigation } from "@/config/navigation"
+import { occNavigation, type NavItem } from "@/config/navigation"
 
-function isActivePath(current: string, path: string) {
-  return path === "/" ? current === "/" : current === path || current.startsWith(`${path}/`)
+const under = (current: string, path: string) =>
+  path === "/" ? current === "/" : current === path || current.startsWith(`${path}/`)
+
+/** A section stays highlighted on its own screens and on the details screens it covers */
+function isActivePath(current: string, item: NavItem) {
+  return [item.path, ...(item.covers ?? [])].some((path) => under(current, path))
 }
 
 export function AppSidebar() {
@@ -38,7 +42,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActivePath(pathname, item.path)}
+                    isActive={isActivePath(pathname, item)}
                     tooltip={item.title}
                     className="h-10 data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground [&_svg]:size-[18px]"
                   >

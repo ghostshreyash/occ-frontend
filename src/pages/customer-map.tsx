@@ -133,7 +133,7 @@ export function CustomerMapPage() {
         </div>
       </div>
 
-      {/* Three cards in one row, same grid as the OCC Global dashboard */}
+      {/* Three cards in one row, same grid as the Dashboard */}
       <div className="grid gap-3 md:grid-cols-3">
         <SectionCard title="Asset Health (India)">
           <DonutChart
