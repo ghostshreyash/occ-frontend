@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form"
-import { Calendar as CalendarIcon, Eye, EyeOff, UploadCloud } from "lucide-react"
+import { Calendar as CalendarIcon, Eye, EyeOff, UploadCloud, X} from "lucide-react"
 import { format, isValid, parseISO } from "date-fns"
 import { cn } from "cn"
 
@@ -19,6 +19,9 @@ type BaseProps<T extends FieldValues> = {
   required?: boolean
   description?: string
   className?: string
+  startIcon?: React.ReactNode
+  inputClassName?: string
+  clearable?: boolean
 }
 
 function FieldTitle({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
@@ -37,6 +40,9 @@ export function TextField<T extends FieldValues>({
   required,
   description,
   className,
+  startIcon,
+  inputClassName,
+  clearable,
   ...inputProps
 }: BaseProps<T> & Omit<React.ComponentProps<typeof Input>, "name">) {
   return (
@@ -46,7 +52,27 @@ export function TextField<T extends FieldValues>({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className={className}>
           <FieldTitle label={label} required={required} htmlFor={name} />
-          <Input id={name} aria-invalid={fieldState.invalid} {...inputProps} {...field} value={field.value ?? ""} />
+          <div className="relative">
+            {startIcon ? <span className="pointer-events-none absolute top-1/2 left-2.5 z-10 -translate-y-1/2 text-muted-foreground [&>svg]:size-4">{startIcon}</span> : null}
+            <Input
+              id={name}
+              aria-invalid={fieldState.invalid}
+              className={cn(startIcon && "pl-9", clearable && "pr-9", inputClassName)}
+              {...inputProps}
+              {...field}
+              value={field.value ?? ""}
+            />
+            {clearable && field.value ? (
+              <button
+                type="button"
+                aria-label={`Clear ${label}`}
+                onClick={() => field.onChange("")}
+                className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
           {description ? <FieldDescription>{description}</FieldDescription> : null}
           <FieldError errors={[fieldState.error]} />
         </Field>
@@ -57,7 +83,7 @@ export function TextField<T extends FieldValues>({
 
 export function PasswordField<T extends FieldValues>(props: BaseProps<T> & { placeholder?: string }) {
   const [visible, setVisible] = useState(false)
-  const { control, name, label, required, description, className, placeholder } = props
+  const { control, name, label, required, description, className, placeholder, startIcon, inputClassName } = props
   return (
     <Controller
       control={control}
@@ -66,12 +92,13 @@ export function PasswordField<T extends FieldValues>(props: BaseProps<T> & { pla
         <Field data-invalid={fieldState.invalid} className={className}>
           <FieldTitle label={label} required={required} htmlFor={name} />
           <div className="relative">
+            {startIcon ? <span className="pointer-events-none absolute top-1/2 left-2.5 z-10 -translate-y-1/2 text-muted-foreground [&>svg]:size-4">{startIcon}</span> : null}
             <Input
               id={name}
               type={visible ? "text" : "password"}
               placeholder={placeholder}
               aria-invalid={fieldState.invalid}
-              className="pr-10"
+              className={cn("pr-10", startIcon && "pl-9", inputClassName)}
               {...field}
               value={field.value ?? ""}
             />

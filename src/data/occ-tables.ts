@@ -4,7 +4,7 @@
  * Replace with API calls (TanStack Query) later.
  */
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { priorities } from "@/data/mock"
+import { activityTypes, priorities } from "@/data/mock"
 
 type Priority = (typeof priorities)[number]
 
@@ -43,46 +43,47 @@ export type MaintenanceRow = {
   enterprise: string
   country: string
   type: "Preventive" | "Corrective" | "Condition Based" | "Emergency"
-  elpremar: string
-  scheduled: string
-  progress: number
+  /** Unassigned rows have no ELPREMAR and no scheduled date yet */
+  elpremar?: string
+  scheduled?: string
   status: WorkStatus
 }
 
 export const maintenanceProgress: MaintenanceRow[] = [
-  { id: "MT-2291", asset: "LT Panel - Block A", plant: "Mumbai Works", enterprise: "Tata Steel", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: "28-05-2025", progress: 100, status: "completed" },
-  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar", enterprise: "Reliance Industries", country: "India", type: "Condition Based", elpremar: "Amit Sharma", scheduled: "28-05-2025", progress: 65, status: "in_progress" },
-  { id: "MT-2289", asset: "MCC - Unit 2", plant: "Dolvi", enterprise: "JSW Group", country: "India", type: "Corrective", elpremar: "Ramesh Patil", scheduled: "29-05-2025", progress: 30, status: "in_progress" },
-  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra", enterprise: "Adani Group", country: "India", type: "Emergency", elpremar: "Anil Singh", scheduled: "27-05-2025", progress: 0, status: "open" },
-  { id: "MT-2287", asset: "HT Panel - Incomer 1", plant: "Hyderabad", enterprise: "NTPC", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: "30-05-2025", progress: 0, status: "assigned" },
-  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai", enterprise: "NTPC", country: "UAE", type: "Preventive", elpremar: "Khalid Rahman", scheduled: "29-05-2025", progress: 45, status: "in_progress" },
-  { id: "MT-2285", asset: "UPS - 03", plant: "Frankfurt", enterprise: "Tata Steel", country: "Germany", type: "Corrective", elpremar: "Lukas Weber", scheduled: "30-05-2025", progress: 0, status: "assigned" },
-  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston", enterprise: "Reliance Industries", country: "USA", type: "Condition Based", elpremar: "Maria Lopez", scheduled: "31-05-2025", progress: 80, status: "in_progress" },
+  { id: "MT-2291", asset: "LT Panel - Block A", plant: "Mumbai Works", enterprise: "Tata Steel", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: "28-05-2025", status: "completed" },
+  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar", enterprise: "Reliance Industries", country: "India", type: "Condition Based", elpremar: "Amit Sharma", scheduled: "28-05-2025", status: "in_progress" },
+  { id: "MT-2289", asset: "MCC - Unit 2", plant: "Dolvi", enterprise: "JSW Group", country: "India", type: "Corrective", elpremar: "Ramesh Patil", scheduled: "29-05-2025", status: "in_progress" },
+  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra", enterprise: "Adani Group", country: "India", type: "Emergency", status: "open" },
+  { id: "MT-2287", asset: "HT Panel - Incomer 1", plant: "Hyderabad", enterprise: "NTPC", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: "30-05-2025", status: "assigned" },
+  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai", enterprise: "NTPC", country: "UAE", type: "Preventive", elpremar: "Khalid Rahman", scheduled: "29-05-2025", status: "in_progress" },
+  { id: "MT-2285", asset: "UPS - 03", plant: "Frankfurt", enterprise: "Tata Steel", country: "Germany", type: "Corrective", elpremar: "Lukas Weber", scheduled: "30-05-2025", status: "assigned" },
+  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston", enterprise: "Reliance Industries", country: "USA", type: "Condition Based", elpremar: "Maria Lopez", scheduled: "31-05-2025", status: "in_progress" },
 ]
 
 /* ---------- Tasks ---------- */
 
 export type TaskRow = {
   id: string
-  elpremar: string
+  elpremar?: string
   enterprise: string
   plant: string
+  asset: string
   country: string
   activity: string
-  due: string
+  due?: string
   priority: Priority
   status: WorkStatus
 }
 
 export const taskQueue: TaskRow[] = [
-  { id: "TSK-8841", elpremar: "Suresh Kumar", enterprise: "Tata Steel", plant: "Mumbai Works", country: "India", activity: "Thermal Scan", due: "28-05-2025", priority: "High", status: "in_progress" },
-  { id: "TSK-8840", elpremar: "Amit Sharma", enterprise: "Reliance Industries", plant: "Jamnagar", country: "India", activity: "Partial Discharge Testing", due: "28-05-2025", priority: "Critical", status: "assigned" },
-  { id: "TSK-8839", elpremar: "Ramesh Patil", enterprise: "JSW Group", plant: "Dolvi", country: "India", activity: "Panel Cleaning (INSTA CLEAN)", due: "29-05-2025", priority: "Medium", status: "assigned" },
-  { id: "TSK-8838", elpremar: "Anil Singh", enterprise: "Adani Group", plant: "Mundra", country: "India", activity: "Visual Inspection", due: "27-05-2025", priority: "Low", status: "completed" },
-  { id: "TSK-8837", elpremar: "Suresh Kumar", enterprise: "NTPC", plant: "Hyderabad", country: "India", activity: "Insulation Resistance Testing", due: "30-05-2025", priority: "Medium", status: "pending" },
-  { id: "TSK-8836", elpremar: "Khalid Rahman", enterprise: "NTPC", plant: "Dubai", country: "UAE", activity: "Preventive Assessment", due: "29-05-2025", priority: "High", status: "assigned" },
-  { id: "TSK-8835", elpremar: "Lukas Weber", enterprise: "Tata Steel", plant: "Frankfurt", country: "Germany", activity: "Fire Prevention System Check", due: "31-05-2025", priority: "Medium", status: "pending" },
-  { id: "TSK-8834", elpremar: "Maria Lopez", enterprise: "Reliance Industries", plant: "Houston", country: "USA", activity: "Thermal Scan", due: "01-06-2025", priority: "Low", status: "assigned" },
+  { id: "TSK-8841", elpremar: "Suresh Kumar", enterprise: "Tata Steel", plant: "Mumbai Works", asset: "LT Panel - Block A", country: "India", activity: "Thermal Scan", due: "28-05-2025", priority: "High", status: "in_progress" },
+  { id: "TSK-8840", elpremar: "Amit Sharma", enterprise: "Reliance Industries", plant: "Jamnagar", asset: "Transformer - T1", country: "India", activity: "Partial Discharge Testing", due: "28-05-2025", priority: "Critical", status: "assigned" },
+  { id: "TSK-8839", elpremar: "Ramesh Patil", enterprise: "JSW Group", plant: "Dolvi", asset: "MCC - Unit 2", country: "India", activity: "Panel Cleaning (INSTA CLEAN)", due: "29-05-2025", priority: "Medium", status: "assigned" },
+  { id: "TSK-8838", elpremar: "Anil Singh", enterprise: "Adani Group", plant: "Mundra", asset: "PCC - Main", country: "India", activity: "Visual Inspection", due: "27-05-2025", priority: "Low", status: "completed" },
+  { id: "TSK-8837", enterprise: "NTPC", plant: "Hyderabad", asset: "HT Panel - Incomer 1", country: "India", activity: "Insulation Resistance Testing", priority: "Medium", status: "pending" },
+  { id: "TSK-8836", elpremar: "Khalid Rahman", enterprise: "NTPC", plant: "Dubai", asset: "APFC Panel - 1", country: "UAE", activity: "Preventive Assessment", due: "29-05-2025", priority: "High", status: "assigned" },
+  { id: "TSK-8835", enterprise: "Tata Steel", plant: "Frankfurt", asset: "Fire Alarm Panel - FA1", country: "Germany", activity: "Fire Prevention System Check", priority: "Medium", status: "pending" },
+  { id: "TSK-8834", elpremar: "Maria Lopez", enterprise: "Reliance Industries", plant: "Houston", asset: "Switchboard - SB2", country: "USA", activity: "Thermal Scan", due: "01-06-2025", priority: "Low", status: "assigned" },
 ]
 
 /* ---------- Support tickets ---------- */
@@ -94,20 +95,70 @@ export type TicketRow = {
   country: string
   subject: string
   raised: string
+  elpremar?: string
+  scheduled?: string
   priority: Priority
   status: WorkStatus
 }
 
 export const supportTickets: TicketRow[] = [
   { id: "TK-4592", enterprise: "Tata Steel", plant: "Jamshedpur", country: "India", subject: "EVITA sync failing on tablet", raised: "27-05-2025", priority: "High", status: "open" },
-  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi", country: "India", subject: "Request ELPREMAR assignment", raised: "27-05-2025", priority: "Medium", status: "in_progress" },
-  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar", country: "India", subject: "PD meter not pairing over Bluetooth", raised: "26-05-2025", priority: "Critical", status: "in_progress" },
-  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra", country: "India", subject: "Health report PDF not downloading", raised: "26-05-2025", priority: "Low", status: "closed" },
-  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata", country: "India", subject: "Add new sub-division to hierarchy", raised: "25-05-2025", priority: "Medium", status: "closed" },
-  { id: "TK-4587", enterprise: "NTPC", plant: "Dubai", country: "UAE", subject: "EMMSE dashboard loading slowly", raised: "25-05-2025", priority: "Medium", status: "closed" },
+  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi", country: "India", subject: "Request ELPREMAR assignment", raised: "27-05-2025", priority: "Medium", status: "open" },
+  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar", country: "India", subject: "PD meter not pairing over Bluetooth", raised: "26-05-2025", elpremar: "Amit Sharma", scheduled: "28-05-2025", priority: "Critical", status: "in_progress" },
+  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra", country: "India", subject: "Health report PDF not downloading", raised: "26-05-2025", elpremar: "Anil Singh", scheduled: "26-05-2025", priority: "Low", status: "closed" },
+  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata", country: "India", subject: "Add new sub-division to hierarchy", raised: "25-05-2025", elpremar: "Priya Nair", scheduled: "25-05-2025", priority: "Medium", status: "closed" },
+  { id: "TK-4587", enterprise: "NTPC", plant: "Dubai", country: "UAE", subject: "EMMSE dashboard loading slowly", raised: "25-05-2025", elpremar: "Khalid Rahman", scheduled: "26-05-2025", priority: "Medium", status: "closed" },
   { id: "TK-4586", enterprise: "Tata Steel", plant: "IJmuiden", country: "Netherlands", subject: "Asset QR code not scanning", raised: "24-05-2025", priority: "High", status: "open" },
-  { id: "TK-4585", enterprise: "JSW Group", plant: "Sydney", country: "Australia", subject: "User access request for plant head", raised: "24-05-2025", priority: "Low", status: "closed" },
+  { id: "TK-4585", enterprise: "JSW Group", plant: "Sydney", country: "Australia", subject: "User access request for plant head", raised: "24-05-2025", elpremar: "Lukas Weber", scheduled: "24-05-2025", priority: "Low", status: "closed" },
 ]
+
+/* ---------- ELPREMAR schedule (Assign ELPREMAR dialog) ---------- */
+
+export type ScheduleEntry = {
+  date: Date
+  kind: "job" | "leave"
+  label: string
+}
+
+/**
+ * Mock schedule for one ELPREMAR: a deterministic spread of jobs and leave
+ * over the current and next two months (seeded by ELPREMAR id, so it is
+ * stable between renders). Unavailable ELPREMARs start on leave today.
+ * Replace with GET /elpremars/:id/schedule later.
+ */
+export function mockElpremarSchedule(elpremarId: string, available: boolean): ScheduleEntry[] {
+  let seed = [...elpremarId].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) >>> 0
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 2 ** 32
+  }
+  const jobs = [...activityTypes]
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth(), 1)
+  const entries: ScheduleEntry[] = []
+
+  for (let i = 0; i < 92; i++) {
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+    const r = random()
+    if (date.getDay() === 0) continue // Sundays off
+    if (r < 0.06) {
+      entries.push({ date, kind: "leave", label: "On leave" })
+    } else if (r < 0.42) {
+      const count = r < 0.16 ? 2 : 1
+      for (let j = 0; j < count; j++) {
+        entries.push({ date, kind: "job", label: jobs[Math.floor(random() * jobs.length)] })
+      }
+    }
+  }
+
+  if (!available) {
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
+      entries.push({ date, kind: "leave", label: "On leave" })
+    }
+  }
+  return entries
+}
 
 /* ---------- Enterprise register (Enterprise Onboarding landing) ---------- */
 
