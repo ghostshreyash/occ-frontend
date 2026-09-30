@@ -404,12 +404,12 @@ export const priorityTone: Record<Priority, string> = {
   Critical: "bg-critical-soft text-critical-soft-foreground",
 }
 
-/* ---------- Per-enterprise operations rows ---------- */
+/* ---------- Seeded pools for the enterprise profile ---------- */
 
 /**
- * The dashboard tables show every enterprise; the detail screen filters the same
- * rows to one. Generating them here keeps both reading from one dataset, so the
- * columns and the data can never drift apart.
+ * `profileFor` below draws every plant, department and contact from these pools
+ * via a hash of the enterprise id, so a given enterprise always renders the same
+ * profile between reloads without any of it being stored.
  */
 
 /** Stable hash so a given enterprise always draws the same values */
@@ -420,54 +420,8 @@ const seedOf = (s: string) => {
 }
 const pick = <T,>(pool: readonly T[], seed: number, offset: number) => pool[(seed + offset * 7) % pool.length]
 
-/** Industrial sites and retail sites run very different equipment */
-const industryAssets = [
-  "11kV/415V Power Transformer - T1",
-  "HT Panel - Incomer 1",
-  "LT Panel - Block A",
-  "MCC - Unit 2",
-  "PCC - Main",
-  "APFC Panel - 1",
-  "VFD - Conveyor Drive",
-  "Busbar Chamber - Main",
-  "ACB - Incomer",
-  "Relay Panel - Protection",
-]
-const retailAssets = [
-  "Lighting Distribution Board - Level 2",
-  "Distribution Board - Admin Wing",
-  "UPS - Server Room",
-  "APFC Panel - Basement",
-  "LT Panel - Chiller Plant",
-  "Battery Bank - Backup",
-  "Fire Alarm Panel - Atrium",
-  "Sub Distribution Board - Retail Floor",
-]
 const plantSuffixes = ["Main Plant", "Unit 2", "Substation", "Utility Block", "Warehouse", "Annexe"]
 const elpremarPool = ["Suresh Kumar", "Amit Sharma", "Ramesh Patil", "Anil Singh", "Priya Nair", "Vikram Desai"]
-const maintenanceKinds: MaintenanceRow["type"][] = ["Preventive", "Corrective", "Condition Based", "Emergency"]
-const activityKinds = [
-  "Visual Inspection",
-  "Thermal Inspection",
-  "Partial Discharge Testing",
-  "Insulation Resistance Testing",
-  "Panel Cleaning (INSTA CLEAN)",
-  "Fire Prevention System Check",
-]
-const workStatusPool: WorkStatus[] = ["completed", "completed", "in_progress", "assigned", "pending", "open"]
-const ticketSubjects = [
-  "EVITA sync failing on tablet",
-  "Request additional ELPREMAR for shutdown",
-  "Asset QR code not scanning after relabelling",
-  "Add new sub-department under Electrical",
-  "PD meter not pairing over Bluetooth",
-  "Health report PDF not downloading",
-  "User access request for new plant head",
-  "EMMSE dashboard loading slowly",
-  "Thermal images not uploading from the field",
-  "Correct the plant capacity on record",
-]
-const priorityPool: Priority[] = ["Low", "Medium", "High", "Critical"]
 
 /** Dates count back from a fixed reference so the data never shifts */
 const REFERENCE = new Date(2026, 8, 28)
@@ -475,67 +429,6 @@ const dateBack = (days: number) => {
   const d = new Date(REFERENCE)
   d.setDate(d.getDate() - days)
   return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`
-}
-
-const assetsFor = (e: EnterpriseRecord) => (e.sectorType === "Retail" ? retailAssets : industryAssets)
-const plantName = (e: EnterpriseRecord, seed: number, i: number) => `${e.city} ${pick(plantSuffixes, seed, i + 2)}`
-
-function buildMaintenance(e: EnterpriseRecord): MaintenanceRow[] {
-  const seed = seedOf(e.id)
-  return Array.from({ length: 5 + (seed % 3) }, (_, i) => {
-    const status = pick(workStatusPool, seed, i)
-    const unassigned = status === "open" || status === "pending"
-    return {
-      id: `MT-${3000 + (seed % 900) + i * 3}`,
-      asset: pick(assetsFor(e), seed, i),
-      plant: plantName(e, seed, i),
-      enterprise: e.name,
-      country: e.country,
-      type: pick(maintenanceKinds, seed, i + 1),
-      elpremar: unassigned ? undefined : pick(elpremarPool, seed, i + 3),
-      scheduled: unassigned ? undefined : dateBack(i * 9 + (seed % 5)),
-      status,
-    }
-  })
-}
-
-function buildTasks(e: EnterpriseRecord): TaskRow[] {
-  const seed = seedOf(e.id)
-  return Array.from({ length: 4 + (seed % 3) }, (_, i) => {
-    const status = pick(workStatusPool, seed, i + 2)
-    const unassigned = status === "open" || status === "pending"
-    return {
-      id: `TSK-${8000 + (seed % 800) + i * 5}`,
-      elpremar: unassigned ? undefined : pick(elpremarPool, seed, i + 1),
-      enterprise: e.name,
-      plant: plantName(e, seed, i + 1),
-      asset: pick(assetsFor(e), seed, i + 2),
-      country: e.country,
-      activity: pick(activityKinds, seed, i),
-      due: unassigned ? undefined : dateBack(i * 6 + (seed % 4)),
-      priority: pick(priorityPool, seed, i + 3),
-      status,
-    }
-  })
-}
-
-function buildTickets(e: EnterpriseRecord): TicketRow[] {
-  const seed = seedOf(e.id)
-  return Array.from({ length: 3 + (seed % 3) }, (_, i) => {
-    const closed = (seed + i) % 3 === 0
-    return {
-      id: `TK-${4500 + (seed % 200) + i * 4}`,
-      enterprise: e.name,
-      plant: plantName(e, seed, i + 3),
-      country: e.country,
-      subject: pick(ticketSubjects, seed, i),
-      raised: dateBack(i * 7 + (seed % 4)),
-      elpremar: closed ? pick(elpremarPool, seed, i + 4) : undefined,
-      scheduled: closed ? dateBack(i * 7) : undefined,
-      priority: pick(priorityPool, seed, i + 2),
-      status: closed ? "closed" : i === 0 ? "open" : "in_progress",
-    }
-  })
 }
 
 /* ---------- Enterprise detail: full onboarding profile ---------- */
@@ -751,15 +644,6 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
     },
   }
 }
-
-/*
- * Generated last: these read enterpriseRecords *and* the pools/helpers above.
- * Keep them at the end of the module - hoisted function declarations still
- * close over `const` pools, which are in the temporal dead zone until declared.
- */
-// export const maintenanceProgress: MaintenanceRow[] = enterpriseRecords.flatMap(buildMaintenance)
-// export const taskQueue: TaskRow[] = enterpriseRecords.flatMap(buildTasks)
-// export const supportTickets: TicketRow[] = enterpriseRecords.flatMap(buildTickets)
 
 /**
  * Asset health split for one enterprise. The record carries a total and an
