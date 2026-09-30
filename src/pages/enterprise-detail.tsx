@@ -9,17 +9,21 @@ import {
   Building2,
   Factory,
   Folder,
-  LifeBuoy,
   MapPin,
   Network,
+  Search,
   HeartPulse,
   Server,
+  X,
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DateField, PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
@@ -34,7 +38,6 @@ import {
   assetHealthFor,
   enterpriseRecords,
   profileFor,
-  supportTickets,
   type DepartmentProfile,
   type EnterpriseProfile,
   type EnterpriseRecord,
@@ -97,14 +100,24 @@ export function EnterpriseDetailPage() {
   /** Which plant, and which of its departments, the drill-down is showing */
   const [plantId, setPlantId] = useState<string>()
   const [deptId, setDeptId] = useState<string>()
+  const [plantQuery, setPlantQuery] = useState("")
+  const [plantCity, setPlantCity] = useState("all")
 
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
-  const tickets = useMemo(() => (record ? supportTickets.filter((s) => s.enterprise === record.name) : []), [record])
 
   const plants = profile?.plants ?? []
-  // The first plant is selected until another is picked; its first department likewise
-  const plant = plants.find((p) => p.id === plantId) ?? plants[0]
+  const plantCities = [...new Set(plants.map((pl) => pl.city))].sort()
+
+  const visiblePlants = plants.filter((pl) => {
+    if (plantCity !== "all" && pl.city !== plantCity) return false
+    const q = plantQuery.trim().toLowerCase()
+    if (!q) return true
+    return [pl.name, pl.code, pl.type, pl.head, pl.city, pl.state].some((v) => v.toLowerCase().includes(q))
+  })
+
+  /* The selection follows the filter: if the chosen plant is filtered out, fall back to the first visible one */
+  const plant = visiblePlants.find((pl) => pl.id === plantId) ?? visiblePlants[0]
   const departments = plant?.departments ?? []
   const dept = departments.find((d) => d.id === deptId) ?? departments[0]
   const subs = dept?.subDepartments ?? []
@@ -178,7 +191,6 @@ export function EnterpriseDetailPage() {
 
   const { enterprise: e, location: l, account } = profile
   const editingCountryIsIndia = locationForm.watch("country") === "India"
-  const openTickets = tickets.filter((t) => t.status !== "closed").length
   const health = assetHealthFor(record)
   const pct = (n: number) => Math.round((n / record.assets) * 100)
 
@@ -203,7 +215,6 @@ export function EnterpriseDetailPage() {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Plants" value={record.plants} icon={Factory} tone="success" variant="plain" />
         <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
-        <StatCard label="Open Tickets" value={openTickets} icon={LifeBuoy} tone={openTickets > 0 ? "attention" : "neutral"} variant="plain" />
         {/* Asset health split, using the platform's three bands */}
         <StatCard label="Healthy Assets" value={health.healthy} percent={pct(health.healthy)} icon={HeartPulse} tone="healthy" variant="plain" />
         <StatCard label="Attention Required" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
@@ -311,17 +322,74 @@ export function EnterpriseDetailPage() {
           onSave={save(plantForm, "plant")}
           view={
             <div className="space-y-2.5">
+              {/* Search and location filter, so a 12-plant enterprise stays navigable */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-0 flex-1 sm:max-w-56">
+                  <Label htmlFor="plant-search" className="sr-only">Search plants</Label>
+                  <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="plant-search"
+                    type="search"
+                    value={plantQuery}
+                    onChange={(ev) => setPlantQuery(ev.target.value)}
+                    placeholder="Search name, code, type, head"
+                    className="h-7 pl-7 text-xs"
+                  />
+                </div>
+
+                <Select value={plantCity} onValueChange={setPlantCity}>
+                  <SelectTrigger size="sm" aria-label="Filter by location" className="h-7 w-40 text-xs">
+                    <MapPin className="size-3.5 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false}>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {plantCities.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {plantQuery.trim() !== "" || plantCity !== "all" ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setPlantQuery("")
+                      setPlantCity("all")
+                    }}
+                  >
+                    <X className="size-3.5" /> Clear
+                  </Button>
+                ) : null}
+
+                <span className="ml-auto text-[0.7rem] tabular-nums text-muted-foreground">
+                  {visiblePlants.length} of {plants.length}
+                </span>
+              </div>
+
               <SelectableTable
-                rows={plants}
+                rows={visiblePlants}
                 selectedId={plantId}
                 onSelect={(id) => {
                   setPlantId(id)
                   setDeptId(undefined)
                 }}
-                empty="No plants registered"
+                empty="No plants match these filters"
                 columns={[
                   { key: "name", label: "Plant", render: (r) => <span className="font-medium">{r.name}</span> },
                   { key: "code", label: "Code", render: (r) => <span className="tabular-nums">{r.code}</span> },
+                  {
+                    key: "city",
+                    label: "Location",
+                    render: (r) => (
+                      <span>
+                        <span className="block">{r.city}</span>
+                        <span className="block text-[0.65rem] text-muted-foreground">{r.state}</span>
+                      </span>
+                    ),
+                  },
                   { key: "type", label: "Type", hideBelow: "md", render: (r) => r.type },
                   { key: "head", label: "Plant Head", hideBelow: "lg", render: (r) => `${r.salutation} ${r.head}` },
                   { key: "cap", label: "Capacity", hideBelow: "sm", render: (r) => `${r.capacity} ${r.capacityUnit}` },

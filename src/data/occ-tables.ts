@@ -351,6 +351,8 @@ export type PlantProfile = {
   name: string
   type: string
   code: string
+  city: string
+  state: string
   salutation: string
   head: string
   email: string
@@ -383,6 +385,16 @@ const stateFor: Record<string, string> = {
   Kochi: "Kerala", Ahmedabad: "Gujarat", Dubai: "Dubai", Riyadh: "Riyadh Province",
   Frankfurt: "Hesse", Singapore: "Singapore", IJmuiden: "North Holland", Houston: "Texas",
   "Sao Paulo": "Sao Paulo", Johannesburg: "Gauteng", Sydney: "New South Wales",
+  Jamshedpur: "Jharkhand", Pune: "Maharashtra", Chennai: "Tamil Nadu", Kolkata: "West Bengal",
+  Nagpur: "Maharashtra", Vijayanagar: "Karnataka", Vadodara: "Gujarat",
+  "Abu Dhabi": "Abu Dhabi", Sharjah: "Sharjah", "Ras Al Khaimah": "Ras Al Khaimah",
+  Jubail: "Eastern Province", Yanbu: "Al Madinah", Dammam: "Eastern Province",
+  Jurong: "Singapore", Tuas: "Singapore", Duisburg: "North Rhine-Westphalia",
+  Hamburg: "Hamburg", Dortmund: "North Rhine-Westphalia", Rotterdam: "South Holland",
+  Amsterdam: "North Holland", Dallas: "Texas", Pittsburgh: "Pennsylvania", Cleveland: "Ohio",
+  "Rio de Janeiro": "Rio de Janeiro", "Belo Horizonte": "Minas Gerais",
+  Durban: "KwaZulu-Natal", "Cape Town": "Western Cape", Pretoria: "Gauteng",
+  Melbourne: "Victoria", Perth: "Western Australia", Brisbane: "Queensland",
 }
 const coordsFor: Record<string, [string, string]> = {
   Mumbai: ["19.0760", "72.8777"], Jamnagar: ["22.4707", "70.0577"], Dolvi: ["18.7000", "73.0000"],
@@ -392,6 +404,26 @@ const coordsFor: Record<string, [string, string]> = {
   Frankfurt: ["50.1109", "8.6821"], Singapore: ["1.3521", "103.8198"], IJmuiden: ["52.4607", "4.6103"],
   Houston: ["29.7604", "-95.3698"], Johannesburg: ["-26.2041", "28.0473"], Sydney: ["-33.8688", "151.2093"],
 }
+/** Cities a plant can sit in, per country. The HQ city is always used first. */
+const plantCitiesByCountry: Record<string, string[]> = {
+  India: ["Mumbai", "Jamshedpur", "Pune", "Chennai", "Hyderabad", "Kolkata", "Ahmedabad", "Nagpur", "Vijayanagar", "Vadodara"],
+  "United Arab Emirates": ["Dubai", "Abu Dhabi", "Sharjah", "Ras Al Khaimah"],
+  "Saudi Arabia": ["Riyadh", "Jubail", "Yanbu", "Dammam"],
+  Singapore: ["Singapore", "Jurong", "Tuas"],
+  Germany: ["Frankfurt", "Duisburg", "Hamburg", "Dortmund"],
+  Netherlands: ["IJmuiden", "Rotterdam", "Amsterdam"],
+  "United States": ["Houston", "Dallas", "Pittsburgh", "Cleveland"],
+  Brazil: ["Sao Paulo", "Rio de Janeiro", "Belo Horizonte"],
+  "South Africa": ["Johannesburg", "Durban", "Cape Town", "Pretoria"],
+  Australia: ["Sydney", "Melbourne", "Perth", "Brisbane"],
+}
+
+/** Cities for one enterprise: its HQ first, then the rest of that country's pool */
+const plantCitiesFor = (e: EnterpriseRecord) => {
+  const pool = plantCitiesByCountry[e.country] ?? [e.city]
+  return [e.city, ...pool.filter((c) => c !== e.city)]
+}
+
 const industryPlantTypes = ["Integrated Steel Plant", "Refinery", "Power Plant", "Cement Plant", "Manufacturing Unit"]
 const retailPlantTypes = ["Commercial Complex", "Shopping Centre", "Data Centre", "Facility Block"]
 const deptPool = ["Electrical", "Maintenance", "Operations", "Engineering", "Utilities", "Instrumentation & Control", "Safety"]
@@ -426,8 +458,10 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
   const short = e.id.slice(0, 3)
   const mail = (name: string) => name.toLowerCase().replace(/ /g, ".") + "@" + slug + ".com"
 
+  const cities = plantCitiesFor(e)
   const plants: PlantProfile[] = Array.from({ length: Math.min(e.plants, 12) }, (_, i) => {
     const s = seed + i * 101
+    const city = cities[i % cities.length]
     const head = pick(elpremarPool, s, 4)
     const commissioned = new Date(2016 + (s % 9), s % 12, 1 + (s % 27))
 
@@ -446,7 +480,7 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
         email: mail(dHead),
         phoneCode: dialCodeFor(e.country),
         phone: String(8000000000 + (ds % 899999999)).slice(0, 10),
-        description: dName + " systems and reliability activities for this plant.",
+        description: dName + " systems and reliability activities for the " + city + " plant.",
         subDepartments: subDeptPool.slice(0, 2 + (ds % 3)).map((sd) => ({
           ...sd,
           code: "SUB-" + short + "-" + sd.code + (i + 1) + (j + 1),
@@ -456,9 +490,11 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
 
     return {
       id: short + "-P" + (i + 1),
-      name: e.city + " " + pick(plantSuffixes, s, 2) + (i > 0 ? " " + (i + 1) : ""),
+      city,
+      state: stateFor[city] ?? e.country,
+      name: city + " " + pick(plantSuffixes, s, 2),
       type: pick(plantTypePool, s, 3),
-      code: short + "-" + e.city.slice(0, 3).toUpperCase() + "-" + String(i + 1).padStart(3, "0"),
+      code: short + "-" + city.slice(0, 3).toUpperCase() + "-" + String(i + 1).padStart(3, "0"),
       salutation: s % 5 === 0 ? "Dr." : s % 3 === 0 ? "Ms." : "Mr.",
       head,
       email: mail(head),
@@ -471,7 +507,7 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
         "-" + String(commissioned.getMonth() + 1).padStart(2, "0") +
         "-" + String(commissioned.getDate()).padStart(2, "0"),
       timeZone: timeZonesByCountry[e.country] ?? "(UTC+00:00) GMT",
-      address: pick(plantSuffixes, s, 2) + ", " + e.city + ", " + e.country,
+      address: pick(plantSuffixes, s, 2) + ", " + city + ", " + e.country,
       notes: "Registered during initial enterprise onboarding.",
       departments,
     }
