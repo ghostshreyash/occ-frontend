@@ -12,9 +12,11 @@ const coordinate = (label: string, limit: number) =>
 
 export const enterpriseSchema = z.object({
   name: required("Enterprise name"),
-  type: required("Enterprise type"),
   shortName: required("Short name"),
-  sector: required("Industry sector"),
+  /** Industry or Retail - drives which sector list applies */
+  sectorType: required("Sector"),
+  /** The specific sector, from the list for the chosen sector type */
+  sector: required("Sector value"),
   website: z.union([z.literal(""), z.url("Enter a valid URL")]).optional(),
   logo: z.instanceof(File).optional(),
   description: optionalText,

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { Link } from "react-router"
 import {
   ArrowDown,
   ArrowDownWideNarrow,
@@ -28,6 +29,7 @@ import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
 import { enterpriseRecords, enterpriseRegisterKpis, type EnterpriseRecord } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
+import { sectorTypes } from "@/data/master-data"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
@@ -68,29 +70,31 @@ const initials = (name: string) =>
 /** Enterprise register: KPIs, the full enterprise table, and the entry point to the wizard */
 export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const [query, setQuery] = useState("")
-  const [type, setType] = useState("all")
+  const [sectorType, setSectorType] = useState("all")
   const [status, setStatus] = useState("all")
   const [location, setLocation] = useState("all")
+  const [sector, setSector] = useState("all")
   const [sort, setSort] = useState<SortKey>("newest")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
 
-  const types = useMemo(() => [...new Set(enterpriseRecords.map((e) => e.type))].sort(), [])
+  const sectors = useMemo(() => [...new Set(enterpriseRecords.map((e) => e.sector))].sort(), [])
   const countries = useMemo(() => [...new Set(enterpriseRecords.map((e) => e.country))].sort(), [])
 
   const rows = useMemo(
     () =>
       enterpriseRecords
         .filter((e) => {
-          if (type !== "all" && e.type !== type) return false
+          if (sectorType !== "all" && e.sectorType !== sectorType) return false
+          if (sector !== "all" && e.sector !== sector) return false
           if (status !== "all" && e.status !== status) return false
           if (location !== "all" && e.country !== location) return false
           const q = query.trim().toLowerCase()
           if (!q) return true
-          return [e.name, e.id, e.sector, e.country, e.city].some((v) => v.toLowerCase().includes(q))
+          return [e.name, e.id, e.sector, e.sectorType, e.country, e.city].some((v) => v.toLowerCase().includes(q))
         })
         .sort(SORTS[sort].compare),
-    [query, type, status, location, sort]
+    [query, sectorType, sector, status, location, sort]
   )
 
   /*
@@ -98,7 +102,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
    * Adjusting during render (rather than in an effect) avoids a wasted commit —
    * see react.dev "You Might Not Need an Effect".
    */
-  const filterKey = `${query}|${type}|${status}|${location}|${sort}|${pageSize}`
+  const filterKey = `${query}|${sectorType}|${sector}|${status}|${location}|${sort}|${pageSize}`
   const [lastFilterKey, setLastFilterKey] = useState(filterKey)
   if (lastFilterKey !== filterKey) {
     setLastFilterKey(filterKey)
@@ -110,10 +114,11 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const start = (current - 1) * pageSize
   const pageRows = rows.slice(start, start + pageSize)
 
-  const filtered = query.trim() !== "" || type !== "all" || status !== "all" || location !== "all"
+  const filtered = query.trim() !== "" || sectorType !== "all" || sector !== "all" || status !== "all" || location !== "all"
   const clearFilters = () => {
     setQuery("")
-    setType("all")
+    setSectorType("all")
+    setSector("all")
     setStatus("all")
     setLocation("all")
   }
@@ -166,7 +171,8 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
           </div>
 
           <FilterSelect id="ent-location" label="Location" value={location} onChange={setLocation} allLabel="All Locations" options={countries} width="w-40" icon={MapPin} />
-          <FilterSelect id="ent-type" label="Type" value={type} onChange={setType} allLabel="All Types" options={types} width="w-36" />
+          <FilterSelect id="ent-sector-type" label="Sector" value={sectorType} onChange={setSectorType} allLabel="All Sectors" options={[...sectorTypes]} width="w-32" />
+          <FilterSelect id="ent-sector" label="Sector value" value={sector} onChange={setSector} allLabel="All Values" options={sectors} width="w-40" />
           <FilterSelect
             id="ent-status"
             label="Status"
@@ -207,9 +213,8 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={`${th} pl-3`}>Enterprise</TableHead>
-                <TableHead className={th}>Type</TableHead>
-                <TableHead className={`${th} hidden md:table-cell`}>Industry Sector</TableHead>
-                <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
+                <TableHead className={th}>Sector</TableHead>
+                                <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
                 <TableHead className={th}>Plants</TableHead>
                 <TableHead className={`${th} hidden sm:table-cell`}>Assets</TableHead>
                 <TableHead className={`${th} hidden md:table-cell`}>
@@ -235,18 +240,20 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                     <TableCell className={`${td} relative pl-3`}>
                       {/* Status stripe: colour reinforcing the badge at the end of the row */}
                       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-0.5", accent.stripe)} />
-                      <div className="flex items-center gap-2">
+                      <Link to={`/enterprises/${e.id}`} className="group/name flex items-center gap-2">
                         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded text-[0.55rem] font-bold", accent.chip)}>
                           {initials(e.name)}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate font-medium">{e.name}</span>
+                          <span className="block truncate font-medium group-hover/name:text-primary group-hover/name:underline">{e.name}</span>
                           <span className="block text-[0.65rem] tabular-nums text-muted-foreground">{e.id}</span>
                         </span>
-                      </div>
+                      </Link>
                     </TableCell>
-                    <TableCell className={td}>{e.type}</TableCell>
-                    <TableCell className={`${td} hidden md:table-cell`}>{e.sector}</TableCell>
+                    <TableCell className={td}>
+                      <div className="font-medium">{e.sectorType}</div>
+                      <div className="text-[0.65rem] text-muted-foreground">{e.sector}</div>
+                    </TableCell>
                     <TableCell className={`${td} hidden lg:table-cell`}>
                       <div>{e.city}</div>
                       <div className="text-[0.65rem] text-muted-foreground">{e.country}</div>

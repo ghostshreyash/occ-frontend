@@ -13,15 +13,13 @@ import { StepCard } from "@/components/common/wizard-layout"
 import { LocationPicker } from "@/components/common/location-picker"
 import {
   countries,
-  departmentTypes,
-  enterpriseTypes,
   indianStates,
-  industrySectors,
   plantTypes,
   salutations,
   subDepartmentFunctions,
   timeZones,
 } from "@/data/mock"
+import { departmentTypes, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   accountSchema,
   departmentSchema,
@@ -69,9 +67,10 @@ function Ctx({ icon: Icon, label, value }: { icon: typeof Building2; label: stri
 export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseValues> & { onCancel: () => void }) {
   const form = useForm<EnterpriseValues>({
     resolver: zodResolver(enterpriseSchema),
-    defaultValues: data.enterprise ?? { name: "", type: "", shortName: "", sector: "", website: "", description: "" },
+    defaultValues: data.enterprise ?? { name: "", shortName: "", sectorType: "", sector: "", website: "", description: "" },
   })
-  const { control } = form
+  const { control, watch, setValue } = form
+  const sectorType = watch("sectorType")
   return (
     <StepCard
       title="Step 1 of 6: Enterprise Name"
@@ -81,9 +80,26 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
     >
       <form id="step-enterprise" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
         <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" className="md:col-span-2" />
-        <SelectField control={control} name="type" label="Enterprise Type" required options={enterpriseTypes} placeholder="Select enterprise type" />
         <TextField control={control} name="shortName" label="Short Name / Abbreviation" required placeholder="Enter short name (e.g. TATA)" />
-        <SelectField control={control} name="sector" label="Industry Sector" required options={industrySectors} placeholder="Select industry sector" />
+        {/* Sector type drives the sector list; changing it clears a now-invalid sector */}
+        <SelectField
+          control={control}
+          name="sectorType"
+          label="Sector"
+          required
+          options={sectorTypes}
+          placeholder="Select Industry or Retail"
+          onValueChange={() => setValue("sector", "")}
+        />
+        <SelectField
+          control={control}
+          name="sector"
+          label={sectorType === "Retail" ? "Retail Sector" : "Industry Sector"}
+          required
+          options={sectorsFor(sectorType)}
+          placeholder={sectorType ? "Select sector" : "Select a sector type first"}
+          disabled={!sectorType}
+        />
         <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
         <FileDropField control={control} name="logo" label="Company Logo" />
         <TextareaField control={control} name="description" label="Description" rows={3} placeholder="Enter a brief description about the enterprise..." />
@@ -113,7 +129,7 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
     >
       <Context>
         <Ctx icon={Building2} label="Enterprise Name" value={data.enterprise?.name} />
-        <Ctx icon={Building2} label="Enterprise Type" value={data.enterprise?.type} />
+        <Ctx icon={Building2} label="Sector" value={data.enterprise?.sectorType} />
         <Ctx icon={Factory} label="Industry Sector" value={data.enterprise?.sector} />
       </Context>
       <form id="step-location" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-3" noValidate>

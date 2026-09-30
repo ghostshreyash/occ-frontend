@@ -165,7 +165,15 @@ export function SelectField<T extends FieldValues>({
   className,
   options,
   placeholder = "Select",
-}: BaseProps<T> & { options: readonly string[]; placeholder?: string }) {
+  disabled,
+  onValueChange,
+}: BaseProps<T> & {
+  options: readonly string[]
+  placeholder?: string
+  disabled?: boolean
+  /** Runs after the value changes - used to clear a dependent field */
+  onValueChange?: (value: string) => void
+}) {
   return (
     <Controller
       control={control}
@@ -173,7 +181,14 @@ export function SelectField<T extends FieldValues>({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className={className}>
           <FieldTitle label={label} required={required} htmlFor={name} />
-          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+          <Select
+            value={field.value ?? ""}
+            disabled={disabled}
+            onValueChange={(v) => {
+              field.onChange(v)
+              onValueChange?.(v)
+            }}
+          >
             <SelectTrigger id={name} aria-invalid={fieldState.invalid} className="w-full" onBlur={field.onBlur}>
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>

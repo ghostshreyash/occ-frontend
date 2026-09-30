@@ -165,7 +165,9 @@ export function mockElpremarSchedule(elpremarId: string, available: boolean): Sc
 export type EnterpriseRecord = {
   id: string
   name: string
-  type: string
+  /** "Industry" or "Retail" - see master-data.sectorTypes */
+  sectorType: string
+  /** Sector within that type - see master-data.sectorsFor() */
   sector: string
   country: string
   city: string
@@ -177,26 +179,26 @@ export type EnterpriseRecord = {
 }
 
 export const enterpriseRecords: EnterpriseRecord[] = [
-  { id: "TSL-ENT-001", name: "Tata Steel Limited", type: "Manufacturing", sector: "Steel & Metals", country: "India", city: "Mumbai", plants: 12, assets: 6842, elpremars: 48, onboarded: "12-01-2024", status: "healthy" },
-  { id: "RIL-ENT-002", name: "Reliance Industries", type: "Oil & Gas", sector: "Petrochemicals", country: "India", city: "Jamnagar", plants: 9, assets: 5921, elpremars: 41, onboarded: "03-03-2024", status: "attention" },
-  { id: "JSW-ENT-003", name: "JSW Group", type: "Manufacturing", sector: "Steel & Metals", country: "India", city: "Dolvi", plants: 11, assets: 4876, elpremars: 36, onboarded: "22-04-2024", status: "healthy" },
-  { id: "ADN-ENT-004", name: "Adani Group", type: "Power & Utilities", sector: "Power Generation", country: "India", city: "Mundra", plants: 8, assets: 3994, elpremars: 29, onboarded: "17-06-2024", status: "critical" },
-  { id: "NTP-ENT-005", name: "NTPC", type: "Power & Utilities", sector: "Power Generation", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy" },
-  { id: "ABC-ENT-006", name: "ABC Industries Ltd.", type: "Manufacturing", sector: "Automotive", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding" },
-  { id: "EMR-ENT-007", name: "Emirates Steel", type: "Manufacturing", sector: "Steel & Metals", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention" },
-  { id: "SBC-ENT-008", name: "SABIC", type: "Oil & Gas", sector: "Petrochemicals", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy" },
-  { id: "THY-ENT-009", name: "Thyssenkrupp AG", type: "Manufacturing", sector: "Steel & Metals", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy" },
-  { id: "SGX-ENT-010", name: "Singapore Grid Co.", type: "Data Centre", sector: "IT / Data Centres", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy" },
-  { id: "HIN-ENT-011", name: "Hindalco Industries", type: "Manufacturing", sector: "Steel & Metals", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention" },
-  { id: "VED-ENT-012", name: "Vedanta Limited", type: "Power & Utilities", sector: "Power Generation", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy" },
-  { id: "BPC-ENT-013", name: "Bharat Petroleum", type: "Oil & Gas", sector: "Petrochemicals", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical" },
-  { id: "UTC-ENT-014", name: "UltraTech Cement", type: "Manufacturing", sector: "Cement", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy" },
-  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", type: "Manufacturing", sector: "Pharmaceuticals", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention" },
-  { id: "TAT-ENT-016", name: "Tata Steel Europe", type: "Manufacturing", sector: "Steel & Metals", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention" },
-  { id: "LYB-ENT-017", name: "LyondellBasell", type: "Oil & Gas", sector: "Petrochemicals", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy" },
-  { id: "VAL-ENT-018", name: "Vale S.A.", type: "Manufacturing", sector: "Steel & Metals", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical" },
-  { id: "ESK-ENT-019", name: "Eskom Holdings", type: "Power & Utilities", sector: "Power Generation", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy" },
-  { id: "BHP-ENT-020", name: "BHP Group", type: "Infrastructure", sector: "Steel & Metals", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding" },
+  { id: "TSL-ENT-001", name: "Tata Steel Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mumbai", plants: 12, assets: 6842, elpremars: 48, onboarded: "12-01-2024", status: "healthy" },
+  { id: "RIL-ENT-002", name: "Reliance Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jamnagar", plants: 9, assets: 5921, elpremars: 41, onboarded: "03-03-2024", status: "attention" },
+  { id: "JSW-ENT-003", name: "JSW Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Dolvi", plants: 11, assets: 4876, elpremars: 36, onboarded: "22-04-2024", status: "healthy" },
+  { id: "ADN-ENT-004", name: "Adani Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mundra", plants: 8, assets: 3994, elpremars: 29, onboarded: "17-06-2024", status: "critical" },
+  { id: "NTP-ENT-005", name: "NTPC", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy" },
+  { id: "ABC-ENT-006", name: "ABC Industries Ltd.", sectorType: "Industry", sector: "MSME", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding" },
+  { id: "EMR-ENT-007", name: "Emirates Steel", sectorType: "Industry", sector: "Mid Cap", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention" },
+  { id: "SBC-ENT-008", name: "SABIC", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy" },
+  { id: "THY-ENT-009", name: "Thyssenkrupp AG", sectorType: "Industry", sector: "Large Cap", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy" },
+  { id: "SGX-ENT-010", name: "Singapore Grid Co.", sectorType: "Retail", sector: "Commercial Offices", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy" },
+  { id: "HIN-ENT-011", name: "Hindalco Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention" },
+  { id: "VED-ENT-012", name: "Vedanta Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy" },
+  { id: "BPC-ENT-013", name: "Bharat Petroleum", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical" },
+  { id: "UTC-ENT-014", name: "UltraTech Cement", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy" },
+  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention" },
+  { id: "TAT-ENT-016", name: "Tata Steel Europe", sectorType: "Industry", sector: "Large Cap", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention" },
+  { id: "LYB-ENT-017", name: "LyondellBasell", sectorType: "Industry", sector: "Large Cap", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy" },
+  { id: "VAL-ENT-018", name: "Vale S.A.", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical" },
+  { id: "ESK-ENT-019", name: "Eskom Holdings", sectorType: "Industry", sector: "Government / PSU", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy" },
+  { id: "BHP-ENT-020", name: "BHP Group", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding" },
 ]
 
 export const enterpriseRegisterKpis = {
@@ -219,3 +221,57 @@ export const priorityTone: Record<Priority, string> = {
   High: "bg-attention-soft text-attention-soft-foreground",
   Critical: "bg-critical-soft text-critical-soft-foreground",
 }
+
+/* ---------- Enterprise detail: history ---------- */
+
+/** Maintenance and inspection history for one enterprise */
+export type EnterpriseActivity = {
+  id: string
+  enterpriseId: string
+  date: string
+  asset: string
+  plant: string
+  type: string
+  elpremar: string
+  healthBefore?: number
+  healthAfter?: number
+  status: WorkStatus
+}
+
+export const enterpriseActivities: EnterpriseActivity[] = [
+  { id: "MT-3104", enterpriseId: "TSL-ENT-001", date: "24-09-2026", asset: "11kV/415V Transformer - T1", plant: "Mumbai Works", type: "Preventive Maintenance", elpremar: "Suresh Kumar", healthBefore: 62, healthAfter: 88, status: "completed" },
+  { id: "MT-3098", enterpriseId: "TSL-ENT-001", date: "18-09-2026", asset: "LT Panel - Block A", plant: "Mumbai Works", type: "Condition-Based Maintenance", elpremar: "Suresh Kumar", healthBefore: 55, healthAfter: 81, status: "completed" },
+  { id: "MT-3091", enterpriseId: "TSL-ENT-001", date: "11-09-2026", asset: "MCC - Unit 2", plant: "Jamshedpur", type: "Fire Preventive Maintenance", elpremar: "Ramesh Patil", healthBefore: 48, status: "in_progress" },
+  { id: "MT-3085", enterpriseId: "TSL-ENT-001", date: "02-09-2026", asset: "HT Panel - Incomer 1", plant: "Jamshedpur", type: "Preventive Maintenance", elpremar: "Anil Singh", healthBefore: 71, healthAfter: 92, status: "completed" },
+  { id: "MT-3077", enterpriseId: "TSL-ENT-001", date: "21-08-2026", asset: "PCC - Main", plant: "Mumbai Works", type: "Condition-Based Maintenance", elpremar: "Suresh Kumar", healthBefore: 40, healthAfter: 74, status: "completed" },
+  { id: "MT-3202", enterpriseId: "RIL-ENT-002", date: "22-09-2026", asset: "APFC Panel - 1", plant: "Jamnagar", type: "Preventive Maintenance", elpremar: "Amit Sharma", healthBefore: 66, healthAfter: 90, status: "completed" },
+  { id: "MT-3198", enterpriseId: "RIL-ENT-002", date: "14-09-2026", asset: "UPS - 03", plant: "Jamnagar", type: "Fire Preventive Maintenance", elpremar: "Amit Sharma", healthBefore: 52, status: "assigned" },
+  { id: "MT-3301", enterpriseId: "JSW-ENT-003", date: "26-09-2026", asset: "VFD - Conveyor", plant: "Dolvi", type: "Condition-Based Maintenance", elpremar: "Ramesh Patil", healthBefore: 58, healthAfter: 84, status: "completed" },
+  { id: "MT-3299", enterpriseId: "JSW-ENT-003", date: "09-09-2026", asset: "Distribution Board - Admin", plant: "Dolvi", type: "Preventive Maintenance", elpremar: "Ramesh Patil", status: "pending" },
+  { id: "MT-3402", enterpriseId: "ADN-ENT-004", date: "20-09-2026", asset: "Power Transformer - T3", plant: "Mundra", type: "Preventive Maintenance", elpremar: "Anil Singh", healthBefore: 44, status: "in_progress" },
+]
+
+/** Support tickets raised by one enterprise */
+export type EnterpriseTicket = {
+  id: string
+  enterpriseId: string
+  raised: string
+  subject: string
+  category: string
+  priority: (typeof priorities)[number]
+  status: WorkStatus
+}
+
+export const enterpriseTickets: EnterpriseTicket[] = [
+  { id: "TK-4612", enterpriseId: "TSL-ENT-001", raised: "27-09-2026", subject: "EVITA sync failing on tablet at Jamshedpur", category: "EVITA", priority: "High", status: "open" },
+  { id: "TK-4601", enterpriseId: "TSL-ENT-001", raised: "19-09-2026", subject: "Request additional ELPREMAR for Q4 shutdown", category: "ELPREMAR", priority: "Medium", status: "in_progress" },
+  { id: "TK-4588", enterpriseId: "TSL-ENT-001", raised: "05-09-2026", subject: "Asset QR code not scanning after relabelling", category: "Assets", priority: "Low", status: "closed" },
+  { id: "TK-4577", enterpriseId: "TSL-ENT-001", raised: "28-08-2026", subject: "Add new sub-department under Electrical", category: "Hierarchy", priority: "Low", status: "closed" },
+  { id: "TK-4620", enterpriseId: "RIL-ENT-002", raised: "25-09-2026", subject: "PD meter not pairing over Bluetooth", category: "Instruments", priority: "Critical", status: "in_progress" },
+  { id: "TK-4593", enterpriseId: "RIL-ENT-002", raised: "12-09-2026", subject: "Health report PDF not downloading", category: "Reports", priority: "Medium", status: "closed" },
+  { id: "TK-4631", enterpriseId: "JSW-ENT-003", raised: "28-09-2026", subject: "User access request for new plant head", category: "Access", priority: "Medium", status: "open" },
+  { id: "TK-4615", enterpriseId: "ADN-ENT-004", raised: "23-09-2026", subject: "EMMSE dashboard loading slowly at Mundra", category: "Platform", priority: "High", status: "open" },
+]
+
+export const activitiesFor = (enterpriseId: string) => enterpriseActivities.filter((a) => a.enterpriseId === enterpriseId)
+export const ticketsFor = (enterpriseId: string) => enterpriseTickets.filter((t) => t.enterpriseId === enterpriseId)

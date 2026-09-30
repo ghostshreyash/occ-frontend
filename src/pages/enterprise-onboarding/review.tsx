@@ -10,14 +10,12 @@ import { DateField, SelectField, TextareaField, TextField } from "@/components/f
 import { StepCard } from "@/components/common/wizard-layout"
 import {
   countries,
-  departmentTypes,
-  enterpriseTypes,
   indianStates,
-  industrySectors,
   plantTypes,
   salutations,
   timeZones,
 } from "@/data/mock"
+import { departmentTypes, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -212,9 +210,9 @@ export function ReviewStep({
             <ValueGrid
               rows={[
                 { label: "Enterprise Name", value: e?.name },
-                { label: "Type", value: e?.type },
                 { label: "Short Name", value: e?.shortName },
-                { label: "Industry Sector", value: e?.sector },
+                { label: "Sector", value: e?.sectorType },
+                { label: e?.sectorType === "Retail" ? "Retail Sector" : "Industry Sector", value: e?.sector },
                 { label: "Website", value: e?.website },
                 { label: "Description", value: e?.description },
               ]}
@@ -224,8 +222,22 @@ export function ReviewStep({
             <SectionForm id="edit-enterprise" onSubmit={save(enterpriseForm, "enterprise")}>
               <TextField control={enterpriseForm.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
               <TextField control={enterpriseForm.control} name="shortName" label="Short Name" required />
-              <SelectField control={enterpriseForm.control} name="type" label="Enterprise Type" required options={enterpriseTypes} />
-              <SelectField control={enterpriseForm.control} name="sector" label="Industry Sector" required options={industrySectors} />
+              <SelectField
+                control={enterpriseForm.control}
+                name="sectorType"
+                label="Sector"
+                required
+                options={sectorTypes}
+                onValueChange={() => enterpriseForm.setValue("sector", "")}
+              />
+              <SelectField
+                control={enterpriseForm.control}
+                name="sector"
+                label={enterpriseForm.watch("sectorType") === "Retail" ? "Retail Sector" : "Industry Sector"}
+                required
+                options={sectorsFor(enterpriseForm.watch("sectorType"))}
+                disabled={!enterpriseForm.watch("sectorType")}
+              />
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
             </SectionForm>
