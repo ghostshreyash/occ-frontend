@@ -145,6 +145,7 @@ export const industrySectors = ["Steel & Metals", "Petrochemicals", "Power Gener
 export const countries = ["India", "United Arab Emirates", "Saudi Arabia", "Singapore", "United Kingdom", "Germany", "Netherlands", "United States", "Brazil", "South Africa", "Australia"]
 export const indianStates = ["Maharashtra", "Gujarat", "Karnataka", "Tamil Nadu", "Delhi", "Telangana", "West Bengal", "Jharkhand", "Odisha", "Uttar Pradesh", "Rajasthan"]
 export const plantTypes = ["Integrated Steel Plant", "Refinery", "Power Plant", "Cement Plant", "Manufacturing Unit", "Data Centre", "Substation", "Other"]
+/** @deprecated use departmentTypes from @/data/master-data (Olivine platform spec) */
 export const departmentTypes = ["Engineering", "Operations", "Maintenance", "Utilities", "Quality", "Safety"]
 export const subDepartmentFunctions = ["Maintenance", "Operations", "Testing", "Projects"]
 export const salutations = ["Mr.", "Ms.", "Mrs.", "Dr.", "Er.", "Prof."]

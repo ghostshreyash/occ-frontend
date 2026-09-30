@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { dialCodes } from "@/data/master-data"
 
 type BaseProps<T extends FieldValues> = {
   control: Control<T>
@@ -165,7 +166,15 @@ export function SelectField<T extends FieldValues>({
   className,
   options,
   placeholder = "Select",
-}: BaseProps<T> & { options: readonly string[]; placeholder?: string }) {
+  disabled,
+  onValueChange,
+}: BaseProps<T> & {
+  options: readonly string[]
+  placeholder?: string
+  disabled?: boolean
+  /** Runs after the value changes - used to clear a dependent field */
+  onValueChange?: (value: string) => void
+}) {
   return (
     <Controller
       control={control}
@@ -173,7 +182,14 @@ export function SelectField<T extends FieldValues>({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className={className}>
           <FieldTitle label={label} required={required} htmlFor={name} />
-          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+          <Select
+            value={field.value ?? ""}
+            disabled={disabled}
+            onValueChange={(v) => {
+              field.onChange(v)
+              onValueChange?.(v)
+            }}
+          >
             <SelectTrigger id={name} aria-invalid={fieldState.invalid} className="w-full" onBlur={field.onBlur}>
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
@@ -185,6 +201,63 @@ export function SelectField<T extends FieldValues>({
               ))}
             </SelectContent>
           </Select>
+          <FieldError errors={[fieldState.error]} />
+        </Field>
+      )}
+    />
+  )
+}
+
+/**
+ * Phone number with a dialling-code select in front. The code and the number are
+ * separate form fields, so the number stays clean for validation and storage.
+ */
+export function PhoneField<T extends FieldValues>({
+  control,
+  codeName,
+  name,
+  label,
+  required,
+  className,
+  placeholder = "98765 43210",
+}: BaseProps<T> & { codeName: FieldPath<T>; placeholder?: string }) {
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.invalid} className={className}>
+          <FieldTitle label={label} required={required} htmlFor={name} />
+          <div className="flex gap-1.5">
+            <Controller
+              control={control}
+              name={codeName}
+              render={({ field: codeField }) => (
+                <Select value={codeField.value ?? ""} onValueChange={codeField.onChange}>
+                  <SelectTrigger aria-label="Country dialling code" className="w-20 shrink-0">
+                    <SelectValue placeholder="+91" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false}>
+                    {dialCodes.map((d) => (
+                      <SelectItem key={d.code} value={d.code}>
+                        <span className="tabular-nums">{d.code}</span>
+                        <span className="text-muted-foreground">{d.country}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <Input
+              {...field}
+              id={name}
+              type="tel"
+              inputMode="tel"
+              value={field.value ?? ""}
+              placeholder={placeholder}
+              aria-invalid={fieldState.invalid}
+            />
+          </div>
           <FieldError errors={[fieldState.error]} />
         </Field>
       )}
