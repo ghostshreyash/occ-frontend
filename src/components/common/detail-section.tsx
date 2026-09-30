@@ -23,8 +23,9 @@ export function ValueGrid({ rows, columns = 4 }: { rows: DetailRow[]; columns?: 
     <dl className={cn("grid gap-px overflow-hidden rounded-md bg-border sm:grid-cols-2", columns === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
       {filled.map((r) => (
         <div key={r.label} className={cn("min-w-0 bg-card px-2.5 py-2", r.wide && "sm:col-span-2")}>
-          <dt className="text-[0.62rem] tracking-wide text-muted-foreground uppercase">{r.label}</dt>
-          <dd className="mt-0.5 truncate text-xs font-semibold text-foreground" title={r.value}>
+          {/* Label carries the weight, value sits lighter beneath it */}
+          <dt className="text-[0.62rem] font-semibold tracking-wide text-foreground uppercase">{r.label}</dt>
+          <dd className="mt-0.5 truncate text-xs text-muted-foreground" title={r.value}>
             {r.value}
           </dd>
         </div>
