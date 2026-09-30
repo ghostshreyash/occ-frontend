@@ -177,12 +177,13 @@ export const enterpriseRegisterKpis = {
   active: enterpriseRecords.filter((e) => e.status !== "onboarding").length,
   onboarding: enterpriseRecords.filter((e) => e.status === "onboarding").length,
   plants: enterpriseRecords.reduce((n, e) => n + e.plants, 0),
+  assets: enterpriseRecords.reduce((n, e) => n + e.assets, 0),
   /*
    * Absolute month-over-month movement. These are counts in the tens, so a
    * percentage would round to a fraction of an enterprise and read as noise.
-   * "Onboarded" gets no trend at all - it is a running count, not a trend.
+   * Assets are in the tens of thousands, so that one carries a percentage.
    */
-  delta: { total: 2, active: 2, plants: 9 },
+  delta: { total: 2, active: 2, plants: 9, assets: 8 },
 }
 
 /** Priority pill colours, matching the health/alert token families */

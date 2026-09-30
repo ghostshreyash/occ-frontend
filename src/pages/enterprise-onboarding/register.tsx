@@ -13,12 +13,11 @@ import {
   MapPin,
   Plus,
   Search,
-  UserPlus,
+  Server,
   X,
 } from "lucide-react"
 import { cn } from "cn"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -139,8 +138,8 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <StatCard label="Total Enterprises" value={enterpriseRegisterKpis.total} delta={enterpriseRegisterKpis.delta.total} icon={Building2} tone="info" variant="plain" />
         <StatCard label="Active" value={enterpriseRegisterKpis.active} delta={enterpriseRegisterKpis.delta.active} icon={CheckCircle2} tone="healthy" variant="plain" />
-        <StatCard label="Onboarded" value={enterpriseRegisterKpis.onboarding} icon={UserPlus} tone="attention" variant="plain" />
         <StatCard label="Total Plants" value={enterpriseRegisterKpis.plants} delta={enterpriseRegisterKpis.delta.plants} icon={Factory} tone="success" variant="plain" />
+        <StatCard label="Total Assets" value={enterpriseRegisterKpis.assets} change={enterpriseRegisterKpis.delta.assets} icon={Server} tone="highlight" variant="plain" />
       </div>
 
       <SectionCard
@@ -214,7 +213,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={`${th} pl-3`}>Enterprise</TableHead>
                 <TableHead className={th}>Sector</TableHead>
-                                <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
+                <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
                 <TableHead className={th}>Plants</TableHead>
                 <TableHead className={`${th} hidden sm:table-cell`}>Assets</TableHead>
                 <TableHead className={`${th} hidden md:table-cell`}>
@@ -228,7 +227,6 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                     {sort === "newest" ? <ArrowDown className="size-3" /> : sort === "oldest" ? <ArrowUp className="size-3" /> : null}
                   </button>
                 </TableHead>
-                <TableHead className={th}>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -239,7 +237,9 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                   <TableRow key={e.id}>
                     <TableCell className={`${td} relative pl-3`}>
                       {/* Status stripe: colour reinforcing the badge at the end of the row */}
-                      <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-0.5", accent.stripe)} />
+                      <span title={`Status: ${meta.label}`} className={cn("absolute inset-y-0 left-0 w-0.5", accent.stripe)}>
+                        <span className="sr-only">Status: {meta.label}</span>
+                      </span>
                       <Link to={`/enterprises/${e.id}`} className="group/name flex items-center gap-2">
                         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded text-[0.55rem] font-bold", accent.chip)}>
                           {initials(e.name)}
@@ -261,9 +261,6 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                     <TableCell className={`${td} tabular-nums`}>{e.plants}</TableCell>
                     <TableCell className={`${td} hidden tabular-nums sm:table-cell`}>{e.assets.toLocaleString("en-IN")}</TableCell>
                     <TableCell className={`${td} hidden tabular-nums md:table-cell`}>{e.onboarded}</TableCell>
-                    <TableCell className={td}>
-                      <Badge variant={meta.badge} className="rounded px-1.5 py-0 text-[0.65rem]">{meta.label}</Badge>
-                    </TableCell>
                   </TableRow>
                 )
               })}
