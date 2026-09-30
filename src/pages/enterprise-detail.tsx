@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
@@ -34,7 +34,7 @@ import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import { OperationsTables } from "@/components/common/operations-tables"
 import { countries, indianStates, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
-import { departmentTypes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import {
   enterpriseRecords,
   maintenanceProgress,
@@ -71,7 +71,7 @@ type SubDepartmentRow = z.infer<typeof subRowSchema>
  */
 const accountFormSchema = z
   .object({
-    username: required("Username").refine((v) => v.trim().length >= 6, "Username must be at least 6 characters"),
+    email: z.email("Enter a valid email address"),
     role: required("Role"),
     newPassword: z.string().optional(),
     confirmPassword: z.string().optional(),
@@ -127,7 +127,7 @@ export function EnterpriseDetailPage() {
   })
   const accountForm = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    values: profile ? { username: profile.account.username, role: profile.account.role, newPassword: "", confirmPassword: "" } : undefined,
+    values: profile ? { email: profile.account.email, role: profile.account.role, newPassword: "", confirmPassword: "" } : undefined,
   })
 
   const save =
@@ -156,7 +156,7 @@ export function EnterpriseDetailPage() {
     // The password is write-only: it is never read back, only replaced
     setOverrides((o) => ({
       ...o,
-      account: { ...(profile?.account ?? { username: "", role: "", lastLogin: "" }), username: values.username, role: values.role },
+      account: { ...(profile?.account ?? { email: "", role: "", lastLogin: "" }), email: values.email, role: values.role },
     }))
     accountForm.setValue("newPassword", "")
     accountForm.setValue("confirmPassword", "")
@@ -291,8 +291,8 @@ export function EnterpriseDetailPage() {
               )}
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
-              <TextField control={locationForm.control} name="latitude" label="Latitude" required inputMode="decimal" />
-              <TextField control={locationForm.control} name="longitude" label="Longitude" required inputMode="decimal" />
+              <TextField control={locationForm.control} name="latitude" label="Latitude" inputMode="decimal" />
+              <TextField control={locationForm.control} name="longitude" label="Longitude" inputMode="decimal" />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
             </form>
           }
@@ -313,8 +313,8 @@ export function EnterpriseDetailPage() {
                 { label: "Plant Code", value: p.code },
                 { label: "Plant Head", value: [p.salutation, p.head].filter(Boolean).join(" ") },
                 { label: "Email", value: p.email },
-                { label: "Phone Number", value: p.phone },
-                { label: "Plant Capacity", value: p.capacity },
+                { label: "Phone Number", value: [p.phoneCode, p.phone].filter(Boolean).join(" ") },
+                { label: "Plant Capacity", value: [p.capacity, p.capacityUnit].filter(Boolean).join(" ") },
                 { label: "Commissioning Date", value: showDate(p.commissioningDate) },
                 { label: "Time Zone", value: p.timeZone },
                 { label: "Plant Address", value: p.address },
@@ -331,9 +331,12 @@ export function EnterpriseDetailPage() {
                 <SelectField control={plantForm.control} name="salutation" label="Title" required options={salutations} />
                 <TextField control={plantForm.control} name="head" label="Plant Head" required />
               </div>
-              <TextField control={plantForm.control} name="email" label="Email" type="email" />
-              <TextField control={plantForm.control} name="phone" label="Phone Number" type="tel" />
-              <TextField control={plantForm.control} name="capacity" label="Plant Capacity" />
+              <TextField control={plantForm.control} name="email" label="Email" required type="email" />
+              <PhoneField control={plantForm.control} codeName="phoneCode" name="phone" label="Phone Number" required />
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
+                <TextField control={plantForm.control} name="capacity" label="Plant Capacity" inputMode="decimal" />
+                <SelectField control={plantForm.control} name="capacityUnit" label="Unit" options={plantCapacityUnitCodes} placeholder="Unit" />
+              </div>
               <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
               <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
               <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
@@ -356,9 +359,9 @@ export function EnterpriseDetailPage() {
                 { label: "Department Code", value: d.code },
                 { label: "Department Type", value: d.type },
                 { label: "Parent Department", value: d.parent },
-                { label: "Head of Department", value: d.head },
+                { label: "Head of Department", value: [d.salutation, d.head].filter(Boolean).join(" ") },
                 { label: "Email", value: d.email },
-                { label: "Phone Number", value: d.phone },
+                { label: "Phone Number", value: [d.phoneCode, d.phone].filter(Boolean).join(" ") },
                 { label: "Description", value: d.description },
               ]}
             />
@@ -368,9 +371,12 @@ export function EnterpriseDetailPage() {
               <TextField control={departmentForm.control} name="name" label="Department Name" />
               <TextField control={departmentForm.control} name="code" label="Department Code" />
               <SelectField control={departmentForm.control} name="type" label="Department Type" options={departmentTypes} />
-              <TextField control={departmentForm.control} name="head" label="Head of Department" />
+              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+                <SelectField control={departmentForm.control} name="salutation" label="Title" options={salutations} />
+                <TextField control={departmentForm.control} name="head" label="Head of Department" />
+              </div>
               <TextField control={departmentForm.control} name="email" label="Email" type="email" />
-              <TextField control={departmentForm.control} name="phone" label="Phone Number" type="tel" />
+              <PhoneField control={departmentForm.control} codeName="phoneCode" name="phone" label="Phone Number" />
               <TextareaField control={departmentForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
             </form>
           }
@@ -439,7 +445,7 @@ export function EnterpriseDetailPage() {
           view={
             <ValueGrid
               rows={[
-                { label: "Username", value: account.username },
+                { label: "Email ID", value: account.email },
                 { label: "Role", value: account.role },
                 // Credentials are never echoed back, even to an owner
                 { label: "Password", value: "••••••••" },
@@ -449,7 +455,7 @@ export function EnterpriseDetailPage() {
           }
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
-              <TextField control={accountForm.control} name="username" label="Username" required />
+              <TextField control={accountForm.control} name="email" label="Email ID" required type="email" />
               <SelectField control={accountForm.control} name="role" label="Role" required options={userRoles} />
               <div className="md:col-span-2 rounded-md bg-muted/40 p-2.5">
                 <p className="mb-2 text-[0.7rem] text-muted-foreground">

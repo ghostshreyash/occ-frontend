@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { StepCard } from "@/components/common/wizard-layout"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import {
@@ -17,7 +17,7 @@ import {
   salutations,
   timeZones,
 } from "@/data/mock"
-import { sectorLabelFor, departmentTypes, sectorTypes, sectorsFor } from "@/data/master-data"
+import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -114,7 +114,7 @@ export function ReviewStep({
     plant: Boolean(p?.name),
     department: Boolean(d?.name),
     subs: subs.length > 0,
-    account: Boolean(account?.username),
+    account: Boolean(account?.email),
   }
   const completeCount = Object.values(done).filter(Boolean).length
   const emptyOptional = [done.department, done.subs].filter((v) => !v).length
@@ -266,8 +266,8 @@ export function ReviewStep({
               )}
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
-              <TextField control={locationForm.control} name="latitude" label="Latitude" required inputMode="decimal" />
-              <TextField control={locationForm.control} name="longitude" label="Longitude" required inputMode="decimal" />
+              <TextField control={locationForm.control} name="latitude" label="Latitude" inputMode="decimal" />
+              <TextField control={locationForm.control} name="longitude" label="Longitude" inputMode="decimal" />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
             </SectionForm>
           }
@@ -291,8 +291,8 @@ export function ReviewStep({
                 { label: "Plant Code", value: p?.code },
                 { label: "Plant Head", value: p ? [p.salutation, p.head].filter(Boolean).join(" ") : undefined },
                 { label: "Email", value: p?.email },
-                { label: "Phone Number", value: p?.phone },
-                { label: "Capacity", value: p?.capacity },
+                { label: "Phone Number", value: [p?.phoneCode, p?.phone].filter(Boolean).join(" ") },
+                { label: "Capacity", value: [p?.capacity, p?.capacityUnit].filter(Boolean).join(" ") },
                 { label: "Commissioning Date", value: formatDate(p?.commissioningDate) },
                 { label: "Time Zone", value: p?.timeZone },
                 { label: "Address", value: p?.address },
@@ -309,9 +309,12 @@ export function ReviewStep({
                 <SelectField control={plantForm.control} name="salutation" label="Title" required options={salutations} />
                 <TextField control={plantForm.control} name="head" label="Plant Head" required />
               </div>
-              <TextField control={plantForm.control} name="email" label="Email" type="email" />
-              <TextField control={plantForm.control} name="phone" label="Phone Number" type="tel" />
-              <TextField control={plantForm.control} name="capacity" label="Plant Capacity" />
+              <TextField control={plantForm.control} name="email" label="Email" required type="email" />
+              <PhoneField control={plantForm.control} codeName="phoneCode" name="phone" label="Phone Number" required />
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
+                <TextField control={plantForm.control} name="capacity" label="Plant Capacity" inputMode="decimal" />
+                <SelectField control={plantForm.control} name="capacityUnit" label="Unit" options={plantCapacityUnitCodes} placeholder="Unit" />
+              </div>
               <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
               <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
               <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
@@ -338,9 +341,9 @@ export function ReviewStep({
                 { label: "Department Code", value: d?.code },
                 { label: "Type", value: d?.type },
                 { label: "Parent Department", value: d?.parent },
-                { label: "Head of Department", value: d?.head },
+                { label: "Head of Department", value: [d?.salutation, d?.head].filter(Boolean).join(" ") },
                 { label: "Email", value: d?.email },
-                { label: "Phone Number", value: d?.phone },
+                { label: "Phone Number", value: [d?.phoneCode, d?.phone].filter(Boolean).join(" ") },
                 { label: "Description", value: d?.description },
               ]}
             />
@@ -350,9 +353,12 @@ export function ReviewStep({
               <TextField control={departmentForm.control} name="name" label="Department Name" />
               <TextField control={departmentForm.control} name="code" label="Department Code" />
               <SelectField control={departmentForm.control} name="type" label="Department Type" options={departmentTypes} />
-              <TextField control={departmentForm.control} name="head" label="Head of Department" />
+              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+                <SelectField control={departmentForm.control} name="salutation" label="Title" options={salutations} />
+                <TextField control={departmentForm.control} name="head" label="Head of Department" />
+              </div>
               <TextField control={departmentForm.control} name="email" label="Email" type="email" />
-              <TextField control={departmentForm.control} name="phone" label="Phone Number" type="tel" />
+              <PhoneField control={departmentForm.control} codeName="phoneCode" name="phone" label="Phone Number" />
               <TextareaField control={departmentForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
             </SectionForm>
           }
@@ -419,14 +425,14 @@ export function ReviewStep({
           title="Administrator Account"
           step={6}
           complete={done.account}
-          summary={account?.username}
+          summary={account?.email}
           sectionKey="account"
           editing={editing}
           onEditingChange={setEditing}
           view={
             <ValueGrid
               rows={[
-                { label: "Username", value: account?.username },
+                { label: "Email ID", value: account?.email },
                 // Never echo a password back, even in a review screen
                 { label: "Password", value: account?.password ? "••••••••" : undefined },
               ]}

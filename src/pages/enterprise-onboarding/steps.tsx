@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FieldLabel } from "@/components/ui/field"
-import { DateField, FileDropField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, FileDropField, PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { StepCard } from "@/components/common/wizard-layout"
 import { LocationPicker } from "@/components/common/location-picker"
@@ -19,7 +19,7 @@ import {
   subDepartmentFunctions,
   timeZones,
 } from "@/data/mock"
-import { departmentTypes, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   accountSchema,
   departmentSchema,
@@ -144,11 +144,12 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         )}
         <TextField control={control} name="city" label="City" required placeholder="Enter city" />
 
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
-        <TextField control={control} name="latitude" label="Latitude" required inputMode="decimal" placeholder="19.0759" />
-        <TextField control={control} name="longitude" label="Longitude" required inputMode="decimal" placeholder="72.8777" />
-
         <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
+
+        {/* Coordinates sit directly above the map that fills them in */}
+        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
+        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" placeholder="19.0759" />
+        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" placeholder="72.8777" />
 
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">
@@ -180,8 +181,8 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
   const form = useForm<PlantValues>({
     resolver: zodResolver(plantSchema),
     defaultValues: data.plant ?? {
-      name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phone: "",
-      capacity: "", commissioningDate: "", timeZone: timeZones[0], notes: "",
+      name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phoneCode: "+91", phone: "",
+      capacity: "", capacityUnit: "", commissioningDate: "", timeZone: timeZones[0], notes: "",
     },
   })
   const { control } = form
@@ -216,15 +217,18 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
           <SelectField control={control} name="salutation" label="Title" required options={salutations} />
           <TextField control={control} name="head" label="Plant Head" required placeholder="e.g. S. Krishnan" />
         </div>
-        <TextField control={control} name="email" label="Email" type="email" placeholder="name@company.com" />
-        <TextField control={control} name="phone" label="Phone Number" type="tel" placeholder="+91 98765 43210" />
+        <TextField control={control} name="email" label="Email" required type="email" placeholder="name@company.com" />
+        <PhoneField control={control} codeName="phoneCode" name="phone" label="Phone Number" required />
 
         <TextareaField control={control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
 
         <h4 className="text-sm font-semibold md:col-span-3">
           Additional Information
         </h4>
-        <TextField control={control} name="capacity" label="Plant Capacity" placeholder="e.g. 5 MTPA" />
+        <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
+          <TextField control={control} name="capacity" label="Plant Capacity" inputMode="decimal" placeholder="e.g. 5" />
+          <SelectField control={control} name="capacityUnit" label="Unit" options={plantCapacityUnitCodes} placeholder="Unit" />
+        </div>
         <DateField control={control} name="commissioningDate" label="Commissioning Date" />
         <SelectField control={control} name="timeZone" label="Time Zone" options={timeZones} />
 
@@ -263,9 +267,12 @@ export function DepartmentStep({ data, onNext, onBack }: StepProps<DepartmentVal
         <TextField control={control} name="code" label="Department Code" placeholder="e.g. DEP-EL" />
         <SelectField control={control} name="type" label="Department Type" options={departmentTypes} />
         <SelectField control={control} name="parent" label="Parent Department" options={["None", "Electrical Engineering", "Engineering Services", "Plant Operations"]} />
-        <TextField control={control} name="head" label="Head of Department" />
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+          <SelectField control={control} name="salutation" label="Title" options={salutations} />
+          <TextField control={control} name="head" label="Head of Department" />
+        </div>
         <TextField control={control} name="email" label="Email" type="email" />
-        <TextField control={control} name="phone" label="Phone Number" type="tel" />
+        <PhoneField control={control} codeName="phoneCode" name="phone" label="Phone Number" />
         <SelectField control={control} name="location" label="Location" options={data.plant?.name ? [data.plant.name] : []} />
         <TextareaField control={control} name="description" label="Department Description" rows={3} className="md:col-span-2" />
       </form>
@@ -294,12 +301,12 @@ export function SubDepartmentAccountStep({
   })
   const account = useForm<AccountValues>({
     resolver: zodResolver(accountSchema),
-    defaultValues: { username: "", password: "", confirmPassword: "" },
+    defaultValues: { email: "", password: "", confirmPassword: "" },
     mode: "onChange",
   })
   const passwordValue = account.watch("password")
   const confirmValue = account.watch("confirmPassword")
-  const usernameState = account.getFieldState("username", account.formState)
+  const emailState = account.getFieldState("email", account.formState)
 
   const saveSubDepartment = sub.handleSubmit((values) => {
     // Fields are optional, but an entirely blank row would be meaningless
@@ -406,8 +413,8 @@ export function SubDepartmentAccountStep({
       </p>
       <form id="step-account" onSubmit={complete} className="grid gap-2.5 md:grid-cols-[1fr_1fr_1.1fr]" noValidate>
         <div className="relative">
-          <TextField control={account.control} name="username" label="Username" required description="Username must be at least 6 characters." />
-          {usernameState.isDirty && !usernameState.invalid ? (
+          <TextField control={account.control} name="email" label="Email ID" required type="email" placeholder="admin@company.com" description="This email is used to sign in to EMMS-E." />
+          {emailState.isDirty && !emailState.invalid ? (
             <CheckCircle2 className="absolute top-8 right-2.5 size-4 text-healthy" />
           ) : null}
         </div>

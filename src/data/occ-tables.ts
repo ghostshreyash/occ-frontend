@@ -4,6 +4,7 @@
  * Replace with API calls (TanStack Query) later.
  */
 import type { HealthStatus, WorkStatus } from "@/lib/status"
+import { dialCodeFor } from "@/data/master-data"
 import { activityTypes, priorities } from "@/data/mock"
 
 type Priority = (typeof priorities)[number]
@@ -334,12 +335,13 @@ export type EnterpriseProfile = {
   location: { country: string; state: string; city: string; pin: string; latitude: string; longitude: string; address: string }
   plant: {
     name: string; type: string; code: string; salutation: string; head: string
-    email: string; phone: string; capacity: string; commissioningDate: string; timeZone: string
+    email: string; phoneCode: string; phone: string; capacity: string; capacityUnit: string
+    commissioningDate: string; timeZone: string
     address: string; notes: string
   }
-  department: { name: string; code: string; type: string; parent: string; head: string; email: string; phone: string; description: string }
+  department: { name: string; code: string; type: string; parent: string; salutation: string; head: string; email: string; phoneCode: string; phone: string; description: string }
   subDepartments: { name: string; code: string; function: string; description?: string }[]
-  account: { username: string; role: string; lastLogin: string }
+  account: { email: string; role: string; lastLogin: string }
 }
 
 const stateFor: Record<string, string> = {
@@ -368,7 +370,8 @@ const subDeptPool = [
   { name: "Transformers", code: "SUB-EL-TF", function: "Maintenance", description: "Transformer maintenance" },
   { name: "Protection & Relay", code: "SUB-EL-PR", function: "Testing", description: "Relay testing and calibration" },
 ]
-const capacityUnits = ["5 MTPA", "12 MW", "8 MVA", "3.5 MTPA", "20 MW", "450 kVA"]
+const capacityValues = ["5", "12", "8", "3.5", "20", "450"]
+const capacityUnitPool = ["MTPA", "MW", "MVA", "MTPA", "MW", "kVA"]
 const timeZonesByCountry: Record<string, string> = {
   India: "(UTC+05:30) India Standard Time",
   "United Arab Emirates": "(UTC+04:00) Gulf Standard Time",
@@ -417,8 +420,10 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       salutation: (seed % 5 === 0 ? "Dr." : seed % 3 === 0 ? "Ms." : "Mr."),
       head,
       email: `${head.toLowerCase().replace(/ /g, ".")}@${slug}.com`,
-      phone: `+91 9${String(8000000000 + (seed % 999999999)).slice(0, 9)}`,
-      capacity: pick(capacityUnits, seed, 5),
+      phoneCode: dialCodeFor(e.country),
+      phone: String(9000000000 + (seed % 899999999)).slice(0, 10),
+      capacity: pick(capacityValues, seed, 5),
+      capacityUnit: pick(capacityUnitPool, seed, 5),
       commissioningDate: `${commissioned.getFullYear()}-${String(commissioned.getMonth() + 1).padStart(2, "0")}-${String(commissioned.getDate()).padStart(2, "0")}`,
       timeZone: timeZonesByCountry[e.country] ?? "(UTC+00:00) GMT",
       address: `${pick(plantSuffixes, seed, 2)}, ${e.city}, ${e.country}`,
@@ -429,14 +434,16 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       code: `DEP-${pick(deptTypes, seed, 7).slice(0, 2).toUpperCase()}`,
       type: pick(deptTypes, seed, 7),
       parent: "Engineering",
+      salutation: seed % 4 === 0 ? "Ms." : "Mr.",
       head: deptHead,
       email: `${deptHead.toLowerCase().replace(/ /g, ".")}@${slug}.com`,
-      phone: `+91 9${String(7000000000 + (seed % 999999999)).slice(0, 9)}`,
+      phoneCode: dialCodeFor(e.country),
+      phone: String(8000000000 + (seed % 899999999)).slice(0, 10),
       description: `Handles electrical systems and reliability activities for ${e.city}.`,
     },
     subDepartments: subDeptPool.slice(0, 2 + (seed % 4)),
     account: {
-      username: `${slug}_admin`,
+      email: `admin@${slug}.com`,
       role: "Enterprise Admin",
       lastLogin: dateBack(seed % 6),
     },

@@ -1,14 +1,21 @@
 import { z } from "zod"
 
-import { optionalEmail, password, required, username } from "@/lib/validation"
+import { optionalEmail, password, phone, required } from "@/lib/validation"
 
 const optionalText = z.string().optional()
-/** Required coordinate, bounded to a real value. Filled automatically by the map picker. */
+/**
+ * Optional coordinate - the map picker fills these in, so they are not required,
+ * but anything typed still has to be a real value in range.
+ */
 const coordinate = (label: string, limit: number) =>
-  required(label).refine((v) => {
-    const n = Number(v)
-    return Number.isFinite(n) && Math.abs(n) <= limit
-  }, `Enter a ${label.toLowerCase()} between -${limit} and ${limit}`)
+  z
+    .string()
+    .optional()
+    .refine((v) => {
+      if (!v || v.trim() === "") return true
+      const n = Number(v)
+      return Number.isFinite(n) && Math.abs(n) <= limit
+    }, `Enter a ${label.toLowerCase()} between -${limit} and ${limit}`)
 
 export const enterpriseSchema = z.object({
   name: required("Enterprise name"),
@@ -39,9 +46,11 @@ export const plantSchema = z.object({
   address: required("Plant address"),
   salutation: required("Salutation"),
   head: required("Plant head"),
-  email: optionalEmail,
-  phone: optionalText,
+  email: z.email("Enter a valid email address"),
+  phoneCode: optionalText,
+  phone,
   capacity: optionalText,
+  capacityUnit: optionalText,
   commissioningDate: optionalText,
   timeZone: optionalText,
   logo: z.instanceof(File).optional(),
@@ -54,8 +63,10 @@ export const departmentSchema = z.object({
   code: optionalText,
   type: optionalText,
   parent: optionalText,
+  salutation: optionalText,
   head: optionalText,
   email: optionalEmail,
+  phoneCode: optionalText,
   phone: optionalText,
   location: optionalText,
   description: optionalText,
@@ -71,7 +82,7 @@ export const subDepartmentSchema = z.object({
 
 export const accountSchema = z
   .object({
-    username,
+    email: z.email("Enter a valid email address"),
     password,
     confirmPassword: z.string(),
   })
