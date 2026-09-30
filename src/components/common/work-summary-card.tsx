@@ -1,127 +1,130 @@
 import { useMemo } from "react"
 import { motion, useReducedMotion } from "framer-motion"
-import { CheckCircle2, CircleDot, CirclePause, Clock, LoaderCircle, UserCheck } from "lucide-react"
+import { ClipboardList, LifeBuoy, Wrench } from "lucide-react"
 import { cn } from "cn"
 
 import { maintenanceProgress, supportTickets, taskQueue } from "@/data/occ-tables"
 import { workStatus, type WorkStatus } from "@/lib/status"
 
 /** Order matters: the segmented bar reads left to right from done to not-started */
-const STATUS_ORDER: { key: WorkStatus; icon: typeof CheckCircle2; bar: string; chip: string; ring: string }[] = [
-  { key: "completed", icon: CheckCircle2, bar: "bg-healthy", chip: "bg-healthy-soft text-healthy-soft-foreground", ring: "ring-healthy/25" },
-  { key: "closed", icon: CirclePause, bar: "bg-neutral", chip: "bg-neutral-soft text-neutral-soft-foreground", ring: "ring-neutral/25" },
-  { key: "in_progress", icon: LoaderCircle, bar: "bg-info", chip: "bg-info-soft text-info-soft-foreground", ring: "ring-info/25" },
-  { key: "assigned", icon: UserCheck, bar: "bg-highlight", chip: "bg-highlight-soft text-highlight-soft-foreground", ring: "ring-highlight/25" },
-  { key: "pending", icon: Clock, bar: "bg-attention", chip: "bg-attention-soft text-attention-soft-foreground", ring: "ring-attention/25" },
-  { key: "open", icon: CircleDot, bar: "bg-critical", chip: "bg-critical-soft text-critical-soft-foreground", ring: "ring-critical/25" },
+const STATUS_ORDER: { key: WorkStatus; bar: string; dot: string }[] = [
+  { key: "completed", bar: "bg-healthy", dot: "bg-healthy" },
+  { key: "closed", bar: "bg-neutral", dot: "bg-neutral" },
+  { key: "in_progress", bar: "bg-info", dot: "bg-info" },
+  { key: "assigned", bar: "bg-highlight", dot: "bg-highlight" },
+  { key: "pending", bar: "bg-attention", dot: "bg-attention" },
+  { key: "open", bar: "bg-critical", dot: "bg-critical" },
 ]
 
+const DONE: WorkStatus[] = ["completed", "closed"]
+
+type Stream = {
+  key: string
+  label: string
+  icon: typeof Wrench
+  tone: string
+  rows: { status: WorkStatus }[]
+}
+
+/** One stream's card: total, status mix, and a per-status breakdown */
+function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | null }) {
+  const total = stream.rows.length
+  const counts = STATUS_ORDER.map((s) => ({ ...s, n: stream.rows.filter((r) => r.status === s.key).length }))
+  const present = counts.filter((c) => c.n > 0)
+  const open = stream.rows.filter((r) => !DONE.includes(r.status)).length
+  const donePct = total > 0 ? Math.round(((total - open) / total) * 100) : 0
+
+  const card = reduced
+    ? { hidden: { opacity: 1 }, shown: { opacity: 1 } }
+    : {
+        hidden: { opacity: 0, y: 10 },
+        shown: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 26 } },
+      }
+
+  return (
+    <motion.section
+      variants={card}
+      whileHover={reduced ? undefined : { y: -2, transition: { type: "spring", stiffness: 400, damping: 22 } }}
+      className="flex flex-col rounded-lg bg-card p-3 shadow-xs ring-1 ring-foreground/10 transition-shadow hover:shadow-md"
+    >
+      <header className="flex items-center gap-2">
+        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", stream.tone)}>
+          <stream.icon className="size-4" />
+        </span>
+        <h3 className="min-w-0 flex-1 truncate text-xs font-semibold">{stream.label}</h3>
+        <span className="text-xl leading-none font-bold tabular-nums">{total}</span>
+      </header>
+
+      {/* Completion, stated rather than left to be inferred from the bar */}
+      <p role="status" aria-atomic="true" className="mt-1.5 text-[0.7rem] text-muted-foreground">
+        {total === 0 ? (
+          "Nothing recorded yet"
+        ) : open === 0 ? (
+          <span className="font-medium text-healthy-soft-foreground">All complete</span>
+        ) : (
+          <>
+            <span className="font-semibold tabular-nums text-foreground">{open}</span> still open ·{" "}
+            <span className="tabular-nums">{donePct}%</span> done
+          </>
+        )}
+      </p>
+
+      <div className="mt-2 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-muted">
+        {present.map((c, i) => (
+          <motion.span
+            key={c.key}
+            title={`${workStatus[c.key].label}: ${c.n}`}
+            className={cn("h-full first:rounded-l-full last:rounded-r-full", c.bar)}
+            initial={{ width: 0 }}
+            animate={{ width: `${(c.n / total) * 100}%` }}
+            transition={reduced ? { duration: 0 } : { duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.15 + i * 0.04 }}
+          />
+        ))}
+      </div>
+
+      <ul className="mt-2.5 space-y-1">
+        {present.length === 0 ? (
+          <li className="text-[0.7rem] text-muted-foreground">No items</li>
+        ) : (
+          present.map((c) => (
+            <li key={c.key} className="flex items-center gap-1.5 text-[0.7rem]">
+              <span className={cn("size-1.5 shrink-0 rounded-full", c.dot)} />
+              <span className="flex-1 truncate text-muted-foreground">{workStatus[c.key].label}</span>
+              <span className="font-semibold tabular-nums">{c.n}</span>
+            </li>
+          ))
+        )}
+      </ul>
+    </motion.section>
+  )
+}
+
 /**
- * Roll-up of every work item for one enterprise: maintenance, inspections and
- * tickets counted together by status, with a segmented bar showing the mix.
+ * Three cards, one per work stream, each with its own status mix.
  * Sits above the detail so the state of the account reads in one glance.
  */
 export function WorkSummaryCard({ enterprise, className }: { enterprise: string; className?: string }) {
   const reduced = useReducedMotion()
 
-  const { counts, total, streams } = useMemo(() => {
+  const streams = useMemo<Stream[]>(() => {
     const mine = <T extends { enterprise: string }>(rows: T[]) => rows.filter((r) => r.enterprise === enterprise)
-    const maintenance = mine(maintenanceProgress)
-    const tasks = mine(taskQueue)
-    const tickets = mine(supportTickets)
-    const all = [...maintenance, ...tasks, ...tickets]
-
-    const counts = Object.fromEntries(
-      STATUS_ORDER.map((s) => [s.key, all.filter((r) => r.status === s.key).length])
-    ) as Record<WorkStatus, number>
-
-    return {
-      counts,
-      total: all.length,
-      streams: [
-        { label: "Maintenance", value: maintenance.length },
-        { label: "Inspections", value: tasks.length },
-        { label: "Tickets", value: tickets.length },
-      ],
-    }
+    return [
+      { key: "maintenance", label: "Maintenance Activities", icon: Wrench, tone: "bg-info-soft text-info", rows: mine(maintenanceProgress) },
+      { key: "tasks", label: "Inspection Tasks", icon: ClipboardList, tone: "bg-highlight-soft text-highlight", rows: mine(taskQueue) },
+      { key: "tickets", label: "Support Tickets", icon: LifeBuoy, tone: "bg-attention-soft text-attention", rows: mine(supportTickets) },
+    ]
   }, [enterprise])
 
-  const present = STATUS_ORDER.filter((s) => counts[s.key] > 0)
-  const openWork = total - counts.completed - counts.closed
-
-  /* Children stagger in; reduced-motion users get the end state with no movement */
-  const container = {
-    hidden: {},
-    shown: { transition: { staggerChildren: reduced ? 0 : 0.05, delayChildren: reduced ? 0 : 0.08 } },
-  }
-  const tile = reduced
-    ? { hidden: { opacity: 1 }, shown: { opacity: 1 } }
-    : {
-        hidden: { opacity: 0, y: 8, scale: 0.97 },
-        shown: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 320, damping: 24 } },
-      }
-
   return (
-    <motion.section
+    <motion.div
       initial="hidden"
       animate="shown"
-      variants={container}
-      className={cn("rounded-lg bg-card p-3 shadow-xs ring-1 ring-foreground/10", className)}
+      variants={{ hidden: {}, shown: { transition: { staggerChildren: reduced ? 0 : 0.08 } } }}
+      className={cn("grid gap-2 md:grid-cols-3", className)}
     >
-      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="text-sm font-semibold">Work Summary</h3>
-        {/* One atomic status line rather than a bare number, so it announces meaningfully */}
-        <p role="status" aria-atomic="true" className="text-[0.7rem] text-muted-foreground">
-          <span className="font-semibold tabular-nums text-foreground">{openWork}</span> of{" "}
-          <span className="tabular-nums">{total}</span> items still open
-        </p>
-      </div>
-
-      {/* Segmented bar: proportions of the whole at a glance */}
-      <div className="mb-3 flex h-2 w-full gap-px overflow-hidden rounded-full bg-muted">
-        {present.map((s) => (
-          <motion.span
-            key={s.key}
-            title={`${workStatus[s.key].label}: ${counts[s.key]}`}
-            className={cn("h-full first:rounded-l-full last:rounded-r-full", s.bar)}
-            initial={{ width: 0 }}
-            animate={{ width: `${(counts[s.key] / total) * 100}%` }}
-            transition={reduced ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          />
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {STATUS_ORDER.map((s) => {
-          const n = counts[s.key]
-          const meta = workStatus[s.key]
-          return (
-            <motion.div
-              key={s.key}
-              variants={tile}
-              whileHover={reduced || n === 0 ? undefined : { y: -2, transition: { type: "spring", stiffness: 400, damping: 22 } }}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-2.5 py-2 ring-1 transition-colors",
-                n > 0 ? cn(s.chip, s.ring) : "bg-muted/40 text-muted-foreground ring-transparent"
-              )}
-            >
-              <s.icon className={cn("size-4 shrink-0", n > 0 && s.key === "in_progress" && !reduced && "animate-spin [animation-duration:3s]")} />
-              <div className="min-w-0">
-                <div className="text-base leading-none font-bold tabular-nums">{n}</div>
-                <div className="mt-0.5 truncate text-[0.62rem] leading-none">{meta.label}</div>
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
-
-      <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 border-t pt-2 text-[0.7rem] text-muted-foreground">
-        {streams.map((s) => (
-          <span key={s.label}>
-            {s.label} <span className="font-semibold tabular-nums text-foreground">{s.value}</span>
-          </span>
-        ))}
-      </div>
-    </motion.section>
+      {streams.map((s) => (
+        <StreamCard key={s.key} stream={s} reduced={reduced} />
+      ))}
+    </motion.div>
   )
 }
