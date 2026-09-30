@@ -22,6 +22,7 @@ import { Link } from "react-router"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatCard } from "@/components/common/stat-card"
+import { CountUp } from "@/components/common/count-up"
 import { SectionCard } from "@/components/common/section-card"
 import { DonutChart } from "@/components/common/donut-chart"
 import { CustomerMap, MapViewToggle, type MapView } from "@/components/common/customer-map"
@@ -138,13 +139,13 @@ export function DashboardPage() {
               <CustomerMap plants={indiaPlants} view="india" focusCountry="India" interactive={false} marker="pin-sm" showLegend={false} className="h-32" />
               <div className="space-y-2">
                 {[
-                  ["Customers", indiaKpis.enterprises.value],
+                  ["Enterprises", indiaKpis.enterprises.value],
                   ["Plants", indiaKpis.plants.value],
                   ["Assets", indiaKpis.assets.value],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between gap-2 text-xs">
                     <span className="text-muted-foreground">{label}</span>
-                    <span className="font-bold tabular-nums">{Number(value).toLocaleString("en-IN")}</span>
+                    <CountUp value={Number(value)} className="font-bold" />
                   </div>
                 ))}
               </div>

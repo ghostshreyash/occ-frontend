@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/components/common/page-header"
 import { StatCard } from "@/components/common/stat-card"
+import { CountUp } from "@/components/common/count-up"
 import { SectionCard } from "@/components/common/section-card"
 import { DonutChart } from "@/components/common/donut-chart"
 import { CustomerMap } from "@/components/common/customer-map"
@@ -103,8 +104,8 @@ export function CustomerMapPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs leading-none text-muted-foreground">{label}</div>
-                    <div className="mt-0.5 text-lg leading-tight font-bold tabular-nums text-brand-navy dark:text-foreground">
-                      {value.toLocaleString("en-IN")}
+                    <div className="mt-0.5 text-lg leading-tight font-bold text-brand-navy dark:text-foreground">
+                      <CountUp value={value} />
                     </div>
                   </div>
                 </div>
