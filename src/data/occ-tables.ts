@@ -329,18 +329,51 @@ function buildTickets(e: EnterpriseRecord): TicketRow[] {
 
 /* ---------- Enterprise detail: full onboarding profile ---------- */
 
-/** Everything captured during onboarding, as shown on the wizard's review step */
+/** One department inside a plant, with its own sub-departments */
+export type DepartmentProfile = {
+  id: string
+  name: string
+  code: string
+  type: string
+  parent: string
+  salutation: string
+  head: string
+  email: string
+  phoneCode: string
+  phone: string
+  description: string
+  subDepartments: { name: string; code: string; function: string; description?: string }[]
+}
+
+/** One plant, with the departments that sit under it */
+export type PlantProfile = {
+  id: string
+  name: string
+  type: string
+  code: string
+  salutation: string
+  head: string
+  email: string
+  phoneCode: string
+  phone: string
+  capacity: string
+  capacityUnit: string
+  commissioningDate: string
+  timeZone: string
+  address: string
+  notes: string
+  departments: DepartmentProfile[]
+}
+
+/**
+ * Everything captured during onboarding. An enterprise has many plants, each
+ * with its own departments; the administrator account is enterprise-level and
+ * shared across every plant.
+ */
 export type EnterpriseProfile = {
   enterprise: { name: string; shortName: string; sectorType: string; sector: string; website: string; description: string }
   location: { country: string; state: string; city: string; pin: string; latitude: string; longitude: string; address: string }
-  plant: {
-    name: string; type: string; code: string; salutation: string; head: string
-    email: string; phoneCode: string; phone: string; capacity: string; capacityUnit: string
-    commissioningDate: string; timeZone: string
-    address: string; notes: string
-  }
-  department: { name: string; code: string; type: string; parent: string; salutation: string; head: string; email: string; phoneCode: string; phone: string; description: string }
-  subDepartments: { name: string; code: string; function: string; description?: string }[]
+  plants: PlantProfile[]
   account: { email: string; role: string; lastLogin: string }
 }
 
@@ -349,7 +382,7 @@ const stateFor: Record<string, string> = {
   Hyderabad: "Telangana", Hosur: "Tamil Nadu", Renukoot: "Uttar Pradesh", Jharsuguda: "Odisha",
   Kochi: "Kerala", Ahmedabad: "Gujarat", Dubai: "Dubai", Riyadh: "Riyadh Province",
   Frankfurt: "Hesse", Singapore: "Singapore", IJmuiden: "North Holland", Houston: "Texas",
-  "São Paulo": "São Paulo", Johannesburg: "Gauteng", Sydney: "New South Wales",
+  "Sao Paulo": "Sao Paulo", Johannesburg: "Gauteng", Sydney: "New South Wales",
 }
 const coordsFor: Record<string, [string, string]> = {
   Mumbai: ["19.0760", "72.8777"], Jamnagar: ["22.4707", "70.0577"], Dolvi: ["18.7000", "73.0000"],
@@ -357,18 +390,17 @@ const coordsFor: Record<string, [string, string]> = {
   Renukoot: ["24.2000", "83.0333"], Jharsuguda: ["21.8558", "84.0062"], Kochi: ["9.9312", "76.2673"],
   Ahmedabad: ["23.0225", "72.5714"], Dubai: ["25.2048", "55.2708"], Riyadh: ["24.7136", "46.6753"],
   Frankfurt: ["50.1109", "8.6821"], Singapore: ["1.3521", "103.8198"], IJmuiden: ["52.4607", "4.6103"],
-  Houston: ["29.7604", "-95.3698"], "São Paulo": ["-23.5505", "-46.6333"],
-  Johannesburg: ["-26.2041", "28.0473"], Sydney: ["-33.8688", "151.2093"],
+  Houston: ["29.7604", "-95.3698"], Johannesburg: ["-26.2041", "28.0473"], Sydney: ["-33.8688", "151.2093"],
 }
 const industryPlantTypes = ["Integrated Steel Plant", "Refinery", "Power Plant", "Cement Plant", "Manufacturing Unit"]
 const retailPlantTypes = ["Commercial Complex", "Shopping Centre", "Data Centre", "Facility Block"]
-const deptTypes = ["Electrical", "Maintenance", "Operations", "Engineering", "Utilities"]
+const deptPool = ["Electrical", "Maintenance", "Operations", "Engineering", "Utilities", "Instrumentation & Control", "Safety"]
 const subDeptPool = [
-  { name: "HT Maintenance", code: "SUB-EL-HT", function: "Maintenance", description: "High tension equipment maintenance" },
-  { name: "LT Maintenance", code: "SUB-EL-LT", function: "Maintenance", description: "Low tension equipment maintenance" },
-  { name: "Panels & Switchgear", code: "SUB-EL-PS", function: "Operations", description: "Panels, switchgear and control" },
-  { name: "Transformers", code: "SUB-EL-TF", function: "Maintenance", description: "Transformer maintenance" },
-  { name: "Protection & Relay", code: "SUB-EL-PR", function: "Testing", description: "Relay testing and calibration" },
+  { name: "HT Maintenance", code: "HT", function: "Maintenance", description: "High tension equipment maintenance" },
+  { name: "LT Maintenance", code: "LT", function: "Maintenance", description: "Low tension equipment maintenance" },
+  { name: "Panels & Switchgear", code: "PS", function: "Operations", description: "Panels, switchgear and control" },
+  { name: "Transformers", code: "TF", function: "Maintenance", description: "Transformer maintenance" },
+  { name: "Protection & Relay", code: "PR", function: "Testing", description: "Relay testing and calibration" },
 ]
 const capacityValues = ["5", "12", "8", "3.5", "20", "450"]
 const capacityUnitPool = ["MTPA", "MW", "MVA", "MTPA", "MW", "kVA"]
@@ -391,18 +423,68 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
   const slug = e.name.toLowerCase().replace(/[^a-z]/g, "").slice(0, 10)
   const [lat, lng] = coordsFor[e.city] ?? ["0.0000", "0.0000"]
   const plantTypePool = e.sectorType === "Retail" ? retailPlantTypes : industryPlantTypes
-  const head = pick(elpremarPool, seed, 4)
-  const deptHead = pick(elpremarPool, seed, 6)
-  const commissioned = new Date(2018 + (seed % 6), seed % 12, 1 + (seed % 27))
+  const short = e.id.slice(0, 3)
+  const mail = (name: string) => name.toLowerCase().replace(/ /g, ".") + "@" + slug + ".com"
+
+  const plants: PlantProfile[] = Array.from({ length: Math.min(e.plants, 12) }, (_, i) => {
+    const s = seed + i * 101
+    const head = pick(elpremarPool, s, 4)
+    const commissioned = new Date(2016 + (s % 9), s % 12, 1 + (s % 27))
+
+    const departments: DepartmentProfile[] = Array.from({ length: 2 + (s % 3) }, (_, j) => {
+      const ds = s + j * 37
+      const dName = deptPool[(ds + j) % deptPool.length]
+      const dHead = pick(elpremarPool, ds, 6)
+      return {
+        id: short + "-P" + (i + 1) + "-D" + (j + 1),
+        name: dName,
+        code: "DEP-" + dName.slice(0, 2).toUpperCase() + "-" + (i + 1) + (j + 1),
+        type: dName,
+        parent: j === 0 ? "" : "Engineering",
+        salutation: ds % 4 === 0 ? "Ms." : "Mr.",
+        head: dHead,
+        email: mail(dHead),
+        phoneCode: dialCodeFor(e.country),
+        phone: String(8000000000 + (ds % 899999999)).slice(0, 10),
+        description: dName + " systems and reliability activities for this plant.",
+        subDepartments: subDeptPool.slice(0, 2 + (ds % 3)).map((sd) => ({
+          ...sd,
+          code: "SUB-" + short + "-" + sd.code + (i + 1) + (j + 1),
+        })),
+      }
+    })
+
+    return {
+      id: short + "-P" + (i + 1),
+      name: e.city + " " + pick(plantSuffixes, s, 2) + (i > 0 ? " " + (i + 1) : ""),
+      type: pick(plantTypePool, s, 3),
+      code: short + "-" + e.city.slice(0, 3).toUpperCase() + "-" + String(i + 1).padStart(3, "0"),
+      salutation: s % 5 === 0 ? "Dr." : s % 3 === 0 ? "Ms." : "Mr.",
+      head,
+      email: mail(head),
+      phoneCode: dialCodeFor(e.country),
+      phone: String(9000000000 + (s % 899999999)).slice(0, 10),
+      capacity: pick(capacityValues, s, 5),
+      capacityUnit: pick(capacityUnitPool, s, 5),
+      commissioningDate:
+        commissioned.getFullYear() +
+        "-" + String(commissioned.getMonth() + 1).padStart(2, "0") +
+        "-" + String(commissioned.getDate()).padStart(2, "0"),
+      timeZone: timeZonesByCountry[e.country] ?? "(UTC+00:00) GMT",
+      address: pick(plantSuffixes, s, 2) + ", " + e.city + ", " + e.country,
+      notes: "Registered during initial enterprise onboarding.",
+      departments,
+    }
+  })
 
   return {
     enterprise: {
       name: e.name,
-      shortName: e.id.slice(0, 3),
+      shortName: short,
       sectorType: e.sectorType,
       sector: e.sector,
-      website: `https://www.${slug}.com`,
-      description: `${e.name} is registered with OLIVINE for electrical reliability management across ${e.plants} plants.`,
+      website: "https://www." + slug + ".com",
+      description: e.name + " is registered with OLIVINE for electrical reliability management across " + e.plants + " plants.",
     },
     location: {
       country: e.country,
@@ -411,39 +493,12 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       pin: String(100000 + (seed % 800000)),
       latitude: lat,
       longitude: lng,
-      address: `${e.name}, ${pick(plantSuffixes, seed, 1)}, ${e.city}, ${e.country}`,
+      address: e.name + ", " + pick(plantSuffixes, seed, 1) + ", " + e.city + ", " + e.country,
     },
-    plant: {
-      name: `${e.city} ${pick(plantSuffixes, seed, 2)}`,
-      type: pick(plantTypePool, seed, 3),
-      code: `${e.id.slice(0, 3)}-${e.city.slice(0, 3).toUpperCase()}-001`,
-      salutation: (seed % 5 === 0 ? "Dr." : seed % 3 === 0 ? "Ms." : "Mr."),
-      head,
-      email: `${head.toLowerCase().replace(/ /g, ".")}@${slug}.com`,
-      phoneCode: dialCodeFor(e.country),
-      phone: String(9000000000 + (seed % 899999999)).slice(0, 10),
-      capacity: pick(capacityValues, seed, 5),
-      capacityUnit: pick(capacityUnitPool, seed, 5),
-      commissioningDate: `${commissioned.getFullYear()}-${String(commissioned.getMonth() + 1).padStart(2, "0")}-${String(commissioned.getDate()).padStart(2, "0")}`,
-      timeZone: timeZonesByCountry[e.country] ?? "(UTC+00:00) GMT",
-      address: `${pick(plantSuffixes, seed, 2)}, ${e.city}, ${e.country}`,
-      notes: "Registered during initial enterprise onboarding.",
-    },
-    department: {
-      name: pick(deptTypes, seed, 7),
-      code: `DEP-${pick(deptTypes, seed, 7).slice(0, 2).toUpperCase()}`,
-      type: pick(deptTypes, seed, 7),
-      parent: "Engineering",
-      salutation: seed % 4 === 0 ? "Ms." : "Mr.",
-      head: deptHead,
-      email: `${deptHead.toLowerCase().replace(/ /g, ".")}@${slug}.com`,
-      phoneCode: dialCodeFor(e.country),
-      phone: String(8000000000 + (seed % 899999999)).slice(0, 10),
-      description: `Handles electrical systems and reliability activities for ${e.city}.`,
-    },
-    subDepartments: subDeptPool.slice(0, 2 + (seed % 4)),
+    plants,
+    // One administrator for the whole enterprise, shared across every plant
     account: {
-      email: `admin@${slug}.com`,
+      email: "admin@" + slug + ".com",
       role: "Enterprise Admin",
       lastLogin: dateBack(seed % 6),
     },

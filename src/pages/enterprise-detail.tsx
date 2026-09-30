@@ -12,14 +12,10 @@ import {
   LifeBuoy,
   MapPin,
   Network,
-  Pencil,
-  Plus,
   HeartPulse,
   Server,
   ShieldAlert,
-  Trash2,
   TriangleAlert,
-  X,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -30,16 +26,19 @@ import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
+import { SelectableTable } from "@/components/common/selectable-table"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
-import { countries, indianStates, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
+import { countries, indianStates, salutations, timeZones } from "@/data/mock"
 import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import {
   assetHealthFor,
   enterpriseRecords,
   profileFor,
   supportTickets,
+  type DepartmentProfile,
   type EnterpriseProfile,
   type EnterpriseRecord,
+  type PlantProfile,
 } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
@@ -53,15 +52,6 @@ import {
   type LocationValues,
   type PlantValues,
 } from "./enterprise-onboarding/schemas"
-
-/** One sub-department row in the list editor */
-const subRowSchema = z.object({
-  name: required("Sub-department name"),
-  code: required("Sub-department code"),
-  function: required("Function / Area"),
-  description: z.string().optional(),
-})
-type SubDepartmentRow = z.infer<typeof subRowSchema>
 
 /**
  * Account editor. The current password is never loaded, only replaced - leave the
@@ -104,48 +94,62 @@ export function EnterpriseDetailPage() {
 
   const [editing, setEditing] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Partial<EnterpriseProfile>>({})
-  /** Row being edited in the sub-department list, or null when adding a new one */
-  const [subRow, setSubRow] = useState<number | null>(null)
+  /** Which plant, and which of its departments, the drill-down is showing */
+  const [plantId, setPlantId] = useState<string>()
+  const [deptId, setDeptId] = useState<string>()
 
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
   const tickets = useMemo(() => (record ? supportTickets.filter((s) => s.enterprise === record.name) : []), [record])
 
+  const plants = profile?.plants ?? []
+  // The first plant is selected until another is picked; its first department likewise
+  const plant = plants.find((p) => p.id === plantId) ?? plants[0]
+  const departments = plant?.departments ?? []
+  const dept = departments.find((d) => d.id === deptId) ?? departments[0]
+  const subs = dept?.subDepartments ?? []
+
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: profile?.enterprise })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: profile?.location })
-  const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: profile?.plant })
-  const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: profile?.department })
+  const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: plant })
+  const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: dept })
 
-  const subForm = useForm<SubDepartmentRow>({
-    resolver: zodResolver(subRowSchema),
-    defaultValues: { name: "", code: "", function: "", description: "" },
-  })
   const accountForm = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
     values: profile ? { email: profile.account.email, role: profile.account.role, newPassword: "", confirmPassword: "" } : undefined,
   })
 
+  /**
+   * Writes a section's form back into the profile. Plant and department edits
+   * land on the selected row, not on a single top-level object.
+   */
   const save =
-    <T extends FieldValues>(form: UseFormReturn<T>, key: keyof EnterpriseProfile) =>
+    <T extends FieldValues>(form: UseFormReturn<T>, key: "enterprise" | "location" | "plant" | "department") =>
     () => {
       void form.handleSubmit((values) => {
         // TODO: PATCH /enterprises/:id once the API exists
-        setOverrides((o) => ({ ...o, [key]: values }))
+        setOverrides((o) => {
+          if (key === "plant" || key === "department") {
+            const next = (o.plants ?? plants).map((pl) =>
+              pl.id !== plant?.id
+                ? pl
+                : key === "plant"
+                  ? { ...pl, ...(values as Partial<PlantProfile>) }
+                  : {
+                      ...pl,
+                      departments: pl.departments.map((d) =>
+                        d.id === dept?.id ? { ...d, ...(values as Partial<DepartmentProfile>) } : d
+                      ),
+                    }
+            )
+            return { ...o, plants: next }
+          }
+          return { ...o, [key]: values }
+        })
         setEditing(null)
       })()
     }
 
-  /** Sub-department list edits write straight into the profile override */
-  const writeSubs = (rows: SubDepartmentRow[]) => setOverrides((o) => ({ ...o, subDepartments: rows }))
-
-  const commitSubRow = subForm.handleSubmit((values) => {
-    const rows = [...(profile?.subDepartments ?? [])]
-    if (subRow !== null) rows[subRow] = values
-    else rows.push(values)
-    writeSubs(rows)
-    setSubRow(null)
-    subForm.reset({ name: "", code: "", function: "", description: "" })
-  })
 
   const saveAccount = accountForm.handleSubmit((values) => {
     // The password is write-only: it is never read back, only replaced
@@ -172,7 +176,7 @@ export function EnterpriseDetailPage() {
     )
   }
 
-  const { enterprise: e, location: l, plant: p, department: d, subDepartments: subs, account } = profile
+  const { enterprise: e, location: l, account } = profile
   const editingCountryIsIndia = locationForm.watch("country") === "India"
   const openTickets = tickets.filter((t) => t.status !== "closed").length
   const health = assetHealthFor(record)
@@ -294,32 +298,64 @@ export function EnterpriseDetailPage() {
           }
         />
 
+        {/* Plants: an enterprise has many, so pick one and drill down */}
         <DetailSection
           icon={Factory}
-          title="Plant"
+          title={`Plants (${plants.length})`}
+          step={3}
+          complete={plants.length > 0}
+          summary={plant ? `${plant.name} selected` : undefined}
           sectionKey="plant"
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(plantForm, "plant")}
           view={
-            <ValueGrid
-              rows={[
-                { label: "Plant Name", value: p.name },
-                { label: "Plant Type", value: p.type },
-                { label: "Plant Code", value: p.code },
-                { label: "Plant Head", value: [p.salutation, p.head].filter(Boolean).join(" ") },
-                { label: "Email", value: p.email },
-                { label: "Phone Number", value: [p.phoneCode, p.phone].filter(Boolean).join(" ") },
-                { label: "Plant Capacity", value: [p.capacity, p.capacityUnit].filter(Boolean).join(" ") },
-                { label: "Commissioning Date", value: showDate(p.commissioningDate) },
-                { label: "Time Zone", value: p.timeZone },
-                { label: "Plant Address", value: p.address },
-                { label: "Notes", value: p.notes },
-              ]}
-            />
+            <div className="space-y-2.5">
+              <SelectableTable
+                rows={plants}
+                selectedId={plantId}
+                onSelect={(id) => {
+                  setPlantId(id)
+                  setDeptId(undefined)
+                }}
+                empty="No plants registered"
+                columns={[
+                  { key: "name", label: "Plant", render: (r) => <span className="font-medium">{r.name}</span> },
+                  { key: "code", label: "Code", render: (r) => <span className="tabular-nums">{r.code}</span> },
+                  { key: "type", label: "Type", hideBelow: "md", render: (r) => r.type },
+                  { key: "head", label: "Plant Head", hideBelow: "lg", render: (r) => `${r.salutation} ${r.head}` },
+                  { key: "cap", label: "Capacity", hideBelow: "sm", render: (r) => `${r.capacity} ${r.capacityUnit}` },
+                  { key: "dept", label: "Depts", align: "right", render: (r) => <span className="tabular-nums">{r.departments.length}</span> },
+                ]}
+              />
+
+              {plant ? (
+                <div className="rounded-md bg-muted/30 p-2.5">
+                  <p className="mb-2 text-[0.62rem] tracking-wide text-muted-foreground uppercase">Selected plant</p>
+                  <ValueGrid
+                    rows={[
+                      { label: "Plant Name", value: plant.name },
+                      { label: "Plant Type", value: plant.type },
+                      { label: "Plant Code", value: plant.code },
+                      { label: "Plant Head", value: [plant.salutation, plant.head].filter(Boolean).join(" ") },
+                      { label: "Email", value: plant.email },
+                      { label: "Phone Number", value: [plant.phoneCode, plant.phone].filter(Boolean).join(" ") },
+                      { label: "Plant Capacity", value: [plant.capacity, plant.capacityUnit].filter(Boolean).join(" ") },
+                      { label: "Commissioning Date", value: showDate(plant.commissioningDate) },
+                      { label: "Time Zone", value: plant.timeZone },
+                      { label: "Plant Address", value: plant.address },
+                      { label: "Notes", value: plant.notes },
+                    ]}
+                  />
+                </div>
+              ) : null}
+            </div>
           }
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
+                Editing <strong>{plant?.name}</strong>
+              </p>
               <TextField control={plantForm.control} name="name" label="Plant Name" required />
               <TextField control={plantForm.control} name="type" label="Plant Type" required />
               <TextField control={plantForm.control} name="code" label="Plant Code" />
@@ -341,29 +377,58 @@ export function EnterpriseDetailPage() {
           }
         />
 
+        {/* Departments belong to the selected plant */}
         <DetailSection
           icon={Network}
-          title="Department"
+          title={`Departments — ${plant?.name ?? "no plant selected"}`}
+          step={4}
+          complete={departments.length > 0}
+          optional
+          summary={dept ? `${dept.name} selected` : undefined}
           sectionKey="department"
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(departmentForm, "department")}
           view={
-            <ValueGrid
-              rows={[
-                { label: "Department Name", value: d.name },
-                { label: "Department Code", value: d.code },
-                { label: "Department Type", value: d.type },
-                { label: "Parent Department", value: d.parent },
-                { label: "Head of Department", value: [d.salutation, d.head].filter(Boolean).join(" ") },
-                { label: "Email", value: d.email },
-                { label: "Phone Number", value: [d.phoneCode, d.phone].filter(Boolean).join(" ") },
-                { label: "Description", value: d.description },
-              ]}
-            />
+            <div className="space-y-2.5">
+              <SelectableTable
+                rows={departments}
+                selectedId={deptId}
+                onSelect={setDeptId}
+                empty="No departments under this plant"
+                columns={[
+                  { key: "name", label: "Department", render: (r) => <span className="font-medium">{r.name}</span> },
+                  { key: "code", label: "Code", render: (r) => <span className="tabular-nums">{r.code}</span> },
+                  { key: "head", label: "Head", hideBelow: "md", render: (r) => `${r.salutation} ${r.head}` },
+                  { key: "email", label: "Email", hideBelow: "lg", render: (r) => r.email },
+                  { key: "subs", label: "Sub-depts", align: "right", render: (r) => <span className="tabular-nums">{r.subDepartments.length}</span> },
+                ]}
+              />
+
+              {dept ? (
+                <div className="rounded-md bg-muted/30 p-2.5">
+                  <p className="mb-2 text-[0.62rem] tracking-wide text-muted-foreground uppercase">Selected department</p>
+                  <ValueGrid
+                    rows={[
+                      { label: "Department Name", value: dept.name },
+                      { label: "Department Code", value: dept.code },
+                      { label: "Department Type", value: dept.type },
+                      { label: "Parent Department", value: dept.parent },
+                      { label: "Head of Department", value: [dept.salutation, dept.head].filter(Boolean).join(" ") },
+                      { label: "Email", value: dept.email },
+                      { label: "Phone Number", value: [dept.phoneCode, dept.phone].filter(Boolean).join(" ") },
+                      { label: "Description", value: dept.description },
+                    ]}
+                  />
+                </div>
+              ) : null}
+            </div>
           }
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
+                Editing <strong>{dept?.name}</strong> under <strong>{plant?.name}</strong>
+              </p>
               <TextField control={departmentForm.control} name="name" label="Department Name" />
               <TextField control={departmentForm.control} name="code" label="Department Code" />
               <SelectField control={departmentForm.control} name="type" label="Department Type" options={departmentTypes} />
@@ -378,56 +443,48 @@ export function EnterpriseDetailPage() {
           }
         />
 
+        {/* Sub-departments belong to the selected department */}
         <DetailSection
           icon={Folder}
-          title={`Sub-departments (${subs.length})`}
+          title={`Sub-departments — ${dept?.name ?? "no department selected"}`}
+          step={5}
+          complete={subs.length > 0}
+          optional
+          summary={subs.length > 0 ? subs.map((s) => s.name).join(", ") : undefined}
           sectionKey="subs"
           editing={editing}
-          onEditingChange={(k) => {
-            setEditing(k)
-            setSubRow(null)
-            subForm.reset({ name: "", code: "", function: "", description: "" })
-          }}
-          onSave={() => setEditing(null)}
-          saveLabel="Done"
-          view={<SubTable rows={subs} />}
-          edit={
-            <div className="space-y-2.5">
-              <SubTable
-                rows={subs}
-                onEdit={(i) => {
-                  setSubRow(i)
-                  subForm.reset(subs[i])
-                }}
-                onRemove={(i) => writeSubs(subs.filter((_, n) => n !== i))}
-              />
-
-              <form onSubmit={commitSubRow} className="grid items-end gap-2.5 rounded-md bg-muted/40 p-2.5 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" noValidate>
-                <TextField control={subForm.control} name="name" label="Sub-department Name" required placeholder="e.g. HT Maintenance" />
-                <TextField control={subForm.control} name="code" label="Code" required placeholder="e.g. SUB-EL-HT" />
-                <SelectField control={subForm.control} name="function" label="Function / Area" required options={subDepartmentFunctions} />
-                <TextField control={subForm.control} name="description" label="Description" />
-                <div className="flex gap-1.5">
-                  <Button type="submit" size="sm" className="h-8 text-xs">
-                    {subRow !== null ? <><Pencil className="size-3.5" /> Update</> : <><Plus className="size-3.5" /> Add</>}
-                  </Button>
-                  {subRow !== null ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => {
-                        setSubRow(null)
-                        subForm.reset({ name: "", code: "", function: "", description: "" })
-                      }}
-                    >
-                      <X className="size-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-              </form>
-            </div>
+          onEditingChange={setEditing}
+          view={
+            subs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {dept ? "No sub-departments under this department." : "Select a department to see its sub-departments."}
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className={th}>#</TableHead>
+                      <TableHead className={th}>Name</TableHead>
+                      <TableHead className={th}>Code</TableHead>
+                      <TableHead className={th}>Function / Area</TableHead>
+                      <TableHead className={`${th} hidden sm:table-cell`}>Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subs.map((s, i) => (
+                      <TableRow key={s.code}>
+                        <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
+                        <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
+                        <TableCell className={`${td} tabular-nums`}>{s.code}</TableCell>
+                        <TableCell className={td}>{s.function}</TableCell>
+                        <TableCell className={`${td} hidden sm:table-cell`}>{s.description}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )
           }
         />
 
@@ -472,56 +529,3 @@ export function EnterpriseDetailPage() {
   )
 }
 
-/** Sub-department list; row actions appear only while the section is being edited */
-function SubTable({
-  rows,
-  onEdit,
-  onRemove,
-}: {
-  rows: { name: string; code: string; function: string; description?: string }[]
-  onEdit?: (i: number) => void
-  onRemove?: (i: number) => void
-}) {
-  if (rows.length === 0) {
-    return <p className="text-xs text-muted-foreground">None added yet.</p>
-  }
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className={th}>#</TableHead>
-            <TableHead className={th}>Name</TableHead>
-            <TableHead className={th}>Code</TableHead>
-            <TableHead className={th}>Function / Area</TableHead>
-            <TableHead className={`${th} hidden sm:table-cell`}>Description</TableHead>
-            {onEdit ? <TableHead className={`${th} w-20`}>Actions</TableHead> : null}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((s, i) => (
-            <TableRow key={`${s.code}-${i}`}>
-              <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
-              <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
-              <TableCell className={td}>{s.code}</TableCell>
-              <TableCell className={td}>{s.function}</TableCell>
-              <TableCell className={`${td} hidden sm:table-cell`}>{s.description}</TableCell>
-              {onEdit ? (
-                <TableCell className="px-2 py-1.5">
-                  <div className="flex gap-0.5">
-                    <Button type="button" variant="ghost" size="icon" className="size-6" aria-label={`Edit ${s.name}`} onClick={() => onEdit(i)}>
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button type="button" variant="ghost" size="icon" className="size-6 text-critical" aria-label={`Remove ${s.name}`} onClick={() => onRemove?.(i)}>
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </TableCell>
-              ) : null}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
