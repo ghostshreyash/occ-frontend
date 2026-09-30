@@ -356,3 +356,120 @@ export const enterpriseTickets: EnterpriseTicket[] = enterpriseRecords.flatMap(b
 
 export const activitiesFor = (enterpriseId: string) => enterpriseActivities.filter((a) => a.enterpriseId === enterpriseId)
 export const ticketsFor = (enterpriseId: string) => enterpriseTickets.filter((t) => t.enterpriseId === enterpriseId)
+
+/* ---------- Enterprise detail: full onboarding profile ---------- */
+
+/** Everything captured during onboarding, as shown on the wizard's review step */
+export type EnterpriseProfile = {
+  enterprise: { name: string; shortName: string; sectorType: string; sector: string; website: string; description: string }
+  location: { country: string; state: string; city: string; pin: string; latitude: string; longitude: string; address: string }
+  plant: {
+    name: string; type: string; code: string; salutation: string; head: string
+    email: string; phone: string; capacity: string; commissioningDate: string; timeZone: string
+    address: string; notes: string
+  }
+  department: { name: string; code: string; type: string; parent: string; head: string; email: string; phone: string; description: string }
+  subDepartments: { name: string; code: string; function: string; description: string }[]
+  account: { username: string; role: string; lastLogin: string }
+}
+
+const stateFor: Record<string, string> = {
+  Mumbai: "Maharashtra", Jamnagar: "Gujarat", Dolvi: "Maharashtra", Mundra: "Gujarat",
+  Hyderabad: "Telangana", Hosur: "Tamil Nadu", Renukoot: "Uttar Pradesh", Jharsuguda: "Odisha",
+  Kochi: "Kerala", Ahmedabad: "Gujarat", Dubai: "Dubai", Riyadh: "Riyadh Province",
+  Frankfurt: "Hesse", Singapore: "Singapore", IJmuiden: "North Holland", Houston: "Texas",
+  "São Paulo": "São Paulo", Johannesburg: "Gauteng", Sydney: "New South Wales",
+}
+const coordsFor: Record<string, [string, string]> = {
+  Mumbai: ["19.0760", "72.8777"], Jamnagar: ["22.4707", "70.0577"], Dolvi: ["18.7000", "73.0000"],
+  Mundra: ["22.8394", "69.7219"], Hyderabad: ["17.3850", "78.4867"], Hosur: ["12.7409", "77.8253"],
+  Renukoot: ["24.2000", "83.0333"], Jharsuguda: ["21.8558", "84.0062"], Kochi: ["9.9312", "76.2673"],
+  Ahmedabad: ["23.0225", "72.5714"], Dubai: ["25.2048", "55.2708"], Riyadh: ["24.7136", "46.6753"],
+  Frankfurt: ["50.1109", "8.6821"], Singapore: ["1.3521", "103.8198"], IJmuiden: ["52.4607", "4.6103"],
+  Houston: ["29.7604", "-95.3698"], "São Paulo": ["-23.5505", "-46.6333"],
+  Johannesburg: ["-26.2041", "28.0473"], Sydney: ["-33.8688", "151.2093"],
+}
+const industryPlantTypes = ["Integrated Steel Plant", "Refinery", "Power Plant", "Cement Plant", "Manufacturing Unit"]
+const retailPlantTypes = ["Commercial Complex", "Shopping Centre", "Data Centre", "Facility Block"]
+const deptTypes = ["Electrical", "Maintenance", "Operations", "Engineering", "Utilities"]
+const subDeptPool = [
+  { name: "HT Maintenance", code: "SUB-EL-HT", function: "Maintenance", description: "High tension equipment maintenance" },
+  { name: "LT Maintenance", code: "SUB-EL-LT", function: "Maintenance", description: "Low tension equipment maintenance" },
+  { name: "Panels & Switchgear", code: "SUB-EL-PS", function: "Operations", description: "Panels, switchgear and control" },
+  { name: "Transformers", code: "SUB-EL-TF", function: "Maintenance", description: "Transformer maintenance" },
+  { name: "Protection & Relay", code: "SUB-EL-PR", function: "Testing", description: "Relay testing and calibration" },
+]
+const capacityUnits = ["5 MTPA", "12 MW", "8 MVA", "3.5 MTPA", "20 MW", "450 kVA"]
+const timeZonesByCountry: Record<string, string> = {
+  India: "(UTC+05:30) India Standard Time",
+  "United Arab Emirates": "(UTC+04:00) Gulf Standard Time",
+  "Saudi Arabia": "(UTC+03:00) Arabia Standard Time",
+  Singapore: "(UTC+08:00) Singapore Time",
+  Germany: "(UTC+01:00) Central European Time",
+  Netherlands: "(UTC+01:00) Central European Time",
+  "United States": "(UTC-06:00) Central Time",
+  Brazil: "(UTC-03:00) Brasilia Time",
+  "South Africa": "(UTC+02:00) South Africa Standard Time",
+  Australia: "(UTC+10:00) Australian Eastern Time",
+}
+
+/** Build the full onboarding profile for one enterprise, deterministically */
+export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
+  const seed = seedOf(e.id)
+  const slug = e.name.toLowerCase().replace(/[^a-z]/g, "").slice(0, 10)
+  const [lat, lng] = coordsFor[e.city] ?? ["0.0000", "0.0000"]
+  const plantTypePool = e.sectorType === "Retail" ? retailPlantTypes : industryPlantTypes
+  const head = pick(elpremarPool, seed, 4)
+  const deptHead = pick(elpremarPool, seed, 6)
+  const commissioned = new Date(2018 + (seed % 6), seed % 12, 1 + (seed % 27))
+
+  return {
+    enterprise: {
+      name: e.name,
+      shortName: e.id.slice(0, 3),
+      sectorType: e.sectorType,
+      sector: e.sector,
+      website: `https://www.${slug}.com`,
+      description: `${e.name} is registered with OLIVINE for electrical reliability management across ${e.plants} plants.`,
+    },
+    location: {
+      country: e.country,
+      state: stateFor[e.city] ?? e.country,
+      city: e.city,
+      pin: String(100000 + (seed % 800000)),
+      latitude: lat,
+      longitude: lng,
+      address: `${e.name}, ${pick(plantSuffixes, seed, 1)}, ${e.city}, ${e.country}`,
+    },
+    plant: {
+      name: `${e.city} ${pick(plantSuffixes, seed, 2)}`,
+      type: pick(plantTypePool, seed, 3),
+      code: `${e.id.slice(0, 3)}-${e.city.slice(0, 3).toUpperCase()}-001`,
+      salutation: (seed % 5 === 0 ? "Dr." : seed % 3 === 0 ? "Ms." : "Mr."),
+      head,
+      email: `${head.toLowerCase().replace(/ /g, ".")}@${slug}.com`,
+      phone: `+91 9${String(8000000000 + (seed % 999999999)).slice(0, 9)}`,
+      capacity: pick(capacityUnits, seed, 5),
+      commissioningDate: `${commissioned.getFullYear()}-${String(commissioned.getMonth() + 1).padStart(2, "0")}-${String(commissioned.getDate()).padStart(2, "0")}`,
+      timeZone: timeZonesByCountry[e.country] ?? "(UTC+00:00) GMT",
+      address: `${pick(plantSuffixes, seed, 2)}, ${e.city}, ${e.country}`,
+      notes: "Registered during initial enterprise onboarding.",
+    },
+    department: {
+      name: pick(deptTypes, seed, 7),
+      code: `DEP-${pick(deptTypes, seed, 7).slice(0, 2).toUpperCase()}`,
+      type: pick(deptTypes, seed, 7),
+      parent: "Engineering",
+      head: deptHead,
+      email: `${deptHead.toLowerCase().replace(/ /g, ".")}@${slug}.com`,
+      phone: `+91 9${String(7000000000 + (seed % 999999999)).slice(0, 9)}`,
+      description: `Handles electrical systems and reliability activities for ${e.city}.`,
+    },
+    subDepartments: subDeptPool.slice(0, 2 + (seed % 4)),
+    account: {
+      username: `${slug}_admin`,
+      role: "Enterprise Admin",
+      lastLogin: dateBack(seed % 6),
+    },
+  }
+}

@@ -1,20 +1,20 @@
 import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router"
-import { useForm } from "react-hook-form"
+import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
+import { format, isValid, parseISO } from "date-fns"
 import {
   ArrowLeft,
   Building2,
-  Check,
   Factory,
+  Folder,
   HardHat,
   LifeBuoy,
   MapPin,
-  Pencil,
+  Network,
   Server,
+  ShieldCheck,
   Wrench,
-  X,
 } from "lucide-react"
 import { cn } from "cn"
 
@@ -23,51 +23,48 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
-import { countries } from "@/data/mock"
-import { healthBandFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { DetailSection, ValueGrid } from "@/components/common/detail-section"
+import { countries, indianStates, salutations, timeZones } from "@/data/mock"
+import { departmentTypes, healthBandFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   activitiesFor,
   enterpriseRecords,
   priorityTone,
+  profileFor,
   ticketsFor,
+  type EnterpriseProfile,
   type EnterpriseRecord,
 } from "@/data/occ-tables"
 import { healthStatus, workStatus } from "@/lib/status"
-import { optionalEmail, required } from "@/lib/validation"
+import {
+  departmentSchema,
+  enterpriseSchema,
+  locationSchema,
+  plantSchema,
+  type DepartmentValues,
+  type EnterpriseValues,
+  type LocationValues,
+  type PlantValues,
+} from "./enterprise-onboarding/schemas"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
 
-/** Only the onboarding fields that belong to the enterprise record itself */
-const profileSchema = z.object({
-  name: required("Enterprise name"),
-  sectorType: required("Sector"),
-  sector: required("Sector value"),
-  country: required("Country"),
-  city: required("City"),
-  contactEmail: optionalEmail,
-  notes: z.string().optional(),
-})
-type ProfileValues = z.infer<typeof profileSchema>
-
 const onboardingBadge = { label: "Onboarded", badge: "neutral" as const }
 const statusMeta = (s: EnterpriseRecord["status"]) => (s === "onboarding" ? onboardingBadge : healthStatus[s])
 
-/** A labelled value in the read-only profile grid */
-function Value({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[0.65rem] text-muted-foreground">{label}</dt>
-      <dd className="truncate text-xs font-medium">{children || "—"}</dd>
-    </div>
-  )
+/** ISO date in state, readable date on screen */
+const showDate = (iso?: string) => {
+  if (!iso) return undefined
+  const d = parseISO(iso)
+  return isValid(d) ? format(d, "dd MMM yyyy") : iso
 }
 
-/** Health score pill, coloured by the specification's bands */
+/** Health score pill, coloured by the platform spec's bands */
 function HealthPill({ score }: { score: number }) {
   const band = healthBandFor(score)
   const tone =
@@ -77,38 +74,42 @@ function HealthPill({ score }: { score: number }) {
         ? "bg-attention-soft text-attention-soft-foreground"
         : "bg-critical-soft text-critical-soft-foreground"
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums", tone)}>
+    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums", tone)}>
       {score}
-      <span className="font-normal opacity-75">{band.label}</span>
     </span>
   )
 }
 
-/** Enterprise detail: the onboarding profile (editable) plus its work history */
+/** Enterprise detail: the full onboarding profile, editable, plus its work history */
 export function EnterpriseDetailPage() {
   const { id } = useParams()
   const record = enterpriseRecords.find((e) => e.id === id)
-  const [editing, setEditing] = useState(false)
-  const [profile, setProfile] = useState<ProfileValues | null>(null)
+
+  const [editing, setEditing] = useState<string | null>(null)
+  const [overrides, setOverrides] = useState<Partial<EnterpriseProfile>>({})
+
+  const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
+  const profile = base ? { ...base, ...overrides } : undefined
 
   const activities = useMemo(() => (record ? activitiesFor(record.id) : []), [record])
   const tickets = useMemo(() => (record ? ticketsFor(record.id) : []), [record])
 
-  const current: ProfileValues | undefined = record && {
-    name: record.name,
-    sectorType: record.sectorType,
-    sector: record.sector,
-    country: record.country,
-    city: record.city,
-    contactEmail: "",
-    notes: "",
-    ...profile,
-  }
+  const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: profile?.enterprise })
+  const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: profile?.location })
+  const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: profile?.plant })
+  const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: profile?.department })
 
-  const form = useForm<ProfileValues>({ resolver: zodResolver(profileSchema), values: current })
-  const watchedSectorType = form.watch("sectorType")
+  const save =
+    <T extends FieldValues>(form: UseFormReturn<T>, key: keyof EnterpriseProfile) =>
+    () => {
+      void form.handleSubmit((values) => {
+        // TODO: PATCH /enterprises/:id once the API exists
+        setOverrides((o) => ({ ...o, [key]: values }))
+        setEditing(null)
+      })()
+    }
 
-  if (!record || !current) {
+  if (!record || !profile) {
     return (
       <div className="space-y-3">
         <PageHeader title="Enterprise not found" breadcrumbs={[{ label: "Enterprises", to: "/enterprises" }, { label: "Not found" }]} />
@@ -122,21 +123,19 @@ export function EnterpriseDetailPage() {
     )
   }
 
-  const save = form.handleSubmit((values) => {
-    // TODO: PATCH /enterprises/:id once the API exists
-    setProfile(values)
-    setEditing(false)
-  })
-
+  const { enterprise: e, location: l, plant: p, department: d, subDepartments: subs, account } = profile
+  const isRetail = enterpriseForm.watch("sectorType") === "Retail"
+  const editingCountryIsIndia = locationForm.watch("country") === "India"
   const openTickets = tickets.filter((t) => t.status !== "closed").length
   const completedWork = activities.filter((a) => a.status === "completed").length
+  const overallHealth = record.status === "critical" ? 48 : record.status === "attention" ? 64 : 86
 
   return (
     <div className="space-y-3">
       <PageHeader
-        title={current.name}
-        description={`${current.sectorType} · ${current.sector} · ${current.city}, ${current.country}`}
-        breadcrumbs={[{ label: "Enterprises", to: "/enterprises" }, { label: current.name }]}
+        title={e.name}
+        description={`${e.sectorType} · ${e.sector} · ${l.city}, ${l.country}`}
+        breadcrumbs={[{ label: "Enterprises", to: "/enterprises" }, { label: e.name }]}
         actions={
           <>
             <Badge variant={statusMeta(record.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">
@@ -149,72 +148,237 @@ export function EnterpriseDetailPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Plants" value={record.plants} icon={Factory} tone="success" variant="plain" />
         <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
         <StatCard label="ELPREMARs" value={record.elpremars} icon={HardHat} tone="highlight" variant="plain" />
         <StatCard label="Work Completed" value={completedWork} icon={Wrench} tone="healthy" variant="plain" />
         <StatCard label="Open Tickets" value={openTickets} icon={LifeBuoy} tone={openTickets > 0 ? "attention" : "neutral"} variant="plain" />
+        <StatCard label="Asset Health" value={`${overallHealth}%`} icon={ShieldCheck} tone="healthy" variant="plain" />
       </div>
 
-      {/* Onboarding profile, editable in place */}
-      <SectionCard
-        title="Enterprise Profile"
-        hoverable={false}
-        actions={
-          editing ? (
-            <div className="flex items-center gap-1">
-              <Button type="button" variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={() => { form.reset(current); setEditing(false) }}>
-                <X className="size-3" /> Cancel
-              </Button>
-              <Button type="button" size="sm" className="h-6 text-[0.7rem]" onClick={save}>
-                <Check className="size-3" /> Save
-              </Button>
-            </div>
-          ) : (
-            <Button type="button" variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={() => setEditing(true)}>
-              <Pencil className="size-3" /> Edit
-            </Button>
-          )
-        }
-      >
-        {editing ? (
-          <form onSubmit={save} className="grid gap-2.5 md:grid-cols-3" noValidate>
-            <TextField control={form.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
-            <SelectField
-              control={form.control}
-              name="sectorType"
-              label="Sector"
-              required
-              options={sectorTypes}
-              onValueChange={() => form.setValue("sector", "")}
+      {/* Full onboarding profile, section by section, editable in place */}
+      <SectionCard title="Enterprise Profile" hoverable={false} contentClassName="space-y-2.5 px-3 pb-3">
+        <DetailSection
+          icon={Building2}
+          title="Enterprise"
+          sectionKey="enterprise"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={save(enterpriseForm, "enterprise")}
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Enterprise ID", value: record.id },
+                { label: "Enterprise Name", value: e.name },
+                { label: "Short Name", value: e.shortName },
+                { label: "Sector", value: e.sectorType },
+                { label: isRetailValue(e.sectorType) ? "Retail Sector" : "Industry Sector", value: e.sector },
+                { label: "Website", value: e.website },
+                { label: "Onboarded", value: record.onboarded },
+                { label: "Description", value: e.description },
+              ]}
             />
-            <SelectField
-              control={form.control}
-              name="sector"
-              label={watchedSectorType === "Retail" ? "Retail Sector" : "Industry Sector"}
-              required
-              options={sectorsFor(watchedSectorType)}
-              disabled={!watchedSectorType}
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <TextField control={enterpriseForm.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
+              <TextField control={enterpriseForm.control} name="shortName" label="Short Name" required />
+              <SelectField
+                control={enterpriseForm.control}
+                name="sectorType"
+                label="Sector"
+                required
+                options={sectorTypes}
+                onValueChange={() => enterpriseForm.setValue("sector", "")}
+              />
+              <SelectField
+                control={enterpriseForm.control}
+                name="sector"
+                label={isRetail ? "Retail Sector" : "Industry Sector"}
+                required
+                options={sectorsFor(enterpriseForm.watch("sectorType"))}
+                disabled={!enterpriseForm.watch("sectorType")}
+              />
+              <TextField control={enterpriseForm.control} name="website" label="Website" />
+              <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
+            </form>
+          }
+        />
+
+        <DetailSection
+          icon={MapPin}
+          title="Location"
+          sectionKey="location"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={save(locationForm, "location")}
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Country", value: l.country },
+                { label: "State", value: l.state },
+                { label: "City", value: l.city },
+                { label: "Postal Code", value: l.pin },
+                { label: "Latitude", value: l.latitude },
+                { label: "Longitude", value: l.longitude },
+                { label: "Address", value: l.address },
+              ]}
             />
-            <SelectField control={form.control} name="country" label="Country" required options={countries} />
-            <TextField control={form.control} name="city" label="City" required />
-            <TextField control={form.control} name="contactEmail" label="Contact Email" type="email" />
-            <TextareaField control={form.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
-          </form>
-        ) : (
-          <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-4">
-            <Value label="Enterprise ID">{record.id}</Value>
-            <Value label="Enterprise Name">{current.name}</Value>
-            <Value label="Sector">{current.sectorType}</Value>
-            <Value label={current.sectorType === "Retail" ? "Retail Sector" : "Industry Sector"}>{current.sector}</Value>
-            <Value label="Country">{current.country}</Value>
-            <Value label="City">{current.city}</Value>
-            <Value label="Onboarded">{record.onboarded}</Value>
-            <Value label="Contact Email">{current.contactEmail}</Value>
-            <Value label="Notes">{current.notes}</Value>
-          </dl>
-        )}
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <SelectField control={locationForm.control} name="country" label="Country" required options={countries} />
+              {editingCountryIsIndia ? (
+                <SelectField control={locationForm.control} name="state" label="State" required options={indianStates} />
+              ) : (
+                <TextField control={locationForm.control} name="state" label="State / Province" required />
+              )}
+              <TextField control={locationForm.control} name="city" label="City" required />
+              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
+              <TextField control={locationForm.control} name="latitude" label="Latitude" required inputMode="decimal" />
+              <TextField control={locationForm.control} name="longitude" label="Longitude" required inputMode="decimal" />
+              <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-3" />
+            </form>
+          }
+        />
+
+        <DetailSection
+          icon={Factory}
+          title="Plant"
+          sectionKey="plant"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={save(plantForm, "plant")}
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Plant Name", value: p.name },
+                { label: "Plant Type", value: p.type },
+                { label: "Plant Code", value: p.code },
+                { label: "Plant Head", value: [p.salutation, p.head].filter(Boolean).join(" ") },
+                { label: "Email", value: p.email },
+                { label: "Phone Number", value: p.phone },
+                { label: "Plant Capacity", value: p.capacity },
+                { label: "Commissioning Date", value: showDate(p.commissioningDate) },
+                { label: "Time Zone", value: p.timeZone },
+                { label: "Plant Address", value: p.address },
+                { label: "Notes", value: p.notes },
+              ]}
+            />
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <TextField control={plantForm.control} name="name" label="Plant Name" required />
+              <TextField control={plantForm.control} name="type" label="Plant Type" required />
+              <TextField control={plantForm.control} name="code" label="Plant Code" />
+              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
+                <SelectField control={plantForm.control} name="salutation" label="Title" required options={salutations} />
+                <TextField control={plantForm.control} name="head" label="Plant Head" required />
+              </div>
+              <TextField control={plantForm.control} name="email" label="Email" type="email" />
+              <TextField control={plantForm.control} name="phone" label="Phone Number" type="tel" />
+              <TextField control={plantForm.control} name="capacity" label="Plant Capacity" />
+              <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
+              <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
+              <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
+              <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
+            </form>
+          }
+        />
+
+        <DetailSection
+          icon={Network}
+          title="Department"
+          sectionKey="department"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={save(departmentForm, "department")}
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Department Name", value: d.name },
+                { label: "Department Code", value: d.code },
+                { label: "Department Type", value: d.type },
+                { label: "Parent Department", value: d.parent },
+                { label: "Head of Department", value: d.head },
+                { label: "Email", value: d.email },
+                { label: "Phone Number", value: d.phone },
+                { label: "Description", value: d.description },
+              ]}
+            />
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <TextField control={departmentForm.control} name="name" label="Department Name" />
+              <TextField control={departmentForm.control} name="code" label="Department Code" />
+              <SelectField control={departmentForm.control} name="type" label="Department Type" options={departmentTypes} />
+              <TextField control={departmentForm.control} name="head" label="Head of Department" />
+              <TextField control={departmentForm.control} name="email" label="Email" type="email" />
+              <TextField control={departmentForm.control} name="phone" label="Phone Number" type="tel" />
+              <TextareaField control={departmentForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
+            </form>
+          }
+        />
+
+        <DetailSection
+          icon={Folder}
+          title={`Sub-departments (${subs.length})`}
+          sectionKey="subs"
+          editing={editing}
+          onEditingChange={setEditing}
+          readOnlyNote="Managed in onboarding"
+          view={
+            subs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">None added — this section is optional.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className={th}>#</TableHead>
+                      <TableHead className={th}>Name</TableHead>
+                      <TableHead className={th}>Code</TableHead>
+                      <TableHead className={th}>Function / Area</TableHead>
+                      <TableHead className={`${th} hidden sm:table-cell`}>Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subs.map((s, i) => (
+                      <TableRow key={s.code}>
+                        <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
+                        <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
+                        <TableCell className={td}>{s.code}</TableCell>
+                        <TableCell className={td}>{s.function}</TableCell>
+                        <TableCell className={`${td} hidden sm:table-cell`}>{s.description}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )
+          }
+        />
+
+        <DetailSection
+          icon={Building2}
+          title="Enterprise Administrator Account"
+          sectionKey="account"
+          editing={editing}
+          onEditingChange={setEditing}
+          readOnlyNote="Managed in user access"
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Username", value: account.username },
+                { label: "Role", value: account.role },
+                // Credentials are never echoed back, even to an owner
+                { label: "Password", value: "••••••••" },
+                { label: "Last Login", value: account.lastLogin },
+              ]}
+            />
+          }
+        />
       </SectionCard>
 
       {/* History */}
@@ -236,94 +400,86 @@ export function EnterpriseDetailPage() {
 
         <div className="overflow-x-auto px-1 pb-2">
           <TabsContent value="maintenance">
-            {activities.length === 0 ? (
-              <Empty icon={Wrench} title="No maintenance recorded yet" hint="Work carried out at this enterprise will appear here." />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/60 hover:bg-muted/60">
-                    <TableHead className={th}>ID</TableHead>
-                    <TableHead className={th}>Date</TableHead>
-                    <TableHead className={th}>Asset / Plant</TableHead>
-                    <TableHead className={`${th} hidden md:table-cell`}>Type</TableHead>
-                    <TableHead className={`${th} hidden lg:table-cell`}>ELPREMAR</TableHead>
-                    <TableHead className={th}>Health</TableHead>
-                    <TableHead className={th}>Status</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/60 hover:bg-muted/60">
+                  <TableHead className={th}>ID</TableHead>
+                  <TableHead className={th}>Date</TableHead>
+                  <TableHead className={th}>Asset / Plant</TableHead>
+                  <TableHead className={`${th} hidden md:table-cell`}>Type</TableHead>
+                  <TableHead className={`${th} hidden lg:table-cell`}>ELPREMAR</TableHead>
+                  <TableHead className={th}>Health</TableHead>
+                  <TableHead className={th}>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {activities.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className={`${td} font-medium text-primary`}>{a.id}</TableCell>
+                    <TableCell className={`${td} tabular-nums`}>{a.date}</TableCell>
+                    <TableCell className={td}>
+                      <div className="font-medium">{a.asset}</div>
+                      <div className="text-[0.65rem] text-muted-foreground">{a.plant}</div>
+                    </TableCell>
+                    <TableCell className={`${td} hidden md:table-cell`}>{a.type}</TableCell>
+                    <TableCell className={`${td} hidden lg:table-cell`}>{a.elpremar}</TableCell>
+                    <TableCell className={td}>
+                      {a.healthBefore !== undefined ? (
+                        <span className="flex items-center gap-1">
+                          <HealthPill score={a.healthBefore} />
+                          {a.healthAfter !== undefined ? (
+                            <>
+                              <span className="text-muted-foreground">→</span>
+                              <HealthPill score={a.healthAfter} />
+                            </>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="text-[0.65rem] text-muted-foreground">Not assessed</span>
+                      )}
+                    </TableCell>
+                    <TableCell className={td}>
+                      <Badge variant={workStatus[a.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
+                        {workStatus[a.status].label}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activities.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className={`${td} font-medium text-primary`}>{a.id}</TableCell>
-                      <TableCell className={`${td} tabular-nums`}>{a.date}</TableCell>
-                      <TableCell className={td}>
-                        <div className="font-medium">{a.asset}</div>
-                        <div className="text-[0.65rem] text-muted-foreground">{a.plant}</div>
-                      </TableCell>
-                      <TableCell className={`${td} hidden md:table-cell`}>{a.type}</TableCell>
-                      <TableCell className={`${td} hidden lg:table-cell`}>{a.elpremar}</TableCell>
-                      <TableCell className={td}>
-                        {a.healthBefore !== undefined ? (
-                          <span className="flex items-center gap-1">
-                            <HealthPill score={a.healthBefore} />
-                            {a.healthAfter !== undefined ? (
-                              <>
-                                <span className="text-muted-foreground">→</span>
-                                <HealthPill score={a.healthAfter} />
-                              </>
-                            ) : null}
-                          </span>
-                        ) : (
-                          <span className="text-[0.65rem] text-muted-foreground">Not assessed</span>
-                        )}
-                      </TableCell>
-                      <TableCell className={td}>
-                        <Badge variant={workStatus[a.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
-                          {workStatus[a.status].label}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </TabsContent>
 
           <TabsContent value="tickets">
-            {tickets.length === 0 ? (
-              <Empty icon={LifeBuoy} title="No support tickets" hint="Tickets raised by this enterprise will appear here." />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/60 hover:bg-muted/60">
-                    <TableHead className={th}>Ticket</TableHead>
-                    <TableHead className={th}>Raised</TableHead>
-                    <TableHead className={th}>Subject</TableHead>
-                    <TableHead className={`${th} hidden md:table-cell`}>Category</TableHead>
-                    <TableHead className={th}>Priority</TableHead>
-                    <TableHead className={th}>Status</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/60 hover:bg-muted/60">
+                  <TableHead className={th}>Ticket</TableHead>
+                  <TableHead className={th}>Raised</TableHead>
+                  <TableHead className={th}>Subject</TableHead>
+                  <TableHead className={`${th} hidden md:table-cell`}>Category</TableHead>
+                  <TableHead className={th}>Priority</TableHead>
+                  <TableHead className={th}>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tickets.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className={`${td} font-medium text-primary`}>#{t.id}</TableCell>
+                    <TableCell className={`${td} tabular-nums`}>{t.raised}</TableCell>
+                    <TableCell className={`${td} max-w-72 whitespace-normal`}>{t.subject}</TableCell>
+                    <TableCell className={`${td} hidden md:table-cell`}>{t.category}</TableCell>
+                    <TableCell className={td}>
+                      <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
+                    </TableCell>
+                    <TableCell className={td}>
+                      <Badge variant={workStatus[t.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
+                        {workStatus[t.status].label}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tickets.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className={`${td} font-medium text-primary`}>#{t.id}</TableCell>
-                      <TableCell className={`${td} tabular-nums`}>{t.raised}</TableCell>
-                      <TableCell className={`${td} max-w-72 whitespace-normal`}>{t.subject}</TableCell>
-                      <TableCell className={`${td} hidden md:table-cell`}>{t.category}</TableCell>
-                      <TableCell className={td}>
-                        <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
-                      </TableCell>
-                      <TableCell className={td}>
-                        <Badge variant={workStatus[t.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
-                          {workStatus[t.status].label}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </TabsContent>
         </div>
       </Tabs>
@@ -332,17 +488,14 @@ export function EnterpriseDetailPage() {
         <div className="flex flex-wrap items-center gap-4">
           <div className="min-w-44 flex-1">
             <div className="mb-1 flex items-center justify-between text-[0.7rem]">
-              <span className="text-muted-foreground">Overall health across {record.assets.toLocaleString("en-IN")} assets</span>
-              <span className="font-semibold tabular-nums">{record.status === "critical" ? 48 : record.status === "attention" ? 64 : 86}/100</span>
+              <span className="text-muted-foreground">Across {record.assets.toLocaleString("en-IN")} monitored assets</span>
+              <span className="font-semibold tabular-nums">{overallHealth}/100</span>
             </div>
-            <Progress
-              value={record.status === "critical" ? 48 : record.status === "attention" ? 64 : 86}
-              className="h-2 [&>[data-slot=progress-indicator]]:bg-healthy"
-            />
+            <Progress value={overallHealth} className="h-2 [&>[data-slot=progress-indicator]]:bg-healthy" />
           </div>
           <div className="flex items-center gap-2 text-[0.65rem] text-muted-foreground">
             <MapPin className="size-3.5" />
-            {record.plants} plants · {current.city}, {current.country}
+            {record.plants} plants · {l.city}, {l.country}
           </div>
         </div>
       </SectionCard>
@@ -350,17 +503,4 @@ export function EnterpriseDetailPage() {
   )
 }
 
-/** Shared empty state for the history tabs */
-function Empty({ icon: Icon, title, hint }: { icon: typeof Building2; title: string; hint: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Icon className="size-5" />
-      </div>
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-    </div>
-  )
-}
+const isRetailValue = (v?: string) => v === "Retail"
