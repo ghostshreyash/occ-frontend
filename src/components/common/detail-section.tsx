@@ -1,4 +1,4 @@
-import { Ban, Check, Pencil, X } from "lucide-react"
+import { Check, Pencil, X } from "lucide-react"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
@@ -35,7 +35,7 @@ export function DetailSection({
   editing,
   onEditingChange,
   onSave,
-  readOnlyNote,
+  saveLabel = "Save",
   view,
   edit,
 }: {
@@ -45,8 +45,8 @@ export function DetailSection({
   editing: string | null
   onEditingChange: (k: string | null) => void
   onSave?: () => void
-  /** Shown instead of an Edit button when a section cannot be changed here */
-  readOnlyNote?: string
+  /** Footer label; list editors save as they go, so they say "Done" */
+  saveLabel?: string
   view: React.ReactNode
   edit?: React.ReactNode
 }) {
@@ -66,18 +66,14 @@ export function DetailSection({
           {title}
         </h4>
 
-        {readOnlyNote ? (
-          <span className="flex items-center gap-1 text-[0.65rem] text-muted-foreground">
-            <Ban className="size-3" /> {readOnlyNote}
-          </span>
-        ) : edit ? (
+        {edit ? (
           isEditing ? (
             <div className="flex items-center gap-1">
               <Button type="button" variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={() => onEditingChange(null)}>
                 <X className="size-3" /> Cancel
               </Button>
               <Button type="button" size="sm" className="h-6 text-[0.7rem]" onClick={onSave}>
-                <Check className="size-3" /> Save
+                <Check className="size-3" /> {saveLabel}
               </Button>
             </div>
           ) : (

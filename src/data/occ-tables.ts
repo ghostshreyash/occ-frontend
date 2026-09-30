@@ -369,7 +369,7 @@ export type EnterpriseProfile = {
     address: string; notes: string
   }
   department: { name: string; code: string; type: string; parent: string; head: string; email: string; phone: string; description: string }
-  subDepartments: { name: string; code: string; function: string; description: string }[]
+  subDepartments: { name: string; code: string; function: string; description?: string }[]
   account: { username: string; role: string; lastLogin: string }
 }
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { format, isValid, parseISO } from "date-fns"
 import {
   ArrowLeft,
@@ -12,9 +13,13 @@ import {
   LifeBuoy,
   MapPin,
   Network,
+  Pencil,
+  Plus,
   Server,
   ShieldCheck,
+  Trash2,
   Wrench,
+  X,
 } from "lucide-react"
 import { cn } from "cn"
 
@@ -23,13 +28,13 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
-import { countries, indianStates, salutations, timeZones } from "@/data/mock"
-import { departmentTypes, healthBandFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { countries, indianStates, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
+import { departmentTypes, healthBandFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import {
   activitiesFor,
   enterpriseRecords,
@@ -40,6 +45,7 @@ import {
   type EnterpriseRecord,
 } from "@/data/occ-tables"
 import { healthStatus, workStatus } from "@/lib/status"
+import { required } from "@/lib/validation"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -50,6 +56,36 @@ import {
   type LocationValues,
   type PlantValues,
 } from "./enterprise-onboarding/schemas"
+
+/** One sub-department row in the list editor */
+const subRowSchema = z.object({
+  name: required("Sub-department name"),
+  code: required("Sub-department code"),
+  function: required("Function / Area"),
+  description: z.string().optional(),
+})
+type SubDepartmentRow = z.infer<typeof subRowSchema>
+
+/**
+ * Account editor. The current password is never loaded, only replaced - leave the
+ * new-password fields blank to change the username or role on their own.
+ */
+const accountFormSchema = z
+  .object({
+    username: required("Username").refine((v) => v.trim().length >= 6, "Username must be at least 6 characters"),
+    role: required("Role"),
+    newPassword: z.string().optional(),
+    confirmPassword: z.string().optional(),
+  })
+  .refine((v) => !v.newPassword || v.newPassword.length >= 8, {
+    message: "Password must be at least 8 characters",
+    path: ["newPassword"],
+  })
+  .refine((v) => (v.newPassword ?? "") === (v.confirmPassword ?? ""), {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+type AccountFormValues = z.infer<typeof accountFormSchema>
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
@@ -87,6 +123,8 @@ export function EnterpriseDetailPage() {
 
   const [editing, setEditing] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Partial<EnterpriseProfile>>({})
+  /** Row being edited in the sub-department list, or null when adding a new one */
+  const [subRow, setSubRow] = useState<number | null>(null)
 
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
@@ -99,6 +137,15 @@ export function EnterpriseDetailPage() {
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: profile?.plant })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: profile?.department })
 
+  const subForm = useForm<SubDepartmentRow>({
+    resolver: zodResolver(subRowSchema),
+    defaultValues: { name: "", code: "", function: "", description: "" },
+  })
+  const accountForm = useForm<AccountFormValues>({
+    resolver: zodResolver(accountFormSchema),
+    values: profile ? { username: profile.account.username, role: profile.account.role, newPassword: "", confirmPassword: "" } : undefined,
+  })
+
   const save =
     <T extends FieldValues>(form: UseFormReturn<T>, key: keyof EnterpriseProfile) =>
     () => {
@@ -108,6 +155,29 @@ export function EnterpriseDetailPage() {
         setEditing(null)
       })()
     }
+
+  /** Sub-department list edits write straight into the profile override */
+  const writeSubs = (rows: SubDepartmentRow[]) => setOverrides((o) => ({ ...o, subDepartments: rows }))
+
+  const commitSubRow = subForm.handleSubmit((values) => {
+    const rows = [...(profile?.subDepartments ?? [])]
+    if (subRow !== null) rows[subRow] = values
+    else rows.push(values)
+    writeSubs(rows)
+    setSubRow(null)
+    subForm.reset({ name: "", code: "", function: "", description: "" })
+  })
+
+  const saveAccount = accountForm.handleSubmit((values) => {
+    // The password is write-only: it is never read back, only replaced
+    setOverrides((o) => ({
+      ...o,
+      account: { ...(profile?.account ?? { username: "", role: "", lastLogin: "" }), username: values.username, role: values.role },
+    }))
+    accountForm.setValue("newPassword", "")
+    accountForm.setValue("confirmPassword", "")
+    setEditing(null)
+  })
 
   if (!record || !profile) {
     return (
@@ -326,37 +396,51 @@ export function EnterpriseDetailPage() {
           title={`Sub-departments (${subs.length})`}
           sectionKey="subs"
           editing={editing}
-          onEditingChange={setEditing}
-          readOnlyNote="Managed in onboarding"
-          view={
-            subs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">None added — this section is optional.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className={th}>#</TableHead>
-                      <TableHead className={th}>Name</TableHead>
-                      <TableHead className={th}>Code</TableHead>
-                      <TableHead className={th}>Function / Area</TableHead>
-                      <TableHead className={`${th} hidden sm:table-cell`}>Description</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subs.map((s, i) => (
-                      <TableRow key={s.code}>
-                        <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
-                        <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
-                        <TableCell className={td}>{s.code}</TableCell>
-                        <TableCell className={td}>{s.function}</TableCell>
-                        <TableCell className={`${td} hidden sm:table-cell`}>{s.description}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )
+          onEditingChange={(k) => {
+            setEditing(k)
+            setSubRow(null)
+            subForm.reset({ name: "", code: "", function: "", description: "" })
+          }}
+          onSave={() => setEditing(null)}
+          saveLabel="Done"
+          view={<SubTable rows={subs} />}
+          edit={
+            <div className="space-y-2.5">
+              <SubTable
+                rows={subs}
+                onEdit={(i) => {
+                  setSubRow(i)
+                  subForm.reset(subs[i])
+                }}
+                onRemove={(i) => writeSubs(subs.filter((_, n) => n !== i))}
+              />
+
+              <form onSubmit={commitSubRow} className="grid items-end gap-2.5 rounded-md bg-muted/40 p-2.5 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" noValidate>
+                <TextField control={subForm.control} name="name" label="Sub-department Name" required placeholder="e.g. HT Maintenance" />
+                <TextField control={subForm.control} name="code" label="Code" required placeholder="e.g. SUB-EL-HT" />
+                <SelectField control={subForm.control} name="function" label="Function / Area" required options={subDepartmentFunctions} />
+                <TextField control={subForm.control} name="description" label="Description" />
+                <div className="flex gap-1.5">
+                  <Button type="submit" size="sm" className="h-8 text-xs">
+                    {subRow !== null ? <><Pencil className="size-3.5" /> Update</> : <><Plus className="size-3.5" /> Add</>}
+                  </Button>
+                  {subRow !== null ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => {
+                        setSubRow(null)
+                        subForm.reset({ name: "", code: "", function: "", description: "" })
+                      }}
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  ) : null}
+                </div>
+              </form>
+            </div>
           }
         />
 
@@ -366,7 +450,7 @@ export function EnterpriseDetailPage() {
           sectionKey="account"
           editing={editing}
           onEditingChange={setEditing}
-          readOnlyNote="Managed in user access"
+          onSave={saveAccount}
           view={
             <ValueGrid
               rows={[
@@ -377,6 +461,21 @@ export function EnterpriseDetailPage() {
                 { label: "Last Login", value: account.lastLogin },
               ]}
             />
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
+              <TextField control={accountForm.control} name="username" label="Username" required />
+              <SelectField control={accountForm.control} name="role" label="Role" required options={userRoles} />
+              <div className="md:col-span-2 rounded-md bg-muted/40 p-2.5">
+                <p className="mb-2 text-[0.7rem] text-muted-foreground">
+                  Leave blank to keep the current password. The existing password is never shown.
+                </p>
+                <div className="grid gap-2.5 md:grid-cols-2">
+                  <PasswordField control={accountForm.control} name="newPassword" label="New Password" placeholder="At least 8 characters" />
+                  <PasswordField control={accountForm.control} name="confirmPassword" label="Confirm New Password" />
+                </div>
+              </div>
+            </form>
           }
         />
       </SectionCard>
@@ -504,3 +603,57 @@ export function EnterpriseDetailPage() {
 }
 
 const isRetailValue = (v?: string) => v === "Retail"
+
+/** Sub-department list; row actions appear only while the section is being edited */
+function SubTable({
+  rows,
+  onEdit,
+  onRemove,
+}: {
+  rows: { name: string; code: string; function: string; description?: string }[]
+  onEdit?: (i: number) => void
+  onRemove?: (i: number) => void
+}) {
+  if (rows.length === 0) {
+    return <p className="text-xs text-muted-foreground">None added yet.</p>
+  }
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className={th}>#</TableHead>
+            <TableHead className={th}>Name</TableHead>
+            <TableHead className={th}>Code</TableHead>
+            <TableHead className={th}>Function / Area</TableHead>
+            <TableHead className={`${th} hidden sm:table-cell`}>Description</TableHead>
+            {onEdit ? <TableHead className={`${th} w-20`}>Actions</TableHead> : null}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((s, i) => (
+            <TableRow key={`${s.code}-${i}`}>
+              <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
+              <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
+              <TableCell className={td}>{s.code}</TableCell>
+              <TableCell className={td}>{s.function}</TableCell>
+              <TableCell className={`${td} hidden sm:table-cell`}>{s.description}</TableCell>
+              {onEdit ? (
+                <TableCell className="px-2 py-1.5">
+                  <div className="flex gap-0.5">
+                    <Button type="button" variant="ghost" size="icon" className="size-6" aria-label={`Edit ${s.name}`} onClick={() => onEdit(i)}>
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" className="size-6 text-critical" aria-label={`Remove ${s.name}`} onClick={() => onRemove?.(i)}>
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
