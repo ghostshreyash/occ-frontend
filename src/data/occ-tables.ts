@@ -224,7 +224,70 @@ export const priorityTone: Record<Priority, string> = {
 
 /* ---------- Enterprise detail: history ---------- */
 
-/** Maintenance and inspection history for one enterprise */
+/**
+ * History is generated deterministically from the enterprise id, so every record
+ * has a populated detail screen and the same enterprise always shows the same
+ * rows. Replace wholesale once /enterprises/:id/activities exists.
+ */
+
+/** Stable hash so a given enterprise always draws the same values */
+const seedOf = (s: string) => {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+const pick = <T,>(pool: readonly T[], seed: number, offset: number) => pool[(seed + offset * 7) % pool.length]
+
+/** Industrial sites and retail sites run very different equipment */
+const industryAssets = [
+  "11kV/415V Power Transformer - T1",
+  "HT Panel - Incomer 1",
+  "LT Panel - Block A",
+  "MCC - Unit 2",
+  "PCC - Main",
+  "APFC Panel - 1",
+  "VFD - Conveyor Drive",
+  "Busbar Chamber - Main",
+  "ACB - Incomer",
+  "Relay Panel - Protection",
+]
+const retailAssets = [
+  "Lighting Distribution Board - Level 2",
+  "Distribution Board - Admin Wing",
+  "UPS - Server Room",
+  "APFC Panel - Basement",
+  "LT Panel - Chiller Plant",
+  "Battery Bank - Backup",
+  "Fire Alarm Panel - Atrium",
+  "Sub Distribution Board - Retail Floor",
+]
+const plantSuffixes = ["Main Plant", "Unit 2", "Substation", "Utility Block", "Warehouse", "Annexe"]
+const elpremarPool = ["Suresh Kumar", "Amit Sharma", "Ramesh Patil", "Anil Singh", "Priya Nair", "Vikram Desai"]
+const workTypes = ["Preventive Maintenance", "Condition-Based Maintenance", "Fire Preventive Maintenance", "Visual Inspection", "Thermal Inspection"]
+const workStatuses: WorkStatus[] = ["completed", "completed", "completed", "in_progress", "assigned", "pending"]
+const ticketSubjects = [
+  "EVITA sync failing on tablet",
+  "Request additional ELPREMAR for shutdown",
+  "Asset QR code not scanning after relabelling",
+  "Add new sub-department under Electrical",
+  "PD meter not pairing over Bluetooth",
+  "Health report PDF not downloading",
+  "User access request for new plant head",
+  "EMMSE dashboard loading slowly",
+  "Thermal images not uploading from the field",
+  "Correct the plant capacity on record",
+]
+const ticketCategories = ["EVITA", "ELPREMAR", "Assets", "Hierarchy", "Instruments", "Reports", "Access", "Platform"]
+const ticketPriorities: (typeof priorities)[number][] = ["Low", "Medium", "High", "Critical"]
+
+/** Dates count back from a fixed reference so the data never shifts */
+const REFERENCE = new Date(2026, 8, 28)
+const dateBack = (days: number) => {
+  const d = new Date(REFERENCE)
+  d.setDate(d.getDate() - days)
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`
+}
+
 export type EnterpriseActivity = {
   id: string
   enterpriseId: string
@@ -238,20 +301,6 @@ export type EnterpriseActivity = {
   status: WorkStatus
 }
 
-export const enterpriseActivities: EnterpriseActivity[] = [
-  { id: "MT-3104", enterpriseId: "TSL-ENT-001", date: "24-09-2026", asset: "11kV/415V Transformer - T1", plant: "Mumbai Works", type: "Preventive Maintenance", elpremar: "Suresh Kumar", healthBefore: 62, healthAfter: 88, status: "completed" },
-  { id: "MT-3098", enterpriseId: "TSL-ENT-001", date: "18-09-2026", asset: "LT Panel - Block A", plant: "Mumbai Works", type: "Condition-Based Maintenance", elpremar: "Suresh Kumar", healthBefore: 55, healthAfter: 81, status: "completed" },
-  { id: "MT-3091", enterpriseId: "TSL-ENT-001", date: "11-09-2026", asset: "MCC - Unit 2", plant: "Jamshedpur", type: "Fire Preventive Maintenance", elpremar: "Ramesh Patil", healthBefore: 48, status: "in_progress" },
-  { id: "MT-3085", enterpriseId: "TSL-ENT-001", date: "02-09-2026", asset: "HT Panel - Incomer 1", plant: "Jamshedpur", type: "Preventive Maintenance", elpremar: "Anil Singh", healthBefore: 71, healthAfter: 92, status: "completed" },
-  { id: "MT-3077", enterpriseId: "TSL-ENT-001", date: "21-08-2026", asset: "PCC - Main", plant: "Mumbai Works", type: "Condition-Based Maintenance", elpremar: "Suresh Kumar", healthBefore: 40, healthAfter: 74, status: "completed" },
-  { id: "MT-3202", enterpriseId: "RIL-ENT-002", date: "22-09-2026", asset: "APFC Panel - 1", plant: "Jamnagar", type: "Preventive Maintenance", elpremar: "Amit Sharma", healthBefore: 66, healthAfter: 90, status: "completed" },
-  { id: "MT-3198", enterpriseId: "RIL-ENT-002", date: "14-09-2026", asset: "UPS - 03", plant: "Jamnagar", type: "Fire Preventive Maintenance", elpremar: "Amit Sharma", healthBefore: 52, status: "assigned" },
-  { id: "MT-3301", enterpriseId: "JSW-ENT-003", date: "26-09-2026", asset: "VFD - Conveyor", plant: "Dolvi", type: "Condition-Based Maintenance", elpremar: "Ramesh Patil", healthBefore: 58, healthAfter: 84, status: "completed" },
-  { id: "MT-3299", enterpriseId: "JSW-ENT-003", date: "09-09-2026", asset: "Distribution Board - Admin", plant: "Dolvi", type: "Preventive Maintenance", elpremar: "Ramesh Patil", status: "pending" },
-  { id: "MT-3402", enterpriseId: "ADN-ENT-004", date: "20-09-2026", asset: "Power Transformer - T3", plant: "Mundra", type: "Preventive Maintenance", elpremar: "Anil Singh", healthBefore: 44, status: "in_progress" },
-]
-
-/** Support tickets raised by one enterprise */
 export type EnterpriseTicket = {
   id: string
   enterpriseId: string
@@ -262,16 +311,48 @@ export type EnterpriseTicket = {
   status: WorkStatus
 }
 
-export const enterpriseTickets: EnterpriseTicket[] = [
-  { id: "TK-4612", enterpriseId: "TSL-ENT-001", raised: "27-09-2026", subject: "EVITA sync failing on tablet at Jamshedpur", category: "EVITA", priority: "High", status: "open" },
-  { id: "TK-4601", enterpriseId: "TSL-ENT-001", raised: "19-09-2026", subject: "Request additional ELPREMAR for Q4 shutdown", category: "ELPREMAR", priority: "Medium", status: "in_progress" },
-  { id: "TK-4588", enterpriseId: "TSL-ENT-001", raised: "05-09-2026", subject: "Asset QR code not scanning after relabelling", category: "Assets", priority: "Low", status: "closed" },
-  { id: "TK-4577", enterpriseId: "TSL-ENT-001", raised: "28-08-2026", subject: "Add new sub-department under Electrical", category: "Hierarchy", priority: "Low", status: "closed" },
-  { id: "TK-4620", enterpriseId: "RIL-ENT-002", raised: "25-09-2026", subject: "PD meter not pairing over Bluetooth", category: "Instruments", priority: "Critical", status: "in_progress" },
-  { id: "TK-4593", enterpriseId: "RIL-ENT-002", raised: "12-09-2026", subject: "Health report PDF not downloading", category: "Reports", priority: "Medium", status: "closed" },
-  { id: "TK-4631", enterpriseId: "JSW-ENT-003", raised: "28-09-2026", subject: "User access request for new plant head", category: "Access", priority: "Medium", status: "open" },
-  { id: "TK-4615", enterpriseId: "ADN-ENT-004", raised: "23-09-2026", subject: "EMMSE dashboard loading slowly at Mundra", category: "Platform", priority: "High", status: "open" },
-]
+function buildActivities(e: EnterpriseRecord): EnterpriseActivity[] {
+  const seed = seedOf(e.id)
+  const assets = e.sectorType === "Retail" ? retailAssets : industryAssets
+  const count = 5 + (seed % 3) // 5-7 rows, enough to fill the screen
+  return Array.from({ length: count }, (_, i) => {
+    const status = pick(workStatuses, seed, i)
+    const before = 38 + ((seed + i * 13) % 40)
+    const done = status === "completed"
+    return {
+      id: `MT-${3000 + (seed % 900) + i * 3}`,
+      enterpriseId: e.id,
+      date: dateBack(i * 9 + (seed % 5)),
+      asset: pick(assets, seed, i),
+      plant: `${e.city} ${pick(plantSuffixes, seed, i + 2)}`,
+      type: pick(workTypes, seed, i + 1),
+      elpremar: pick(elpremarPool, seed, i + 3),
+      healthBefore: before,
+      healthAfter: done ? Math.min(96, before + 22 + ((seed + i) % 10)) : undefined,
+      status,
+    }
+  })
+}
+
+function buildTickets(e: EnterpriseRecord): EnterpriseTicket[] {
+  const seed = seedOf(e.id)
+  const count = 3 + (seed % 3) // 3-5 rows
+  return Array.from({ length: count }, (_, i) => {
+    const closed = (seed + i) % 3 === 0
+    return {
+      id: `TK-${4500 + (seed % 200) + i * 4}`,
+      enterpriseId: e.id,
+      raised: dateBack(i * 7 + (seed % 4)),
+      subject: pick(ticketSubjects, seed, i),
+      category: pick(ticketCategories, seed, i + 1),
+      priority: pick(ticketPriorities, seed, i + 2),
+      status: closed ? "closed" : i === 0 ? "open" : "in_progress",
+    }
+  })
+}
+
+export const enterpriseActivities: EnterpriseActivity[] = enterpriseRecords.flatMap(buildActivities)
+export const enterpriseTickets: EnterpriseTicket[] = enterpriseRecords.flatMap(buildTickets)
 
 export const activitiesFor = (enterpriseId: string) => enterpriseActivities.filter((a) => a.enterpriseId === enterpriseId)
 export const ticketsFor = (enterpriseId: string) => enterpriseTickets.filter((t) => t.enterpriseId === enterpriseId)
