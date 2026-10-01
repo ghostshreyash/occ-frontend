@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { password, phone, required, username } from "@/lib/validation"
+import { password, phone, required } from "@/lib/validation"
 
 export const basicSchema = z.object({
   photo: z.instanceof(File).optional(),
@@ -10,11 +10,21 @@ export const basicSchema = z.object({
   gender: z.enum(["Male", "Female", "Other"], "Select gender"),
   mobile: phone,
   email: z.email("Enter a valid email address"),
-  location: required("Location"),
+  postalCode: z.string().optional(),
+  address: z.string().optional(),
+})
+
+/**
+ * Assigning an ELPREMAR to an enterprise that already exists - this step picks
+ * from the hierarchy, it never creates one.
+ */
+export const assignmentSchema = z.object({
+  enterprise: required("Enterprise"),
   plant: required("Plant"),
   department: required("Department"),
-  supervisor: z.string().optional(),
-  address: z.string().optional(),
+  subDepartment: z.string().optional(),
+  supervisor: required("Reporting supervisor"),
+  effectiveFrom: required("Effective from"),
 })
 
 export const certificationSchema = z.object({
@@ -26,15 +36,14 @@ export const certificationSchema = z.object({
 export const workSchema = z.object({
   designation: required("Role / designation"),
   experience: z.string().regex(/^\d{1,2}$/, "Enter years of experience"),
-  shift: required("Shift preference"),
-  supervisor: required("Reporting supervisor"),
   skills: z.array(z.string()).min(1, "Select at least one skill"),
   certifications: z.array(certificationSchema),
 })
 
 export const credentialsSchema = z
   .object({
-    username,
+    // The ELPREMAR signs in with their email, carried over from Basic Details
+    email: z.email("Enter a valid email address"),
     role: required("User role"),
     password,
     confirmPassword: z.string(),
@@ -46,6 +55,7 @@ export const credentialsSchema = z
   .refine((v) => v.webAccess || v.mobileAccess, { message: "Allow at least one type of login access", path: ["webAccess"] })
 
 export type BasicValues = z.infer<typeof basicSchema>
+export type AssignmentValues = z.infer<typeof assignmentSchema>
 export type WorkValues = z.infer<typeof workSchema>
 export type CredentialsValues = z.infer<typeof credentialsSchema>
 export type CertificationValues = z.infer<typeof certificationSchema>
@@ -53,5 +63,6 @@ export type CertificationValues = z.infer<typeof certificationSchema>
 export type ElpremarDraft = {
   basic?: BasicValues
   work?: WorkValues
+  assignment?: AssignmentValues
   credentials?: CredentialsValues
 }

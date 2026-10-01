@@ -153,7 +153,6 @@ export const timeZones = ["(UTC+05:30) India Standard Time", "(UTC+04:00) Gulf S
 
 /* ---------- ELPREMAR ---------- */
 
-export const elpremarKpis = { total: 48, onDuty: 32, onLeave: 6, notAssigned: 10 }
 
 export type Elpremar = {
   id: string
@@ -187,7 +186,6 @@ export const durations = ["1 Hour", "2 Hours", "4 Hours", "6 Hours", "8 Hours"]
 export const priorities = ["Low", "Medium", "High", "Critical"] as const
 export const supervisors = ["Ramesh Patil", "Amit Verma", "R. K. Sharma", "S. Krishnan"]
 export const shiftOptions = ["General Shift (Rotational)", "Morning Shift", "Evening Shift", "Night Shift"]
-export const designations = ["Electrical Preventive Maintenance Person", "Senior ELPREMAR", "Team Leader", "Field Engineer"]
 export const elpremarSkills = [
   "HT Panels & Switchgear",
   "Transformers",

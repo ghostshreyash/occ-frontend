@@ -107,6 +107,63 @@ export const elpremarRoles = [
   "ELPREMAR – Fire Prevention",
 ] as const
 
+/**
+ * Just the stream name. On a screen that is already about ELPREMARs the prefix
+ * is noise on every row, and dropping it keeps the column from wrapping.
+ */
+export const roleStream = (role: string) => role.replace(/^ELPREMAR\s*[–-]\s*/, "")
+
+/**
+ * The certified ELPREMAR roster. Shared so the workforce registry and the work
+ * rows assigned to them draw from one list - otherwise a person could exist with
+ * no work, or work could be assigned to someone who is not on the register.
+ * Gender travels with the name so salutations cannot contradict it.
+ */
+export const elpremarRoster = [
+  { name: "Suresh Kumar", gender: "Male" },
+  { name: "Amit Sharma", gender: "Male" },
+  { name: "Ramesh Patil", gender: "Male" },
+  { name: "Anil Singh", gender: "Male" },
+  { name: "Priya Nair", gender: "Female" },
+  { name: "Vikram Desai", gender: "Male" },
+  { name: "Khalid Rahman", gender: "Male" },
+  { name: "Lukas Weber", gender: "Male" },
+  { name: "Maria Lopez", gender: "Female" },
+  { name: "Rajesh Verma", gender: "Male" },
+  { name: "Sunita Iyer", gender: "Female" },
+  { name: "Arun Joshi", gender: "Male" },
+  { name: "Deepak Menon", gender: "Male" },
+  { name: "Kavita Reddy", gender: "Female" },
+  { name: "Imran Qureshi", gender: "Male" },
+  { name: "Sanjay Gupta", gender: "Male" },
+  { name: "Meera Bose", gender: "Female" },
+  { name: "Rahul Chawla", gender: "Male" },
+  { name: "Farah Siddiqui", gender: "Female" },
+  { name: "Joseph Mathew", gender: "Male" },
+] as const
+
+/** Just the names, for pools that only need to assign work */
+export const elpremarNames = elpremarRoster.map((e) => e.name)
+
+/** How many of the newest roster members have not finished training */
+const inTraining = 3
+
+/**
+ * Where a roster member sits in the training-to-deployment lifecycle, by index.
+ * Taken by position rather than hashed, so every bucket is populated across a
+ * roster this small, and the untrained are the newest joiners at the end of the
+ * list - the hand-written work rows name the earlier members by hand, and those
+ * people have to be able to hold the work assigned to them.
+ * Shared so a member's status and the crew work is assigned to cannot drift.
+ */
+export const elpremarLifecycle = (i: number) =>
+  i >= elpremarRoster.length - inTraining ? "not_trained" : i % 4 === 0 ? "trained" : "in_field"
+
+/** Who can be given work: anyone past training, deployed or on the bench */
+export const deployableElpremarNames = elpremarRoster
+  .filter((_, i) => elpremarLifecycle(i) !== "not_trained")
+  .map((e) => e.name)
+
 /* ---------- Assets ---------- */
 
 export const assetCategories = [

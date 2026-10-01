@@ -1,17 +1,19 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link } from "react-router"
 import { toast } from "sonner"
-import { ArrowLeft, ArrowRight, BarChart3, CheckCircle2, ClipboardCheck, HardHat, KeyRound, UserRound } from "lucide-react"
+import { ArrowLeft, ArrowRight, BarChart3, Building2, CheckCircle2, ClipboardCheck, HardHat, KeyRound, UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
-import { BasicDetailsStep, CredentialsStep, ReviewStep, WorkSkillsStep } from "./steps"
+import { AssignEnterpriseStep, BasicDetailsStep, CredentialsStep, ReviewStep, WorkSkillsStep } from "./steps"
+import { ElpremarRegister } from "./register"
 import type { ElpremarDraft } from "./schemas"
 
 const steps: WizardStep[] = [
-  { title: "Basic Details", description: "Personal and organisational information", icon: UserRound },
+  { title: "Basic Details", description: "Personal and contact information", icon: UserRound },
   { title: "Work & Skills", description: "Role, experience and certifications", icon: HardHat },
+  { title: "Assign Enterprise", description: "Post to a plant and department", icon: Building2 },
   { title: "Account Credentials", description: "Create username and password", icon: KeyRound },
   { title: "Review & Submit", description: "Verify details and complete onboarding", icon: ClipboardCheck },
 ]
@@ -19,8 +21,9 @@ const steps: WizardStep[] = [
 const keyInfo = [
   [
     "Create a profile for each Electrical Preventive Maintenance Person (ELPREMAR).",
-    "Username and password will be created in Step 3.",
-    "Ensure correct department, plant and contact details for proper assignment.",
+    "The employee ID is issued automatically and cannot be edited.",
+    "Where they are posted is captured later, in Step 3.",
+    "Username and password will be created in Step 4.",
     "All fields marked with * are mandatory.",
   ],
   [
@@ -28,6 +31,13 @@ const keyInfo = [
     "Multiple skills can be selected.",
     "Certifications help in compliance and safety management.",
     "You can add multiple training records.",
+    "Fields marked with * are mandatory.",
+  ],
+  [
+    "Assign the ELPREMAR to an enterprise that is already onboarded.",
+    "Plant, department and sub-department are read from that enterprise's own structure.",
+    "The reporting supervisor is the department head, or the plant head above them.",
+    "An ELPREMAR can be reassigned later from their profile.",
     "Fields marked with * are mandatory.",
   ],
   [
@@ -57,12 +67,27 @@ function SkilledPeopleBanner() {
   )
 }
 
-/** ELPREMAR Onboarding, 4 steps (mockup pages 9–12) */
+/**
+ * ELPREMAR Onboarding.
+ * Lands on the workforce register (KPIs + table); "Onboard ELPREMAR" opens the wizard.
+ */
 export function ElpremarOnboardingPage() {
-  const navigate = useNavigate()
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
   const [draft, setDraft] = useState<ElpremarDraft>({})
+
+  const closeWizard = () => {
+    setWizardOpen(false)
+    setStep(0)
+    setFurthest(0)
+    setDraft({})
+    window.scrollTo({ top: 0 })
+  }
+
+  if (!wizardOpen) {
+    return <ElpremarRegister onStart={() => { setWizardOpen(true); window.scrollTo({ top: 0 }) }} />
+  }
 
   const go = (n: number) => {
     setStep(n)
@@ -75,14 +100,14 @@ export function ElpremarOnboardingPage() {
   }
 
   const aside =
-    step < 3 ? (
+    step < 4 ? (
       <>
         <KeyInfo items={keyInfo[step]} />
         {step === 1 ? <SkilledPeopleBanner /> : null}
         {step === 0 ? (
           <div className="flex justify-end">
-            <Button variant="outline" className="bg-card" asChild>
-              <Link to="/elpremars"><ArrowLeft /> Back to ELPREMAR</Link>
+            <Button variant="outline" size="sm" className="h-7 bg-card text-xs" onClick={closeWizard}>
+              <ArrowLeft className="size-3.5" /> Back to ELPREMARs
             </Button>
           </div>
         ) : null}
@@ -90,29 +115,31 @@ export function ElpremarOnboardingPage() {
     ) : (
       <>
         <KeyInfo title="What happens next?" items={whatNext} />
-        <Button variant="outline" className="w-full bg-card text-primary" asChild>
-          <Link to="/elpremars"><BarChart3 /> Go to ELPREMAR Activity &amp; Availability <ArrowRight /></Link>
+        <Button variant="outline" size="sm" className="w-full bg-card text-xs text-primary" asChild>
+          <Link to="/inspection-activities"><BarChart3 className="size-3.5" /> Inspection Activities <ArrowRight className="size-3.5" /></Link>
         </Button>
       </>
     )
 
   return (
     <WizardPage
-      title="ELPREMAR Onboarding"
-      breadcrumbs={[{ label: "ELPREMAR Activity & Availability", to: "/elpremars" }, { label: "ELPREMAR Onboarding" }]}
+      title="Onboard ELPREMAR"
+      breadcrumbs={[{ label: "ELPREMARs", onClick: closeWizard }, { label: "New ELPREMAR" }]}
+      onExit={closeWizard}
       onStepSelect={(i) => i <= furthest && go(i)}
       furthest={furthest}
       steps={steps}
       current={step}
       aside={aside}
     >
-      {step === 0 && <BasicDetailsStep draft={draft} onNext={save("basic")} onCancel={() => navigate("/elpremars")} />}
+      {step === 0 && <BasicDetailsStep draft={draft} onNext={save("basic")} onCancel={closeWizard} />}
       {step === 1 && <WorkSkillsStep draft={draft} onNext={save("work")} onBack={() => go(0)} />}
-      {step === 2 && <CredentialsStep draft={draft} onNext={save("credentials")} onBack={() => go(1)} />}
-      {step === 3 && (
+      {step === 2 && <AssignEnterpriseStep draft={draft} onNext={save("assignment")} onBack={() => go(1)} />}
+      {step === 3 && <CredentialsStep draft={draft} onNext={save("credentials")} onBack={() => go(2)} />}
+      {step === 4 && (
         <ReviewStep
           draft={draft}
-          onBack={() => go(2)}
+          onBack={() => go(3)}
           onEdit={go}
           onSubmit={() => {
             // TODO: POST /elpremars
@@ -120,7 +147,8 @@ export function ElpremarOnboardingPage() {
               description: "Login credentials are now active.",
               icon: <CheckCircle2 className="size-4 text-healthy" />,
             })
-            navigate("/elpremars")
+            // Back to the register, where the new record belongs
+            closeWizard()
           }}
         />
       )}
