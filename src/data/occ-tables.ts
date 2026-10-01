@@ -6,7 +6,7 @@
 import { addDays, format } from "date-fns"
 
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { dialCodeFor, elpremarNames } from "@/data/master-data"
+import { deployableElpremarNames, dialCodeFor, elpremarNames } from "@/data/master-data"
 import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
 type Priority = (typeof priorities)[number]
@@ -668,8 +668,8 @@ const sites = enterpriseRecords.flatMap((e) =>
     .map((plant) => ({ enterprise: e.name, plant: plant.name, country: e.country })),
 )
 
-/** The crew work is assigned to — the same roster the ELPREMAR register lists */
-const crew = elpremarNames
+/** The crew work is assigned to: trained people only, never someone still in training */
+const crew = deployableElpremarNames
 
 const ticketSubjects = [
   "EVITA sync failing on tablet",

@@ -7,16 +7,11 @@ import { format, isValid, parseISO } from "date-fns"
 import {
   ArrowLeft,
   Award,
-  BadgeCheck,
-  Briefcase,
   Building2,
-  CalendarClock,
   HardHat,
   MapPin,
-  ShieldAlert,
   ShieldCheck,
   UserRound,
-  Wrench,
 } from "lucide-react"
 import { cn } from "cn"
 
@@ -27,12 +22,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DateField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
-import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { ExpiryValue } from "@/components/common/expiry-value"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import {
-  certificationHealth,
   elpremarProfileFor,
   elpremarRecords,
   elpremarStatusMeta,
@@ -144,7 +137,6 @@ export function ElpremarDetailPage() {
 
   const { basic: b, posting: po, work: w, certifications: certs, account } = profile
   const meta = elpremarStatusMeta[record.status]
-  const certHealth = certificationHealth(certs)
   const skills = workForm.watch("skills") ?? []
   const toggleSkill = (skill: string) =>
     workForm.setValue("skills", skills.includes(skill) ? skills.filter((s) => s !== skill) : [...skills, skill], {
@@ -155,7 +147,6 @@ export function ElpremarDetailPage() {
     <div className="space-y-3">
       <PageHeader
         title={`${b.salutation} ${b.name}`}
-        description={`${w.role} · ${po.enterprise || "Unassigned"} · ${po.city}, ${po.country}`}
         breadcrumbs={[{ label: "ELPREMARs", to: "/elpremars" }, { label: b.name }]}
         actions={
           <>
@@ -166,15 +157,6 @@ export function ElpremarDetailPage() {
           </>
         }
       />
-
-      {/* Readiness, not work volume - the card below already breaks the work down */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="Experience" value={`${record.experience} yrs`} icon={Briefcase} tone="info" variant="plain" />
-        <StatCard label="Skills Certified" value={w.skills.length} icon={Wrench} tone="highlight" variant="plain" />
-        <StatCard label="Certificates Valid" value={certHealth.valid} icon={BadgeCheck} tone="healthy" variant="plain" />
-        <StatCard label="Expiring in 90 Days" value={certHealth.expiring} icon={CalendarClock} tone="attention" variant="plain" />
-        <StatCard label="Expired" value={certHealth.expired} icon={ShieldAlert} tone="critical" variant="plain" />
-      </div>
 
       <WorkSummaryCard elpremar={record.name} />
 

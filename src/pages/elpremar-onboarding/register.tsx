@@ -4,14 +4,14 @@ import {
   ArrowDown,
   ArrowDownWideNarrow,
   ArrowUp,
-  CalendarOff,
   FileDown,
+  CircleAlert,
+  GraduationCap,
   HardHat,
+  MapPinned,
   MapPin,
   Plus,
   Search,
-  UserCheck,
-  UserPlus,
   X,
 } from "lucide-react"
 import { cn } from "cn"
@@ -119,9 +119,9 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <StatCard label="Total ELPREMARs" value={elpremarRegisterKpis.total} delta={elpremarRegisterKpis.delta.total} icon={HardHat} tone="info" variant="plain" />
-        <StatCard label="On Duty" value={elpremarRegisterKpis.onDuty} delta={elpremarRegisterKpis.delta.onDuty} icon={UserCheck} tone="healthy" variant="plain" />
-        <StatCard label="On Leave" value={elpremarRegisterKpis.onLeave} icon={CalendarOff} tone="attention" variant="plain" />
-        <StatCard label="Not Assigned" value={elpremarRegisterKpis.notAssigned} icon={UserPlus} tone="neutral" variant="plain" />
+        <StatCard label="Trained" value={elpremarRegisterKpis.trained} icon={GraduationCap} tone="info" variant="plain" />
+        <StatCard label="Not Trained" value={elpremarRegisterKpis.notTrained} icon={CircleAlert} tone="attention" variant="plain" />
+        <StatCard label="In Field" value={elpremarRegisterKpis.inField} delta={elpremarRegisterKpis.delta.inField} icon={MapPinned} tone="healthy" variant="plain" />
       </div>
 
       <SectionCard
@@ -160,7 +160,7 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
             onChange={setStatus}
             allLabel="All Statuses"
             width="w-36"
-            options={["on_duty", "on_leave", "not_assigned"]}
+            options={["trained", "not_trained", "in_field"]}
             renderOption={(v) => elpremarStatusMeta[v as keyof typeof elpremarStatusMeta].label}
           />
 

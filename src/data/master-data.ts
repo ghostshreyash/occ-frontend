@@ -145,6 +145,25 @@ export const elpremarRoster = [
 /** Just the names, for pools that only need to assign work */
 export const elpremarNames = elpremarRoster.map((e) => e.name)
 
+/** How many of the newest roster members have not finished training */
+const inTraining = 3
+
+/**
+ * Where a roster member sits in the training-to-deployment lifecycle, by index.
+ * Taken by position rather than hashed, so every bucket is populated across a
+ * roster this small, and the untrained are the newest joiners at the end of the
+ * list - the hand-written work rows name the earlier members by hand, and those
+ * people have to be able to hold the work assigned to them.
+ * Shared so a member's status and the crew work is assigned to cannot drift.
+ */
+export const elpremarLifecycle = (i: number) =>
+  i >= elpremarRoster.length - inTraining ? "not_trained" : i % 4 === 0 ? "trained" : "in_field"
+
+/** Who can be given work: anyone past training, deployed or on the bench */
+export const deployableElpremarNames = elpremarRoster
+  .filter((_, i) => elpremarLifecycle(i) !== "not_trained")
+  .map((e) => e.name)
+
 /* ---------- Assets ---------- */
 
 export const assetCategories = [

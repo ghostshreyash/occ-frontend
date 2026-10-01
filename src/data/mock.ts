@@ -153,7 +153,6 @@ export const timeZones = ["(UTC+05:30) India Standard Time", "(UTC+04:00) Gulf S
 
 /* ---------- ELPREMAR ---------- */
 
-export const elpremarKpis = { total: 48, onDuty: 32, onLeave: 6, notAssigned: 10 }
 
 export type Elpremar = {
   id: string

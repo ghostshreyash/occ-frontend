@@ -5,13 +5,13 @@
  * a deterministic full profile for the detail screen. Replace with API calls
  * (TanStack Query) later.
  */
-import { dialCodeFor, elpremarRoles, elpremarRoster } from "@/data/master-data"
+import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
 import { elpremarSkills, shiftOptions, supervisors } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
 import { enterpriseRecords, inspectionActivities, maintenanceActivities, ticketActivities } from "@/data/occ-tables"
 
-/** On duty, on leave, or not yet assigned to any enterprise */
-export type ElpremarStatus = "on_duty" | "on_leave" | "not_assigned"
+/** Where they sit in the training-to-deployment lifecycle */
+export type ElpremarStatus = "trained" | "not_trained" | "in_field"
 
 export type ElpremarRecord = {
   id: string
@@ -31,10 +31,10 @@ export type ElpremarRecord = {
   status: ElpremarStatus
 }
 
-export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "warning" | "neutral"; stripe: string; chip: string }> = {
-  on_duty: { label: "On Duty", badge: "success", stripe: "bg-healthy", chip: "bg-healthy-soft text-healthy-soft-foreground" },
-  on_leave: { label: "On Leave", badge: "warning", stripe: "bg-attention", chip: "bg-attention-soft text-attention-soft-foreground" },
-  not_assigned: { label: "Not Assigned", badge: "neutral", stripe: "bg-neutral", chip: "bg-neutral-soft text-neutral-soft-foreground" },
+export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "warning" | "info"; stripe: string; chip: string }> = {
+  trained: { label: "Trained", badge: "info", stripe: "bg-info", chip: "bg-info-soft text-info-soft-foreground" },
+  not_trained: { label: "Not Trained", badge: "warning", stripe: "bg-attention", chip: "bg-attention-soft text-attention-soft-foreground" },
+  in_field: { label: "In Field", badge: "success", stripe: "bg-healthy", chip: "bg-healthy-soft text-healthy-soft-foreground" },
 }
 
 /* ---------- Seeded helpers ---------- */
@@ -95,24 +95,6 @@ function certsFor(id: string, count: number): Certificate[] {
 /** Days until a DD-MM-YYYY date; negative once it has passed */
 export const daysUntil = (dmy: string) => Math.round((parseDmy(dmy).getTime() - REFERENCE.getTime()) / 86_400_000)
 
-/**
- * Certificate readiness. An ELPREMAR can only be dispatched on a stream whose
- * certificate is still valid, so the split matters more than the raw count.
- * 90 days is the platform's renewal warning window.
- */
-export function certificationHealth(certs: Certificate[]) {
-  let valid = 0
-  let expiring = 0
-  let expired = 0
-  for (const c of certs) {
-    const d = daysUntil(c.validTill)
-    if (d < 0) expired++
-    else if (d <= 90) expiring++
-    else valid++
-  }
-  return { valid, expiring, expired }
-}
-
 /* ---------- Registry ---------- */
 
 export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) => {
@@ -121,8 +103,9 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   const enterprise = enterpriseRecords[s % enterpriseRecords.length]
   const name = person.name
   // A tenth of the workforce sits unassigned, a fifth is on leave
-  const status: ElpremarStatus = s % 10 === 0 ? "not_assigned" : s % 5 === 0 ? "on_leave" : "on_duty"
-  const unassigned = status === "not_assigned"
+  const status: ElpremarStatus = elpremarLifecycle(i)
+  // Nobody is posted to a plant before they have been trained
+  const unassigned = status === "not_trained"
   const certs = certsFor(id, 2 + (s % 3))
   // The one that lapses first is the one that limits what they can be sent to do
   const earliest = [...certs].sort((x, y) => parseDmy(x.validTill).getTime() - parseDmy(y.validTill).getTime())[0]
@@ -148,11 +131,11 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
 
 export const elpremarRegisterKpis = {
   total: elpremarRecords.length,
-  onDuty: elpremarRecords.filter((e) => e.status === "on_duty").length,
-  onLeave: elpremarRecords.filter((e) => e.status === "on_leave").length,
-  notAssigned: elpremarRecords.filter((e) => e.status === "not_assigned").length,
+  trained: elpremarRecords.filter((e) => e.status === "trained").length,
+  notTrained: elpremarRecords.filter((e) => e.status === "not_trained").length,
+  inField: elpremarRecords.filter((e) => e.status === "in_field").length,
   /** Absolute month-over-month movement; these are counts in the tens */
-  delta: { total: 2, onDuty: 3 },
+  delta: { total: 2, inField: 3 },
 }
 
 /* ---------- Full profile ---------- */
