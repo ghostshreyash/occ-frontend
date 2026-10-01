@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Detail, EvidenceGallery, Timeline } from "@/components/common/detail-view"
 import { maintenanceTimeline, type Execution } from "@/data/maintenance-detail"
 import { findMaintenance, reviewMaintenance, updateMaintenance, useMaintenanceDetails, useMaintenanceRows } from "@/data/maintenance-store"
-import { inspectionActivities, priorityTone, slotLabel, supportTickets } from "@/data/occ-tables"
+import { inspectionActivities, priorityTone, slotLabel, ticketActivities } from "@/data/occ-tables"
 import { control } from "@/lib/data-table"
 import { maintenanceStatus, workStatus, type WorkStatus } from "@/lib/status"
 
@@ -63,7 +63,7 @@ export function MaintenanceActivityDetailsPage() {
       ([
         ...rows.map((m) => ({ elpremar: m.elpremar, date: m.scheduled, label: m.asset, plant: m.plant, enterprise: m.enterprise, slot: m.slot })),
         ...inspectionActivities.map((t) => ({ elpremar: t.elpremar, date: t.due, label: t.activity, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
-        ...supportTickets.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
+        ...ticketActivities.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
       ] as (Omit<Booking, "elpremar" | "date"> & { elpremar?: string; date?: string })[]).filter(
         (b): b is Booking => !!b.elpremar && !!b.date
       ),

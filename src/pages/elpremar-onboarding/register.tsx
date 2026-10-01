@@ -194,7 +194,6 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={`${th} pl-3`}>ELPREMAR</TableHead>
                 <TableHead className={th}>Role</TableHead>
-                <TableHead className={`${th} hidden md:table-cell`}>Assigned To</TableHead>
                 <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
                 <TableHead className={th}>Experience</TableHead>
                 <TableHead className={`${th} hidden sm:table-cell`}>Certifications</TableHead>
@@ -236,16 +235,6 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
                     </TableCell>
                     <TableCell className={td}>
                       <span title={e.role}>{roleStream(e.role)}</span>
-                    </TableCell>
-                    <TableCell className={`${td} hidden md:table-cell`}>
-                      {e.enterprise ? (
-                        <>
-                          <div className="truncate">{e.enterprise}</div>
-                          <div className="text-[0.65rem] text-muted-foreground">{e.plant}</div>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">Unassigned</span>
-                      )}
                     </TableCell>
                     <TableCell className={`${td} hidden lg:table-cell`}>
                       <div>{e.city}</div>

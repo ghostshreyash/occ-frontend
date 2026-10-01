@@ -26,7 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { inspectionTimeline, type Measurement, type Severity } from "@/data/inspection-detail"
 import { findInspection, updateInspection, useInspectionDetails, useInspectionRows } from "@/data/inspection-store"
 import { addMaintenanceFromInspection } from "@/data/maintenance-store"
-import { maintenanceActivities, priorityTone, slotLabel, supportTickets } from "@/data/occ-tables"
+import { maintenanceActivities, priorityTone, slotLabel, ticketActivities } from "@/data/occ-tables"
 import { control, td, th } from "@/lib/data-table"
 import { inspectionStatus, workStatus, type WorkStatus } from "@/lib/status"
 
@@ -71,7 +71,7 @@ export function InspectionActivityDetailsPage() {
       ([
         ...rows.map((t) => ({ elpremar: t.elpremar, date: t.due, label: t.activity, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
         ...maintenanceActivities.map((m) => ({ elpremar: m.elpremar, date: m.scheduled, label: m.asset, plant: m.plant, enterprise: m.enterprise, slot: m.slot })),
-        ...supportTickets.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
+        ...ticketActivities.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
       ] as (Omit<Booking, "elpremar" | "date"> & { elpremar?: string; date?: string })[]).filter(
         (b): b is Booking => !!b.elpremar && !!b.date
       ),

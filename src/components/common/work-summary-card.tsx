@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from "framer-motion"
 import { ClipboardList, LifeBuoy, Wrench } from "lucide-react"
 import { cn } from "cn"
 
-import { maintenanceProgress, supportTickets, taskQueue } from "@/data/occ-tables"
+import { inspectionActivities, maintenanceActivities, ticketActivities } from "@/data/occ-tables"
 import { workStatus, type WorkStatus } from "@/lib/status"
 
 /** Order matters: the segmented bar reads left to right from done to not-started */
@@ -122,9 +122,9 @@ export function WorkSummaryCard({
         (r) => (enterprise ? r.enterprise === enterprise : true) && (elpremar ? r.elpremar === elpremar : true)
       )
     return [
-      { key: "maintenance", label: "Maintenance Activities", icon: Wrench, tone: "bg-info-soft text-info", rows: mine(maintenanceProgress) },
-      { key: "tasks", label: "Inspection Tasks", icon: ClipboardList, tone: "bg-highlight-soft text-highlight", rows: mine(taskQueue) },
-      { key: "tickets", label: "Support Tickets", icon: LifeBuoy, tone: "bg-attention-soft text-attention", rows: mine(supportTickets) },
+      { key: "maintenance", label: "Maintenance Activities", icon: Wrench, tone: "bg-info-soft text-info", rows: mine(maintenanceActivities) },
+      { key: "tasks", label: "Inspection Tasks", icon: ClipboardList, tone: "bg-highlight-soft text-highlight", rows: mine(inspectionActivities) },
+      { key: "tickets", label: "Support Tickets", icon: LifeBuoy, tone: "bg-attention-soft text-attention", rows: mine(ticketActivities) },
     ]
   }, [enterprise, elpremar])
 

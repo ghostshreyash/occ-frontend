@@ -8,7 +8,7 @@
 import { dialCodeFor, elpremarRoles, elpremarRoster } from "@/data/master-data"
 import { elpremarSkills, shiftOptions, supervisors } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
-import { enterpriseRecords, maintenanceProgress, supportTickets, taskQueue } from "@/data/occ-tables"
+import { enterpriseRecords, inspectionActivities, maintenanceActivities, ticketActivities } from "@/data/occ-tables"
 
 /** On duty, on leave, or not yet assigned to any enterprise */
 export type ElpremarStatus = "on_duty" | "on_leave" | "not_assigned"
@@ -235,9 +235,9 @@ export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
 
 /** Work rows assigned to one ELPREMAR, across all three streams */
 export const workloadFor = (name: string) => ({
-  maintenance: maintenanceProgress.filter((r) => r.elpremar === name),
-  tasks: taskQueue.filter((r) => r.elpremar === name),
-  tickets: supportTickets.filter((r) => r.elpremar === name),
+  maintenance: maintenanceActivities.filter((r) => r.elpremar === name),
+  tasks: inspectionActivities.filter((r) => r.elpremar === name),
+  tickets: ticketActivities.filter((r) => r.elpremar === name),
 })
 
 /** Counts by status across everything assigned to one ELPREMAR */
