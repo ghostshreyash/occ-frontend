@@ -10,6 +10,7 @@ import {
   Circle,
   Factory,
   FileBadge,
+  HardHat,
   KeyRound,
   Lock,
   Network,
@@ -30,6 +31,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { Context, Ctx } from "@/components/common/wizard"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { elpremarSkills } from "@/data/mock"
 import { elpremarRoles, roleStream, userRoles } from "@/data/master-data"
@@ -93,42 +95,21 @@ function Avatar({ photo, className }: { photo?: File; className?: string }) {
   )
 }
 
-function SummaryLine({ label, value }: { label: string; value?: string }) {
-  if (!value) return null
-  return (
-    <div>
-      <dt className="text-[0.62rem] font-semibold tracking-wide text-muted-foreground uppercase">{label}</dt>
-      <dd className="truncate" title={value}>{value}</dd>
-    </div>
-  )
-}
-
 /**
- * What has been captured so far, shown beside the later steps. A portrait only
- * appears once one has been uploaded - a placeholder here reads as a missing
- * photo rather than as the summary this panel is for.
+ * What earlier steps established, carried across the top of each later step.
+ * The portrait is not repeated here - it belongs with the upload in Step 1 and
+ * with the review at the end.
  */
-export function ProfileCard({ draft }: { draft: ElpremarDraft }) {
+function ElpremarContext({ draft }: { draft: ElpremarDraft }) {
   const { basic, work, assignment } = draft
   return (
-    <div className="flex w-full shrink-0 flex-col gap-2.5 self-start rounded-lg bg-muted/60 p-4 text-xs sm:w-52">
-      {basic?.photo ? <Avatar photo={basic.photo} className="size-16 self-center" /> : null}
-
-      <div>
-        <div className="text-sm font-bold">{basic?.fullName}</div>
-        <div className="tabular-nums text-muted-foreground">{basic?.employeeId}</div>
-      </div>
-
-      <dl className="space-y-2 border-t pt-2.5">
-        <SummaryLine label="Email" value={basic?.email} />
-        <SummaryLine label="Mobile" value={basic?.mobile} />
-        <SummaryLine label="Role" value={work ? roleStream(work.designation) : undefined} />
-        <SummaryLine label="Experience" value={work?.experience ? `${work.experience} yrs` : undefined} />
-        <SummaryLine label="Enterprise" value={assignment?.enterprise} />
-        <SummaryLine label="Plant" value={assignment?.plant} />
-        <SummaryLine label="Department" value={assignment?.department} />
-      </dl>
-    </div>
+    <Context>
+      <Ctx icon={UserRound} label="ELPREMAR" value={basic?.fullName} />
+      <Ctx icon={FileBadge} label="Employee ID" value={basic?.employeeId} />
+      <Ctx icon={HardHat} label="Role" value={work ? roleStream(work.designation) : undefined} />
+      <Ctx icon={Building2} label="Enterprise" value={assignment?.enterprise} />
+      <Ctx icon={Factory} label="Plant" value={assignment?.plant} />
+    </Context>
   )
 }
 
@@ -223,12 +204,10 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   return (
     <Card title="Step 2 of 5: Work & Skills">
       <form id="elp-work" onSubmit={form.handleSubmit(onNext)} noValidate>
-        <div className="flex flex-col gap-5 sm:flex-row">
-          <ProfileCard draft={draft} />
-          <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
-            <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
-          </div>
+        <ElpremarContext draft={draft} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
+          <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
         </div>
 
         <Controller
@@ -356,56 +335,54 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
       description="Post this ELPREMAR to an existing enterprise. Pick the plant and department they will work under."
     >
       <form id="elp-assign" onSubmit={form.handleSubmit(onNext)} noValidate>
-        <div className="flex flex-col gap-5 sm:flex-row">
-          <ProfileCard draft={draft} />
-          <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <SelectField
-              control={control}
-              name="enterprise"
-              label="Enterprise"
-              required
-              options={enterpriseRecords.map((e) => e.name)}
-              onValueChange={() => clear("plant", "department", "subDepartment", "supervisor")}
-            />
-            <SelectField
-              control={control}
-              name="plant"
-              label="Plant"
-              required
-              disabled={!record}
-              placeholder={record ? "Select" : "Select an enterprise first"}
-              options={plants.map((p) => p.name)}
-              onValueChange={() => clear("department", "subDepartment", "supervisor")}
-            />
-            <SelectField
-              control={control}
-              name="department"
-              label="Department"
-              required
-              disabled={!plant}
-              placeholder={plant ? "Select" : "Select a plant first"}
-              options={departments.map((d) => d.name)}
-              onValueChange={() => clear("subDepartment", "supervisor")}
-            />
-            <SelectField
-              control={control}
-              name="subDepartment"
-              label="Sub-Department"
-              disabled={!department}
-              placeholder={department ? "Select" : "Select a department first"}
-              options={subDepartments.map((s) => s.name)}
-            />
-            <SelectField
-              control={control}
-              name="supervisor"
-              label="Reporting Supervisor"
-              required
-              disabled={!department}
-              placeholder={department ? "Select" : "Select a department first"}
-              options={supervisorOptions}
-            />
-            <TextField control={control} name="effectiveFrom" label="Effective From" required type="date" />
-          </div>
+        <ElpremarContext draft={draft} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <SelectField
+            control={control}
+            name="enterprise"
+            label="Enterprise"
+            required
+            options={enterpriseRecords.map((e) => e.name)}
+            onValueChange={() => clear("plant", "department", "subDepartment", "supervisor")}
+          />
+          <SelectField
+            control={control}
+            name="plant"
+            label="Plant"
+            required
+            disabled={!record}
+            placeholder={record ? "Select" : "Select an enterprise first"}
+            options={plants.map((p) => p.name)}
+            onValueChange={() => clear("department", "subDepartment", "supervisor")}
+          />
+          <SelectField
+            control={control}
+            name="department"
+            label="Department"
+            required
+            disabled={!plant}
+            placeholder={plant ? "Select" : "Select a plant first"}
+            options={departments.map((d) => d.name)}
+            onValueChange={() => clear("subDepartment", "supervisor")}
+          />
+          <SelectField
+            control={control}
+            name="subDepartment"
+            label="Sub-Department"
+            disabled={!department}
+            placeholder={department ? "Select" : "Select a department first"}
+            options={subDepartments.map((s) => s.name)}
+          />
+          <SelectField
+            control={control}
+            name="supervisor"
+            label="Reporting Supervisor"
+            required
+            disabled={!department}
+            placeholder={department ? "Select" : "Select a department first"}
+            options={supervisorOptions}
+          />
+          <TextField control={control} name="effectiveFrom" label="Effective From" required type="date" />
         </div>
 
         {record ? (
@@ -444,22 +421,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
 
   return (
     <Card title="Step 4 of 5: Account Credentials">
-      <div className="mb-5 flex flex-col gap-4 sm:flex-row">
-        <ProfileCard draft={draft} />
-        <div className="grid flex-1 grid-cols-2 gap-3 self-start rounded-lg bg-info-soft/60 p-4 text-sm md:grid-cols-4">
-          {[
-            { icon: Building2, label: "Enterprise", value: draft.assignment?.enterprise },
-            { icon: Factory, label: "Plant", value: draft.assignment?.plant },
-            { icon: Network, label: "Department", value: draft.assignment?.department },
-            { icon: UserRound, label: "Reporting To", value: draft.assignment?.supervisor },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex items-start gap-2">
-              <Icon className="mt-0.5 size-5 shrink-0 text-primary" />
-              <div><div className="font-medium">{label}</div><div className="text-xs text-muted-foreground">{value}</div></div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ElpremarContext draft={draft} />
 
       <form id="elp-credentials" onSubmit={form.handleSubmit(onNext)} className="rounded-lg ring-1 ring-border" noValidate>
         <h4 className="flex items-center gap-2 border-b bg-info-soft/60 px-4 py-2 font-semibold"><UserRoundCheck className="size-5 text-primary" /> System Access Details</h4>
