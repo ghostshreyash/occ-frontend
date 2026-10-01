@@ -31,13 +31,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { elpremarSkills, enterprises, plants, shiftOptions, supervisors } from "@/data/mock"
+import { elpremarSkills, shiftOptions } from "@/data/mock"
 import { elpremarRoles, userRoles } from "@/data/master-data"
+import { enterpriseRecords, profileFor } from "@/data/occ-tables"
+import { nextElpremarId } from "@/data/elpremar-data"
 import {
+  assignmentSchema,
   basicSchema,
   certificationSchema,
   credentialsSchema,
   workSchema,
+  type AssignmentValues,
   type BasicValues,
   type CertificationValues,
   type CredentialsValues,
@@ -45,8 +49,6 @@ import {
   type WorkValues,
 } from "./schemas"
 
-const locations = ["Mumbai, Maharashtra", "Jamnagar, Gujarat", "Dolvi, Maharashtra", "Mundra, Gujarat", "Jamshedpur, Jharkhand"]
-const departments = ["Electrical", "Maintenance", "Utilities", "Instrumentation"]
 
 /* ---------- shared bits ---------- */
 
@@ -91,15 +93,23 @@ function Avatar({ photo, className }: { photo?: File; className?: string }) {
   )
 }
 
-/** Mini profile shown at the start of steps 2 and 3 */
-export function ProfileCard({ basic }: { basic?: BasicValues }) {
+/** Mini profile shown alongside the later steps */
+export function ProfileCard({ draft }: { draft: ElpremarDraft }) {
+  const { basic, assignment } = draft
   return (
     <div className="flex w-full flex-col items-center gap-1 rounded-lg bg-muted/60 p-4 text-center text-xs sm:w-44">
       <Avatar photo={basic?.photo} className="mb-1 size-16" />
       <div className="text-sm font-bold">{basic?.fullName}</div>
       <div>{basic?.employeeId}</div>
-      <div>{basic?.department} Department</div>
-      <div>{basic?.plant}</div>
+      {/* Only shown once the assignment step has been filled in */}
+      {assignment ? (
+        <>
+          <div>{assignment.department} Department</div>
+          <div className="text-muted-foreground">{assignment.plant}</div>
+        </>
+      ) : (
+        <div className="text-muted-foreground">Not yet assigned</div>
+      )}
     </div>
   )
 }
@@ -110,12 +120,12 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   const form = useForm<BasicValues>({
     resolver: zodResolver(basicSchema),
     defaultValues: draft.basic ?? {
-      fullName: "", employeeId: "", dob: "", mobile: "", email: "", location: "", plant: "", department: "", supervisor: "", address: "",
+      fullName: "", employeeId: nextElpremarId(), dob: "", mobile: "", email: "", address: "",
     },
   })
   const { control } = form
   return (
-    <Card title="Step 1 of 4: Basic Details">
+    <Card title="Step 1 of 5: Basic Details">
       <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} className="flex flex-col gap-5 sm:flex-row" noValidate>
         <Controller
           control={control}
@@ -133,7 +143,15 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
         />
         <div className="grid flex-1 gap-4 md:grid-cols-2">
           <TextField control={control} name="fullName" label="Full Name" required />
-          <TextField control={control} name="employeeId" label="Employee / ID Number" required placeholder="e.g. EMP-EL-0047" />
+          <TextField
+            control={control}
+            name="employeeId"
+            label="Employee / ID Number"
+            required
+            readOnly
+            inputClassName="bg-muted/60"
+            description="Issued automatically — the next free ID"
+          />
           <TextField control={control} name="dob" label="Date of Birth" required type="date" />
           <Controller
             control={control}
@@ -155,10 +173,6 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
           />
           <TextField control={control} name="mobile" label="Mobile Number" required type="tel" placeholder="+91 98765 43210" />
           <TextField control={control} name="email" label="Email ID" required type="email" />
-          <SelectField control={control} name="location" label="Location" required options={locations} />
-          <SelectField control={control} name="plant" label="Plant" required options={plants} />
-          <SelectField control={control} name="department" label="Department" required options={departments} />
-          <SelectField control={control} name="supervisor" label="Reporting Supervisor" options={supervisors} />
           <TextareaField control={control} name="address" label="Address" rows={2} maxLength={250} className="md:col-span-2" />
         </div>
       </form>
@@ -173,7 +187,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   const form = useForm<WorkValues>({
     resolver: zodResolver(workSchema),
     defaultValues: draft.work ?? {
-      designation: "", experience: "", shift: "", supervisor: draft.basic?.supervisor ?? "", skills: [], certifications: [],
+      designation: "", experience: "", shift: "", skills: [], certifications: [],
     },
   })
   const { control, watch, setValue } = form
@@ -188,15 +202,14 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   })
 
   return (
-    <Card title="Step 2 of 4: Work & Skills">
+    <Card title="Step 2 of 5: Work & Skills">
       <form id="elp-work" onSubmit={form.handleSubmit(onNext)} noValidate>
         <div className="flex flex-col gap-5 sm:flex-row">
-          <ProfileCard basic={draft.basic} />
+          <ProfileCard draft={draft} />
           <div className="grid flex-1 gap-4 md:grid-cols-2">
             <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
             <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
             <SelectField control={control} name="shift" label="Shift Preference" required options={shiftOptions} />
-            <SelectField control={control} name="supervisor" label="Reporting Supervisor" required options={supervisors} />
           </div>
         </div>
 
@@ -286,6 +299,111 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   )
 }
 
+/* ---------- Step 3: Assign Enterprise ---------- */
+
+/**
+ * Assigns the ELPREMAR to an enterprise that already exists. Every list is read
+ * from that enterprise's own hierarchy, so a posting can only ever name a plant,
+ * department and supervisor that are really there - nothing is created here.
+ */
+export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: ElpremarDraft; onNext: (v: AssignmentValues) => void; onBack: () => void }) {
+  const form = useForm<AssignmentValues>({
+    resolver: zodResolver(assignmentSchema),
+    defaultValues: draft.assignment ?? {
+      enterprise: "", plant: "", department: "", subDepartment: "", supervisor: "", effectiveFrom: "",
+    },
+  })
+  const { control, watch, setValue } = form
+
+  // Each level is narrowed by the one above it
+  const record = enterpriseRecords.find((e) => e.name === watch("enterprise"))
+  const plants = record ? profileFor(record).plants : []
+  const plant = plants.find((p) => p.name === watch("plant"))
+  const departments = plant?.departments ?? []
+  const department = departments.find((d) => d.name === watch("department"))
+  const subDepartments = department?.subDepartments ?? []
+
+  // The real reporting line: the department head, with the plant head above them
+  const named = (salutation: string, head: string) => `${salutation} ${head}`
+  const supervisorOptions = [
+    ...(department ? [named(department.salutation, department.head)] : []),
+    ...(plant ? [named(plant.salutation, plant.head)] : []),
+  ].filter((v, i, a) => a.indexOf(v) === i)
+
+  const clear = (...names: (keyof AssignmentValues)[]) => names.forEach((n) => setValue(n, ""))
+
+  return (
+    <Card
+      title="Step 3 of 5: Assign Enterprise"
+      description="Post this ELPREMAR to an existing enterprise. Pick the plant and department they will work under."
+    >
+      <form id="elp-assign" onSubmit={form.handleSubmit(onNext)} noValidate>
+        <div className="flex flex-col gap-5 sm:flex-row">
+          <ProfileCard draft={draft} />
+          <div className="grid flex-1 gap-4 md:grid-cols-2">
+            <SelectField
+              control={control}
+              name="enterprise"
+              label="Enterprise"
+              required
+              options={enterpriseRecords.map((e) => e.name)}
+              onValueChange={() => clear("plant", "department", "subDepartment", "supervisor")}
+            />
+            <SelectField
+              control={control}
+              name="plant"
+              label="Plant"
+              required
+              disabled={!record}
+              placeholder={record ? "Select" : "Select an enterprise first"}
+              options={plants.map((p) => p.name)}
+              onValueChange={() => clear("department", "subDepartment", "supervisor")}
+            />
+            <SelectField
+              control={control}
+              name="department"
+              label="Department"
+              required
+              disabled={!plant}
+              placeholder={plant ? "Select" : "Select a plant first"}
+              options={departments.map((d) => d.name)}
+              onValueChange={() => clear("subDepartment", "supervisor")}
+            />
+            <SelectField
+              control={control}
+              name="subDepartment"
+              label="Sub-Department"
+              disabled={!department}
+              placeholder={department ? "Select" : "Select a department first"}
+              options={subDepartments.map((s) => s.name)}
+            />
+            <SelectField
+              control={control}
+              name="supervisor"
+              label="Reporting Supervisor"
+              required
+              disabled={!department}
+              placeholder={department ? "Select" : "Select a department first"}
+              options={supervisorOptions}
+            />
+            <TextField control={control} name="effectiveFrom" label="Effective From" required type="date" />
+          </div>
+        </div>
+
+        {record ? (
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg bg-info-soft/60 p-4 text-xs">
+            <span className="flex items-center gap-1.5 font-semibold"><Building2 className="size-4 text-primary" /> {record.name}</span>
+            <span className="text-muted-foreground">{record.sectorType} · {record.sector}</span>
+            <span className="flex items-center gap-1.5"><Factory className="size-4 text-primary" /> {record.plants} plants</span>
+            <span className="flex items-center gap-1.5"><Network className="size-4 text-primary" /> {record.city}, {record.country}</span>
+          </div>
+        ) : null}
+      </form>
+      <Footer formId="elp-assign" onBack={onBack} />
+    </Card>
+  )
+}
+
 /* ---------- Step 3: Account Credentials ---------- */
 
 export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraft; onNext: (v: CredentialsValues) => void; onBack: () => void }) {
@@ -300,7 +418,6 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
   const { control, watch } = form
   const pwd = watch("password")
   const confirm = watch("confirmPassword")
-  const basic = draft.basic
 
   const access = [
     { name: "webAccess" as const, label: "Allow Web Portal Access", hint: "Access to EMMS-E / OCC web application" },
@@ -309,15 +426,15 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
   ]
 
   return (
-    <Card title="Step 3 of 4: Account Credentials">
+    <Card title="Step 4 of 5: Account Credentials">
       <div className="mb-5 flex flex-col gap-4 sm:flex-row">
-        <ProfileCard basic={basic} />
+        <ProfileCard draft={draft} />
         <div className="grid flex-1 grid-cols-2 gap-3 self-start rounded-lg bg-info-soft/60 p-4 text-sm md:grid-cols-4">
           {[
-            { icon: Building2, label: "Enterprise", value: enterprises[0] },
-            { icon: Factory, label: "Plant", value: basic?.plant },
-            { icon: Network, label: "Department", value: basic?.department },
-            { icon: UserRound, label: "Reporting To", value: draft.work?.supervisor },
+            { icon: Building2, label: "Enterprise", value: draft.assignment?.enterprise },
+            { icon: Factory, label: "Plant", value: draft.assignment?.plant },
+            { icon: Network, label: "Department", value: draft.assignment?.department },
+            { icon: UserRound, label: "Reporting To", value: draft.assignment?.supervisor },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-start gap-2">
               <Icon className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -405,12 +522,12 @@ function ReviewSection({ icon: Icon, title, children, onEdit }: { icon: typeof U
 }
 
 export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: ElpremarDraft; onBack: () => void; onEdit: (step: number) => void; onSubmit: () => void }) {
-  const { basic, work, credentials } = draft
+  const { basic, work, assignment, credentials } = draft
   return (
     <section className="rounded-xl bg-card p-5 shadow-xs ring-1 ring-foreground/10">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-lg font-bold text-brand-navy dark:text-foreground">Step 4 of 4: Review &amp; Submit</h3>
+          <h3 className="text-lg font-bold text-brand-navy dark:text-foreground">Step 5 of 5: Review &amp; Submit</h3>
           <p className="text-sm text-primary">Verify the details below before completing the onboarding. You can edit the information if needed.</p>
         </div>
         <Button variant="outline" className="text-primary" onClick={() => onEdit(0)}><Pencil /> Edit Details</Button>
@@ -428,10 +545,6 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
               <Row label="Mobile Number" value={basic?.mobile} />
               <Row label="Email ID" value={basic?.email} />
               <Row label="Address" value={basic?.address} />
-              <Row label="Location" value={basic?.location} />
-              <Row label="Plant" value={basic?.plant} />
-              <Row label="Department" value={basic?.department} />
-              <Row label="Reporting Supervisor" value={basic?.supervisor} />
             </div>
           </div>
         </ReviewSection>
@@ -463,7 +576,16 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
           ) : <p className="text-xs text-muted-foreground">None added</p>}
         </ReviewSection>
 
-        <ReviewSection icon={Lock} title="3. Account Credentials" onEdit={() => onEdit(2)}>
+        <ReviewSection icon={Building2} title="3. Enterprise Assignment" onEdit={() => onEdit(2)}>
+          <Row label="Enterprise" value={assignment?.enterprise} />
+          <Row label="Plant" value={assignment?.plant} />
+          <Row label="Department" value={assignment?.department} />
+          <Row label="Sub-Department" value={assignment?.subDepartment} />
+          <Row label="Reporting To" value={assignment?.supervisor} />
+          <Row label="Effective From" value={assignment?.effectiveFrom.split("-").reverse().join("-")} />
+        </ReviewSection>
+
+        <ReviewSection icon={Lock} title="4. Account Credentials" onEdit={() => onEdit(3)}>
           <Row label="Username" value={credentials?.username} />
           <Row label="User Role" value={credentials?.role} />
           <Row label="Password" value={<span className="flex items-center gap-2">•••••••• <span className="text-xs text-healthy-soft-foreground">Secure</span></span>} />
