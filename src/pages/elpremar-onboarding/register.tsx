@@ -24,7 +24,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PageHeader } from "@/components/common/page-header"
 import { StatCard } from "@/components/common/stat-card"
-import { ExpiryValue } from "@/components/common/expiry-value"
 import { SectionCard } from "@/components/common/section-card"
 import { elpremarRecords, elpremarRegisterKpis, elpremarStatusMeta, type ElpremarRecord } from "@/data/elpremar-data"
 import { elpremarRoles, roleStream } from "@/data/master-data"
@@ -196,7 +195,6 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
                 <TableHead className={th}>Role</TableHead>
                 <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
                 <TableHead className={th}>Experience</TableHead>
-                <TableHead className={`${th} hidden sm:table-cell`}>Certifications</TableHead>
                 <TableHead className={`${th} hidden md:table-cell`}>
                   <button
                     type="button"
@@ -241,11 +239,6 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
                       <div className="text-[0.65rem] text-muted-foreground">{e.country}</div>
                     </TableCell>
                     <TableCell className={`${td} tabular-nums`}>{e.experience} yrs</TableCell>
-                    <TableCell className={`${td} hidden sm:table-cell`}>
-                      <div className="tabular-nums">{e.certifications} held</div>
-                      {/* Earliest expiry: the one that limits what they can be sent to do */}
-                      <ExpiryValue validTill={e.certifiedUntil} className="text-[0.65rem]" />
-                    </TableCell>
                     <TableCell className={`${td} hidden tabular-nums md:table-cell`}>{e.joined}</TableCell>
                     <TableCell className={td}>
                       <Badge variant={meta.badge} className="rounded px-1.5 py-0 text-[0.65rem]">{meta.label}</Badge>
