@@ -150,6 +150,8 @@ export const assetCategories = [
 
 export const assetCriticality = ["High", "Medium", "Low"] as const
 
+export type AssetCriticality = (typeof assetCriticality)[number]
+
 /** Contamination / hygiene status, the wording used on inspection records */
 export const contaminationStatus = [
   "Good",

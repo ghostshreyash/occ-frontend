@@ -19,12 +19,15 @@ import { MaintenanceActivitiesPage } from "@/pages/maintenance-activities"
 import { InspectionActivitiesPage } from "@/pages/inspection-activities"
 import { MaintenanceActivityDetailsPage } from "@/pages/maintenance-activity-details"
 import { InspectionActivityDetailsPage } from "@/pages/inspection-activity-details"
+import { SupportTicketsPage } from "@/pages/support-tickets"
+import { SupportTicketDetailsPage } from "@/pages/support-ticket-details"
+import { RaiseSupportTicketPage } from "@/pages/raise-support-ticket"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
 import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
 import { EnterpriseDetailPage } from "./pages/enterprise-detail"
 
-const built = new Set(["/", "/customer-map", "/enterprises", "/critical-alerts", "/maintenance-activities", "/inspection-activities"])
+const built = new Set(["/", "/customer-map", "/enterprises", "/critical-alerts", "/maintenance-activities", "/inspection-activities", "/support-tickets"])
 
 /*
  * The hostname decides which sign-in a visitor sees (`src/lib/brand.ts`), so
@@ -65,6 +68,9 @@ export const router = createBrowserRouter([
           { path: "inspection-activities", element: <InspectionActivitiesPage /> },
           { path: "inspection-activities/add", element: <AddInspectionActivityPage /> },
           { path: "inspection-activity-details/:id", element: <InspectionActivityDetailsPage /> },
+          { path: "support-tickets", element: <SupportTicketsPage /> },
+          { path: "support-tickets/raise", element: <RaiseSupportTicketPage /> },
+          { path: "support-ticket-details/:id", element: <SupportTicketDetailsPage /> },
           // Remaining sidebar entries show a placeholder until their mockups exist
           ...occNavigation
             .filter((item) => !built.has(item.path))

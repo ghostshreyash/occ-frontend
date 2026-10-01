@@ -24,8 +24,8 @@ export type NavItem = {
 export const occNavigation: NavItem[] = [
   { title: "Dashboard", path: "/", icon: House },
   { title: "Enterprises", path: "/enterprises", icon: Building2 },
-  { title: "ELPREMAR Activity & Availability", path: "/elpremars", icon: HardHat },
+  { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
   { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
   { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
-  { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy },
+  { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy, covers: ["/support-ticket-details"] },
 ]

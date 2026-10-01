@@ -11,7 +11,8 @@
  * only appear here as a recommended follow-up action.
  */
 import type { EvidenceItem, TimelineStep } from "@/data/evidence"
-import { areas, assetCategories } from "@/data/mock"
+import { areas, assetCategories, commissionDate } from "@/data/mock"
+import { assetCriticality, type AssetCriticality } from "@/data/master-data"
 import type { TaskRow } from "@/data/occ-tables"
 
 /** One reading from the test sheet */
@@ -58,6 +59,10 @@ export type InspectionDetail = {
   area: string
   assetTag: string
   assetCategory: string
+  /** How badly a failure here would hurt: High / Medium / Low */
+  assetCriticality: AssetCriticality
+  /** When the asset was put into service, dd-MM-yyyy */
+  commissionedOn: string
   /* --- what was executed --- */
   execution?: InspectionExecution
   measurements: Measurement[]
@@ -159,6 +164,8 @@ export function inspectionDetail(row: TaskRow): InspectionDetail {
     area: pick(areas),
     assetTag: `TAG-${row.plant.slice(0, 3).toUpperCase()}-${row.id.slice(-4)}`,
     assetCategory: pick(assetCategories),
+    assetCriticality: pick(assetCriticality),
+    commissionedOn: commissionDate(random),
     measurements: [],
     observations: [],
     evidence: [],
