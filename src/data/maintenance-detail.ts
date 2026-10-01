@@ -7,7 +7,8 @@
  * are what that endpoint should return.
  */
 import type { EvidenceItem, TimelineStep } from "@/data/evidence"
-import { areas, priorities } from "@/data/mock"
+import { areas, assetCategories, commissionDate, priorities } from "@/data/mock"
+import { assetCriticality, type AssetCriticality } from "@/data/master-data"
 import type { MaintenanceRow } from "@/data/occ-tables"
 import { slotLabel } from "@/data/occ-tables"
 
@@ -41,6 +42,11 @@ export type MaintenanceDetail = {
   createdBy: string
   area: string
   assetTag: string
+  assetCategory: string
+  /** How badly a failure here would hurt: High / Medium / Low */
+  assetCriticality: AssetCriticality
+  /** When the asset was put into service, dd-MM-yyyy */
+  commissionedOn: string
   /* --- what was executed --- */
   execution?: Execution
   products: InstaProduct[]
@@ -107,6 +113,9 @@ export function maintenanceDetail(row: MaintenanceRow): MaintenanceDetail {
     createdBy: `${pick(supervisors)} (OCC)`,
     area: pick(areas),
     assetTag: `TAG-${row.plant.slice(0, 3).toUpperCase()}-${row.id.slice(-4)}`,
+    assetCategory: pick(assetCategories),
+    assetCriticality: pick(assetCriticality),
+    commissionedOn: commissionDate(random),
     products: [],
     evidence: [],
   }

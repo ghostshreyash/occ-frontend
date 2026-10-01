@@ -26,7 +26,7 @@ const parseDate = (d: string) => parse(d, "dd-MM-yyyy", new Date())
 
 type SortKey = "id" | "enterprise" | "plant" | "asset" | "type" | "elpremar" | "scheduled" | "status"
 
-const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, rejected: 2, assigned: 3, in_progress: 4, completed: 5, closed: 6 }
+const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, rejected: 2, reopened: 3, assigned: 4, in_progress: 5, completed: 6, closed: 7 }
 
 const sortValue: Record<SortKey, (r: MaintenanceRow) => string | number> = {
   id: (r) => r.id,
