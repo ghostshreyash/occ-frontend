@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link } from "react-router"
 import { toast } from "sonner"
 import { ArrowLeft, ArrowRight, BarChart3, CheckCircle2, ClipboardCheck, HardHat, KeyRound, UserRound } from "lucide-react"
 
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
 import { BasicDetailsStep, CredentialsStep, ReviewStep, WorkSkillsStep } from "./steps"
+import { ElpremarRegister } from "./register"
 import type { ElpremarDraft } from "./schemas"
 
 const steps: WizardStep[] = [
@@ -58,11 +59,27 @@ function SkilledPeopleBanner() {
 }
 
 /** ELPREMAR Onboarding, 4 steps (mockup pages 9–12) */
+/**
+ * ELPREMAR Onboarding.
+ * Lands on the workforce register (KPIs + table); "Onboard ELPREMAR" opens the wizard.
+ */
 export function ElpremarOnboardingPage() {
-  const navigate = useNavigate()
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
   const [draft, setDraft] = useState<ElpremarDraft>({})
+
+  const closeWizard = () => {
+    setWizardOpen(false)
+    setStep(0)
+    setFurthest(0)
+    setDraft({})
+    window.scrollTo({ top: 0 })
+  }
+
+  if (!wizardOpen) {
+    return <ElpremarRegister onStart={() => { setWizardOpen(true); window.scrollTo({ top: 0 }) }} />
+  }
 
   const go = (n: number) => {
     setStep(n)
@@ -81,8 +98,8 @@ export function ElpremarOnboardingPage() {
         {step === 1 ? <SkilledPeopleBanner /> : null}
         {step === 0 ? (
           <div className="flex justify-end">
-            <Button variant="outline" className="bg-card" asChild>
-              <Link to="/elpremars"><ArrowLeft /> Back to ELPREMAR</Link>
+            <Button variant="outline" size="sm" className="h-7 bg-card text-xs" onClick={closeWizard}>
+              <ArrowLeft className="size-3.5" /> Back to ELPREMARs
             </Button>
           </div>
         ) : null}
@@ -90,23 +107,24 @@ export function ElpremarOnboardingPage() {
     ) : (
       <>
         <KeyInfo title="What happens next?" items={whatNext} />
-        <Button variant="outline" className="w-full bg-card text-primary" asChild>
-          <Link to="/elpremars"><BarChart3 /> Go to ELPREMAR Activity &amp; Availability <ArrowRight /></Link>
+        <Button variant="outline" size="sm" className="w-full bg-card text-xs text-primary" asChild>
+          <Link to="/elpremars/activity"><BarChart3 className="size-3.5" /> ELPREMAR Activity &amp; Availability <ArrowRight className="size-3.5" /></Link>
         </Button>
       </>
     )
 
   return (
     <WizardPage
-      title="ELPREMAR Onboarding"
-      breadcrumbs={[{ label: "ELPREMAR Activity & Availability", to: "/elpremars" }, { label: "ELPREMAR Onboarding" }]}
+      title="Onboard ELPREMAR"
+      breadcrumbs={[{ label: "ELPREMARs", onClick: closeWizard }, { label: "New ELPREMAR" }]}
+      onExit={closeWizard}
       onStepSelect={(i) => i <= furthest && go(i)}
       furthest={furthest}
       steps={steps}
       current={step}
       aside={aside}
     >
-      {step === 0 && <BasicDetailsStep draft={draft} onNext={save("basic")} onCancel={() => navigate("/elpremars")} />}
+      {step === 0 && <BasicDetailsStep draft={draft} onNext={save("basic")} onCancel={closeWizard} />}
       {step === 1 && <WorkSkillsStep draft={draft} onNext={save("work")} onBack={() => go(0)} />}
       {step === 2 && <CredentialsStep draft={draft} onNext={save("credentials")} onBack={() => go(1)} />}
       {step === 3 && (
@@ -120,7 +138,8 @@ export function ElpremarOnboardingPage() {
               description: "Login credentials are now active.",
               icon: <CheckCircle2 className="size-4 text-healthy" />,
             })
-            navigate("/elpremars")
+            // Back to the register, where the new record belongs
+            closeWizard()
           }}
         />
       )}

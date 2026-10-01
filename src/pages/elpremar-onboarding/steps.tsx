@@ -31,7 +31,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { designations, elpremarSkills, enterprises, plants, shiftOptions, supervisors } from "@/data/mock"
+import { elpremarSkills, enterprises, plants, shiftOptions, supervisors } from "@/data/mock"
+import { elpremarRoles, userRoles } from "@/data/master-data"
 import {
   basicSchema,
   certificationSchema,
@@ -172,7 +173,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   const form = useForm<WorkValues>({
     resolver: zodResolver(workSchema),
     defaultValues: draft.work ?? {
-      designation: designations[0], experience: "", shift: "", supervisor: draft.basic?.supervisor ?? "", skills: [], certifications: [],
+      designation: "", experience: "", shift: "", supervisor: draft.basic?.supervisor ?? "", skills: [], certifications: [],
     },
   })
   const { control, watch, setValue } = form
@@ -192,7 +193,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
         <div className="flex flex-col gap-5 sm:flex-row">
           <ProfileCard basic={draft.basic} />
           <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <SelectField control={control} name="designation" label="Role / Designation" required options={designations} />
+            <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
             <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
             <SelectField control={control} name="shift" label="Shift Preference" required options={shiftOptions} />
             <SelectField control={control} name="supervisor" label="Reporting Supervisor" required options={supervisors} />
@@ -331,7 +332,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
         <div className="grid gap-2.5 p-3 md:grid-cols-2">
           <TextField control={control} name="username" label="Username" required description="Username must be at least 6 characters. (Recommended format: firstname.lastname)" />
           <div>
-            <SelectField control={control} name="role" label="User Role" required options={["ELPREMAR", "Senior ELPREMAR", "Team Leader"]} />
+            <SelectField control={control} name="role" label="User Role" required options={[...userRoles]} />
             <p className="mt-2 rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
               Access to maintenance activities, checklist updates, asset condition reporting and availability.
             </p>

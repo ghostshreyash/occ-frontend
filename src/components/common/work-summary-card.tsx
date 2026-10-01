@@ -103,17 +103,30 @@ function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | nu
  * Three cards, one per work stream, each with its own status mix.
  * Sits above the detail so the state of the account reads in one glance.
  */
-export function WorkSummaryCard({ enterprise, className }: { enterprise: string; className?: string }) {
+export function WorkSummaryCard({
+  enterprise,
+  elpremar,
+  className,
+}: {
+  /** Narrow to one enterprise's work */
+  enterprise?: string
+  /** Narrow to one ELPREMAR's assigned work */
+  elpremar?: string
+  className?: string
+}) {
   const reduced = useReducedMotion()
 
   const streams = useMemo<Stream[]>(() => {
-    const mine = <T extends { enterprise: string }>(rows: T[]) => rows.filter((r) => r.enterprise === enterprise)
+    const mine = <T extends { enterprise: string; elpremar?: string }>(rows: T[]) =>
+      rows.filter(
+        (r) => (enterprise ? r.enterprise === enterprise : true) && (elpremar ? r.elpremar === elpremar : true)
+      )
     return [
       { key: "maintenance", label: "Maintenance Activities", icon: Wrench, tone: "bg-info-soft text-info", rows: mine(maintenanceProgress) },
       { key: "tasks", label: "Inspection Tasks", icon: ClipboardList, tone: "bg-highlight-soft text-highlight", rows: mine(taskQueue) },
       { key: "tickets", label: "Support Tickets", icon: LifeBuoy, tone: "bg-attention-soft text-attention", rows: mine(supportTickets) },
     ]
-  }, [enterprise])
+  }, [enterprise, elpremar])
 
   return (
     <motion.div

@@ -4,7 +4,7 @@
  * Replace with API calls (TanStack Query) later.
  */
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { dialCodeFor } from "@/data/master-data"
+import { dialCodeFor, elpremarNames } from "@/data/master-data"
 import { activityTypes, priorities } from "@/data/mock"
 
 type Priority = (typeof priorities)[number]
@@ -234,7 +234,8 @@ const retailAssets = [
   "Sub Distribution Board - Retail Floor",
 ]
 const plantSuffixes = ["Main Plant", "Unit 2", "Substation", "Utility Block", "Warehouse", "Annexe"]
-const elpremarPool = ["Suresh Kumar", "Amit Sharma", "Ramesh Patil", "Anil Singh", "Priya Nair", "Vikram Desai"]
+/* Shared with the ELPREMAR registry, so assigned work always names a real person */
+const elpremarPool = elpremarNames
 const maintenanceKinds: MaintenanceRow["type"][] = ["Preventive", "Corrective", "Condition Based", "Emergency"]
 const activityKinds = [
   "Visual Inspection",

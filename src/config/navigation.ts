@@ -32,7 +32,7 @@ export const occNavigation: NavItem[] = [
   { title: "Escalation Centre", path: "/escalation-centre", icon: UserRoundCog },
   { title: "EMMSE Connectivity", path: "/emmse-connectivity", icon: Network },
   { title: "EVITA Activity", path: "/evita-activity", icon: TabletSmartphone },
-  { title: "ELPREMAR Activity & Availability", path: "/elpremars", icon: HardHat },
+  { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
   { title: "Maintenance Progress", path: "/maintenance-progress", icon: Wrench },
   { title: "24×7 Helpdesk/Chatbot", path: "/helpdesk", icon: MessageCircle },
   { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy },

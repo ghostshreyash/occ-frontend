@@ -14,6 +14,7 @@ import { AccountRecoveryPage } from "@/pages/auth/account-recovery"
 import { DashboardPage } from "@/pages/dashboard"
 import { ElpremarActivityPage } from "@/pages/elpremar-activity"
 import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
+import { ElpremarDetailPage } from "@/pages/elpremar-detail"
 import { CriticalAlertsPage } from "@/pages/critical-alerts"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
@@ -54,8 +55,11 @@ export const router = createBrowserRouter([
           { path: "enterprises", element: <EnterpriseOnboardingPage /> },
           { path: "enterprises/:id", element: <EnterpriseDetailPage /> },
           { path: "enterprise-onboarding", element: <Navigate to="/enterprises" replace /> },
-          { path: "elpremars", element: <ElpremarActivityPage /> },
-          { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
+          { path: "elpremars", element: <ElpremarOnboardingPage /> },
+          { path: "elpremars/activity", element: <ElpremarActivityPage /> },
+          { path: "elpremars/:id", element: <ElpremarDetailPage /> },
+          // Old URL kept working for existing links
+          { path: "elpremars/onboard", element: <Navigate to="/elpremars" replace /> },
           { path: "critical-alerts", element: <CriticalAlertsPage /> },
           // Remaining sidebar entries show a placeholder until their mockups exist
           ...occNavigation
