@@ -31,7 +31,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { elpremarSkills, shiftOptions } from "@/data/mock"
+import { elpremarSkills } from "@/data/mock"
 import { elpremarRoles, userRoles } from "@/data/master-data"
 import { enterpriseRecords, profileFor } from "@/data/occ-tables"
 import { nextElpremarId } from "@/data/elpremar-data"
@@ -120,7 +120,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   const form = useForm<BasicValues>({
     resolver: zodResolver(basicSchema),
     defaultValues: draft.basic ?? {
-      fullName: "", employeeId: nextElpremarId(), dob: "", mobile: "", email: "", address: "",
+      fullName: "", employeeId: nextElpremarId(), dob: "", mobile: "", email: "", postalCode: "", address: "",
     },
   })
   const { control } = form
@@ -171,6 +171,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
               </Field>
             )}
           />
+          <TextField control={control} name="postalCode" label="Postal Code" inputMode="numeric" placeholder="e.g. 400001" />
           <TextField control={control} name="mobile" label="Mobile Number" required type="tel" placeholder="+91 98765 43210" />
           <TextField control={control} name="email" label="Email ID" required type="email" />
           <TextareaField control={control} name="address" label="Address" rows={2} maxLength={250} className="md:col-span-2" />
@@ -187,7 +188,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   const form = useForm<WorkValues>({
     resolver: zodResolver(workSchema),
     defaultValues: draft.work ?? {
-      designation: "", experience: "", shift: "", skills: [], certifications: [],
+      designation: "", experience: "", skills: [], certifications: [],
     },
   })
   const { control, watch, setValue } = form
@@ -209,7 +210,6 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
           <div className="grid flex-1 gap-4 md:grid-cols-2">
             <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
             <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
-            <SelectField control={control} name="shift" label="Shift Preference" required options={shiftOptions} />
           </div>
         </div>
 
@@ -407,11 +407,10 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
 /* ---------- Step 3: Account Credentials ---------- */
 
 export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraft; onNext: (v: CredentialsValues) => void; onBack: () => void }) {
-  const suggested = draft.basic?.fullName.trim().toLowerCase().replace(/\s+/g, ".") ?? ""
   const form = useForm<CredentialsValues>({
     resolver: zodResolver(credentialsSchema),
     defaultValues: draft.credentials ?? {
-      username: suggested, role: "ELPREMAR", password: "", confirmPassword: "", webAccess: true, mobileAccess: true, sendWelcomeEmail: false,
+      email: draft.basic?.email ?? "", role: "ELPREMAR", password: "", confirmPassword: "", webAccess: true, mobileAccess: true, sendWelcomeEmail: false,
     },
     mode: "onChange",
   })
@@ -447,7 +446,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
       <form id="elp-credentials" onSubmit={form.handleSubmit(onNext)} className="rounded-lg ring-1 ring-border" noValidate>
         <h4 className="flex items-center gap-2 border-b bg-info-soft/60 px-4 py-2 font-semibold"><UserRoundCheck className="size-5 text-primary" /> System Access Details</h4>
         <div className="grid gap-2.5 p-3 md:grid-cols-2">
-          <TextField control={control} name="username" label="Username" required description="Username must be at least 6 characters. (Recommended format: firstname.lastname)" />
+          <TextField control={control} name="email" label="Email ID" required type="email" description="Taken from Basic Details. This is what they sign in with - change it here if their login differs." />
           <div>
             <SelectField control={control} name="role" label="User Role" required options={[...userRoles]} />
             <p className="mt-2 rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
@@ -544,6 +543,7 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
               <Row label="Gender" value={basic?.gender} />
               <Row label="Mobile Number" value={basic?.mobile} />
               <Row label="Email ID" value={basic?.email} />
+              <Row label="Postal Code" value={basic?.postalCode} />
               <Row label="Address" value={basic?.address} />
             </div>
           </div>
@@ -552,7 +552,6 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
         <ReviewSection icon={Settings} title="2. Work & Skills" onEdit={() => onEdit(1)}>
           <Row label="Role / Designation" value={work?.designation} />
           <Row label="Experience" value={work ? `${work.experience} Years` : ""} />
-          <Row label="Shift Preference" value={work?.shift} />
           <div className="pt-2 text-sm font-semibold">Skills &amp; Competencies</div>
           <div className="grid gap-1 sm:grid-cols-2">
             {elpremarSkills.map((s) => {
@@ -586,7 +585,7 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
         </ReviewSection>
 
         <ReviewSection icon={Lock} title="4. Account Credentials" onEdit={() => onEdit(3)}>
-          <Row label="Username" value={credentials?.username} />
+          <Row label="Email ID" value={credentials?.email} />
           <Row label="User Role" value={credentials?.role} />
           <Row label="Password" value={<span className="flex items-center gap-2">•••••••• <span className="text-xs text-healthy-soft-foreground">Secure</span></span>} />
           <Row
@@ -595,12 +594,6 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
           />
         </ReviewSection>
 
-        <ReviewSection icon={Settings} title="Additional Settings">
-          <Row label="Send Welcome Email" value={credentials?.sendWelcomeEmail ? "Yes" : "No"} />
-          <Row label="Send SMS Notification" value="Yes" />
-          <Row label="Account Status" value="Active (After Submission)" />
-          <Row label="Access Start Date" value="Immediately" />
-        </ReviewSection>
       </div>
 
       <div className="mt-6 flex justify-end gap-3">

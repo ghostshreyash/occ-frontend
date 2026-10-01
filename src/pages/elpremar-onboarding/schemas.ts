@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { password, phone, required, username } from "@/lib/validation"
+import { password, phone, required } from "@/lib/validation"
 
 export const basicSchema = z.object({
   photo: z.instanceof(File).optional(),
@@ -10,6 +10,7 @@ export const basicSchema = z.object({
   gender: z.enum(["Male", "Female", "Other"], "Select gender"),
   mobile: phone,
   email: z.email("Enter a valid email address"),
+  postalCode: z.string().optional(),
   address: z.string().optional(),
 })
 
@@ -35,14 +36,14 @@ export const certificationSchema = z.object({
 export const workSchema = z.object({
   designation: required("Role / designation"),
   experience: z.string().regex(/^\d{1,2}$/, "Enter years of experience"),
-  shift: required("Shift preference"),
   skills: z.array(z.string()).min(1, "Select at least one skill"),
   certifications: z.array(certificationSchema),
 })
 
 export const credentialsSchema = z
   .object({
-    username,
+    // The ELPREMAR signs in with their email, carried over from Basic Details
+    email: z.email("Enter a valid email address"),
     role: required("User role"),
     password,
     confirmPassword: z.string(),

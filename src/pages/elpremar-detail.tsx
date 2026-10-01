@@ -27,7 +27,7 @@ import { SectionCard } from "@/components/common/section-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { ExpiryValue } from "@/components/common/expiry-value"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
-import { slotLabel } from "@/data/occ-tables"
+import { enterpriseRecords, profileFor, slotLabel } from "@/data/occ-tables"
 import {
   elpremarProfileFor,
   elpremarRecords,
@@ -37,9 +37,7 @@ import {
   type ElpremarProfile,
 } from "@/data/elpremar-data"
 import { elpremarRoles, userRoles } from "@/data/master-data"
-import { countries, elpremarSkills, salutations, shiftOptions, supervisors } from "@/data/mock"
-import { enterprises, plants } from "@/data/mock"
-import { departmentTypes } from "@/data/master-data"
+import { countries, elpremarSkills, salutations } from "@/data/mock"
 import { optionalEmail, phone, required } from "@/lib/validation"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
@@ -60,6 +58,7 @@ const basicSchema = z.object({
   employeeId: required("Employee ID"),
   dob: z.string().optional(),
   gender: z.string().optional(),
+  postalCode: z.string().optional(),
   phoneCode: z.string().optional(),
   phone,
   email: z.email("Enter a valid email address"),
@@ -73,14 +72,15 @@ const postingSchema = z.object({
   city: required("City"),
   country: required("Country"),
   department: z.string().optional(),
+  subDepartment: z.string().optional(),
   supervisor: z.string().optional(),
+  effectiveFrom: z.string().optional(),
 })
 type PostingValues = z.infer<typeof postingSchema>
 
 const workSchema = z.object({
   role: required("Role / Designation"),
   experience: z.string().regex(/^\d{1,2}$/, "Enter years of experience"),
-  shift: z.string().optional(),
   skills: z.array(z.string()).min(1, "Select at least one skill"),
 })
 type WorkValues = z.infer<typeof workSchema>
@@ -147,6 +147,19 @@ export function ElpremarDetailPage() {
   const { basic: b, posting: po, work: w, certifications: certs, account } = profile
   const meta = elpremarStatusMeta[record.status]
   const upcoming = upcomingFor(record.name)
+
+  // Walks the chosen enterprise's tree, the same way the onboarding step does
+  const postedEnterprise = enterpriseRecords.find((e) => e.name === postingForm.watch("enterprise"))
+  const postedPlants = postedEnterprise ? profileFor(postedEnterprise).plants : []
+  const postedPlant = postedPlants.find((pl) => pl.name === postingForm.watch("plant"))
+  const postedDepartments = postedPlant?.departments ?? []
+  const postedDepartment = postedDepartments.find((d) => d.name === postingForm.watch("department"))
+  const postedSubDepartments = postedDepartment?.subDepartments ?? []
+  const postedSupervisors = [
+    ...(postedDepartment ? [`${postedDepartment.salutation} ${postedDepartment.head}`] : []),
+    ...(postedPlant ? [`${postedPlant.salutation} ${postedPlant.head}`] : []),
+  ].filter((v, i, a) => a.indexOf(v) === i)
+  const clearPosting = (...names: (keyof PostingValues)[]) => names.forEach((n) => postingForm.setValue(n, ""))
   const skills = workForm.watch("skills") ?? []
   const toggleSkill = (skill: string) =>
     workForm.setValue("skills", skills.includes(skill) ? skills.filter((s) => s !== skill) : [...skills, skill], {
@@ -189,6 +202,7 @@ export function ElpremarDetailPage() {
                 { label: "Full Name", value: `${b.salutation} ${b.name}` },
                 { label: "Date of Birth", value: showDate(b.dob) },
                 { label: "Gender", value: b.gender },
+                { label: "Postal Code", value: b.postalCode },
                 { label: "Mobile Number", value: [b.phoneCode, b.phone].filter(Boolean).join(" ") },
                 { label: "Email", value: b.email },
                 { label: "Joined", value: record.joined },
@@ -205,6 +219,7 @@ export function ElpremarDetailPage() {
               <TextField control={basicForm.control} name="employeeId" label="Employee / ID Number" required />
               <DateField control={basicForm.control} name="dob" label="Date of Birth" />
               <SelectField control={basicForm.control} name="gender" label="Gender" options={["Male", "Female", "Other"]} />
+              <TextField control={basicForm.control} name="postalCode" label="Postal Code" inputMode="numeric" />
               <PhoneField control={basicForm.control} codeName="phoneCode" name="phone" label="Mobile Number" required />
               <TextField control={basicForm.control} name="email" label="Email" required type="email" />
               <TextareaField control={basicForm.control} name="address" label="Address" rows={2} className="md:col-span-3" />
@@ -213,44 +228,9 @@ export function ElpremarDetailPage() {
         />
 
         <DetailSection
-          icon={Building2}
-          title="Posting"
-          step={2}
-          complete={Boolean(po.enterprise)}
-          optional
-          summary={po.enterprise ? `${po.enterprise} · ${po.plant}` : undefined}
-          sectionKey="posting"
-          editing={editing}
-          onEditingChange={setEditing}
-          onSave={save(postingForm, "posting")}
-          view={
-            <ValueGrid
-              rows={[
-                { label: "Enterprise", value: po.enterprise },
-                { label: "Plant", value: po.plant },
-                { label: "City", value: po.city },
-                { label: "Country", value: po.country },
-                { label: "Department", value: po.department },
-                { label: "Reporting Supervisor", value: po.supervisor },
-              ]}
-            />
-          }
-          edit={
-            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
-              <SelectField control={postingForm.control} name="enterprise" label="Enterprise" options={enterprises} placeholder="Unassigned" />
-              <SelectField control={postingForm.control} name="plant" label="Plant" options={plants} placeholder="Unassigned" />
-              <SelectField control={postingForm.control} name="department" label="Department" options={departmentTypes} />
-              <TextField control={postingForm.control} name="city" label="City" required />
-              <SelectField control={postingForm.control} name="country" label="Country" required options={countries} />
-              <SelectField control={postingForm.control} name="supervisor" label="Reporting Supervisor" options={supervisors} />
-            </form>
-          }
-        />
-
-        <DetailSection
           icon={HardHat}
           title="Work & Skills"
-          step={3}
+          step={2}
           complete={Boolean(w.role)}
           summary={`${w.role} · ${w.experience} yrs`}
           sectionKey="work"
@@ -263,7 +243,6 @@ export function ElpremarDetailPage() {
                 rows={[
                   { label: "Role / Designation", value: w.role },
                   { label: "Experience", value: `${w.experience} years` },
-                  { label: "Shift Preference", value: w.shift },
                 ]}
               />
               <div>
@@ -283,7 +262,6 @@ export function ElpremarDetailPage() {
               <div className="grid gap-2.5 md:grid-cols-3">
                 <SelectField control={workForm.control} name="role" label="Role / Designation" required options={elpremarRoles} />
                 <TextField control={workForm.control} name="experience" label="Experience (Years)" required inputMode="numeric" />
-                <SelectField control={workForm.control} name="shift" label="Shift Preference" options={shiftOptions} />
               </div>
               <fieldset>
                 <legend className="mb-1.5 text-xs font-medium">
@@ -301,6 +279,89 @@ export function ElpremarDetailPage() {
                   <p className="mt-1 text-xs text-critical">{workForm.formState.errors.skills.message}</p>
                 ) : null}
               </fieldset>
+            </form>
+          }
+        />
+
+        <DetailSection
+          icon={Building2}
+          title="Assigned Enterprise"
+          step={3}
+          complete={Boolean(po.enterprise)}
+          optional
+          summary={po.enterprise ? `${po.enterprise} · ${po.plant}` : "Not assigned"}
+          sectionKey="posting"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={save(postingForm, "posting")}
+          view={
+            po.enterprise ? (
+              <ValueGrid
+                rows={[
+                  { label: "Enterprise", value: po.enterprise },
+                  { label: "Plant", value: po.plant },
+                  { label: "Department", value: po.department },
+                  { label: "Sub-Department", value: po.subDepartment },
+                  { label: "Reporting Supervisor", value: po.supervisor },
+                  { label: "Effective From", value: po.effectiveFrom },
+                  { label: "City", value: po.city },
+                  { label: "Country", value: po.country },
+                ]}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Not assigned to an enterprise yet{record.status === "not_trained" ? " - training is not complete." : "."}
+              </p>
+            )
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              {/* Each list is read from the chosen enterprise, so a posting always exists */}
+              <SelectField
+                control={postingForm.control}
+                name="enterprise"
+                label="Enterprise"
+                options={enterpriseRecords.map((e) => e.name)}
+                placeholder="Unassigned"
+                onValueChange={() => clearPosting("plant", "department", "subDepartment", "supervisor")}
+              />
+              <SelectField
+                control={postingForm.control}
+                name="plant"
+                label="Plant"
+                disabled={!postedEnterprise}
+                placeholder={postedEnterprise ? "Select" : "Select an enterprise first"}
+                options={postedPlants.map((pl) => pl.name)}
+                onValueChange={() => clearPosting("department", "subDepartment", "supervisor")}
+              />
+              <SelectField
+                control={postingForm.control}
+                name="department"
+                label="Department"
+                disabled={!postedPlant}
+                placeholder={postedPlant ? "Select" : "Select a plant first"}
+                options={postedDepartments.map((d) => d.name)}
+                onValueChange={() => clearPosting("subDepartment", "supervisor")}
+              />
+              <SelectField
+                control={postingForm.control}
+                name="subDepartment"
+                label="Sub-Department"
+                disabled={!postedDepartment}
+                placeholder={postedDepartment ? "Select" : "Select a department first"}
+                options={postedSubDepartments.map((s) => s.name)}
+              />
+              <SelectField
+                control={postingForm.control}
+                name="supervisor"
+                label="Reporting Supervisor"
+                disabled={!postedDepartment}
+                placeholder={postedDepartment ? "Select" : "Select a department first"}
+                options={postedSupervisors}
+              />
+              <TextField control={postingForm.control} name="effectiveFrom" label="Effective From" />
+              <TextField control={postingForm.control} name="city" label="City" required />
+              <SelectField control={postingForm.control} name="country" label="Country" required options={countries} />
             </form>
           }
         />

@@ -6,9 +6,10 @@
  * (TanStack Query) later.
  */
 import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
-import { elpremarSkills, shiftOptions, supervisors } from "@/data/mock"
+import { elpremarSkills } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
-import { enterpriseRecords, inspectionActivities, maintenanceActivities, ticketActivities } from "@/data/occ-tables"
+import { enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor, ticketActivities } from "@/data/occ-tables"
+import type { EnterpriseRecord } from "@/data/occ-tables"
 
 /** Where they sit in the training-to-deployment lifecycle */
 export type ElpremarStatus = "trained" | "not_trained" | "in_field"
@@ -53,7 +54,6 @@ const dateOffset = (days: number) => {
   return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`
 }
 
-const DEPTS = ["Electrical", "Maintenance", "Operations", "Engineering", "Utilities"]
 
 /** The platform's three certified ELPREMAR streams */
 const CERTIFICATES = [
@@ -95,6 +95,19 @@ function certsFor(id: string, count: number): Certificate[] {
 /** Days until a DD-MM-YYYY date; negative once it has passed */
 export const daysUntil = (dmy: string) => Math.round((parseDmy(dmy).getTime() - REFERENCE.getTime()) / 86_400_000)
 
+/**
+ * Where one ELPREMAR is posted, taken from the enterprise's own plant tree so
+ * the plant, department and sub-department always exist under it. Keyed by the
+ * same seed everywhere, so the register row and the profile never disagree.
+ */
+function postingFor(e: EnterpriseRecord, s: number) {
+  const plants = profileFor(e).plants
+  const plant = plants[s % plants.length]
+  const department = plant.departments[s % plant.departments.length]
+  const subDepartment = department.subDepartments[s % department.subDepartments.length]
+  return { plant, department, subDepartment }
+}
+
 /* ---------- Registry ---------- */
 
 export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) => {
@@ -106,6 +119,7 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   const status: ElpremarStatus = elpremarLifecycle(i)
   // Nobody is posted to a plant before they have been trained
   const unassigned = status === "not_trained"
+  const posting = postingFor(enterprise, s)
   const certs = certsFor(id, 2 + (s % 3))
   // The one that lapses first is the one that limits what they can be sent to do
   const earliest = [...certs].sort((x, y) => parseDmy(x.validTill).getTime() - parseDmy(y.validTill).getTime())[0]
@@ -117,10 +131,11 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
     salutation: person.gender === "Female" ? (s % 7 === 0 ? "Dr." : "Ms.") : s % 9 === 0 ? "Dr." : "Mr.",
     role: pick(elpremarRoles, s, 2),
     enterprise: unassigned ? "" : enterprise.name,
-    plant: unassigned ? "" : `${enterprise.city} ${pick(["Main Plant", "Unit 2", "Substation", "Utility Block"], s, 4)}`,
-    city: enterprise.city,
+    plant: unassigned ? "" : posting.plant.name,
+    // Where they actually work, which is the plant's city rather than the HQ's
+    city: unassigned ? enterprise.city : posting.plant.city,
     country: enterprise.country,
-    department: pick(DEPTS, s, 5),
+    department: unassigned ? "" : posting.department.name,
     experience: 2 + (s % 18),
     certifications: certs.length,
     certifiedUntil: earliest.validTill,
@@ -156,6 +171,7 @@ export type ElpremarProfile = {
     employeeId: string
     dob: string
     gender: string
+    postalCode: string
     phoneCode: string
     phone: string
     email: string
@@ -167,12 +183,13 @@ export type ElpremarProfile = {
     city: string
     country: string
     department: string
+    subDepartment: string
     supervisor: string
+    effectiveFrom: string
   }
   work: {
     role: string
     experience: string
-    shift: string
     skills: string[]
   }
   certifications: Certificate[]
@@ -182,6 +199,8 @@ export type ElpremarProfile = {
 /** Build the full profile for one ELPREMAR, deterministically */
 export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
   const s = seedOf(e.id)
+  const home = enterpriseRecords.find((x) => x.name === e.enterprise)
+  const assigned = home ? postingFor(home, s) : undefined
   const slug = e.name.toLowerCase().replace(/[^a-z]/g, ".")
   const dob = new Date(1975 + (s % 25), s % 12, 1 + (s % 27))
 
@@ -192,6 +211,8 @@ export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
       employeeId: e.id,
       dob: `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, "0")}-${String(dob.getDate()).padStart(2, "0")}`,
       gender: elpremarRoster.find((r) => r.name === e.name)?.gender ?? "Male",
+      // Six digits in India, five elsewhere - enough to look right per country
+      postalCode: e.country === "India" ? String(110000 + (s % 789999)) : String(10000 + (s % 89999)),
       phoneCode: dialCodeFor(e.country),
       phone: String(9000000000 + (s % 899999999)).slice(0, 10),
       email: `${slug}@olivineglobalsystems.com`,
@@ -203,12 +224,14 @@ export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
       city: e.city,
       country: e.country,
       department: e.department,
-      supervisor: pick(supervisors, s, 8),
+      subDepartment: assigned ? assigned.subDepartment.name : "",
+      // The real reporting line: the head of the department they sit in
+      supervisor: assigned ? `${assigned.department.salutation} ${assigned.department.head}` : "",
+      effectiveFrom: dateOffset(-(30 + (s % 400))),
     },
     work: {
       role: e.role,
       experience: String(e.experience),
-      shift: pick(shiftOptions, s, 6),
       // Three skills, always distinct
       skills: [0, 1, 2].map((n) => elpremarSkills[(s + n * 3) % elpremarSkills.length]).filter((v, n, a) => a.indexOf(v) === n),
     },
