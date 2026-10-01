@@ -1,4 +1,4 @@
-import { Check, Lightbulb, type LucideIcon } from "lucide-react"
+import { Check, Info, Lightbulb, type LucideIcon } from "lucide-react"
 import { cn } from "cn"
 
 import { Progress } from "@/components/ui/progress"
@@ -145,15 +145,27 @@ export function KeyInfo({ title = "Key Information", items }: { title?: string; 
 }
 
 /** Blue context strip showing choices from earlier steps */
-export function ContextStrip({ items }: { items: { icon: LucideIcon; label: string; value: string }[] }) {
+/**
+ * The thin bar under a step title carrying what earlier steps established, so
+ * the form below never has to repeat it.
+ */
+export function Context({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-info-soft px-2 py-1.5 text-[0.7rem]">
-      {items.map(({ icon: Icon, label, value }) => (
-        <span key={label} className="flex items-center gap-1.5">
-          <Icon className="size-3.5 text-primary" />
-          {label}: <strong>{value}</strong>
-        </span>
-      ))}
+    <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-info-soft px-3 py-2 text-xs">
+      <Info className="size-4 text-primary" />
+      {children}
+      {action ? <div className="ml-auto">{action}</div> : null}
     </div>
+  )
+}
+
+/** One label/value pair inside a Context bar */
+export function Ctx({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value?: string }) {
+  if (!value) return null
+  return (
+    <span className="flex items-center gap-1.5 border-l border-primary/20 pl-3 first-of-type:border-0 first-of-type:pl-0">
+      <Icon className="size-3.5 text-primary" />
+      {label}: <strong>{value}</strong>
+    </span>
   )
 }

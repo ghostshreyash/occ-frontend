@@ -14,6 +14,7 @@ import { AccountRecoveryPage } from "@/pages/auth/account-recovery"
 import { DashboardPage } from "@/pages/dashboard"
 import { AddInspectionActivityPage } from "@/pages/add-inspection-activity"
 import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
+import { ElpremarDetailPage } from "@/pages/elpremar-detail"
 import { CriticalAlertsPage } from "@/pages/critical-alerts"
 import { MaintenanceActivitiesPage } from "@/pages/maintenance-activities"
 import { InspectionActivitiesPage } from "@/pages/inspection-activities"
@@ -27,7 +28,7 @@ import { ThemePreview } from "@/components/theme-preview"
 import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
 import { EnterpriseDetailPage } from "./pages/enterprise-detail"
 
-const built = new Set(["/", "/customer-map", "/enterprises", "/critical-alerts", "/maintenance-activities", "/inspection-activities", "/support-tickets"])
+const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts", "/maintenance-activities", "/inspection-activities", "/support-tickets"])
 
 /*
  * The hostname decides which sign-in a visitor sees (`src/lib/brand.ts`), so
@@ -61,7 +62,10 @@ export const router = createBrowserRouter([
           { path: "enterprises", element: <EnterpriseOnboardingPage /> },
           { path: "enterprises/:id", element: <EnterpriseDetailPage /> },
           { path: "enterprise-onboarding", element: <Navigate to="/enterprises" replace /> },
-          { path: "elpremars/onboard", element: <ElpremarOnboardingPage /> },
+          { path: "elpremars", element: <ElpremarOnboardingPage /> },
+          { path: "elpremars/:id", element: <ElpremarDetailPage /> },
+          // Old URL kept working for existing links
+          { path: "elpremars/onboard", element: <Navigate to="/elpremars" replace /> },
           { path: "critical-alerts", element: <CriticalAlertsPage /> },
           { path: "maintenance-activities", element: <MaintenanceActivitiesPage /> },
           { path: "maintenance-activity-details/:id", element: <MaintenanceActivityDetailsPage /> },

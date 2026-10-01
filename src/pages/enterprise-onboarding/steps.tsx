@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { Context, Ctx } from "@/components/common/wizard"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Building2, CheckCircle2, Factory, Info, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Building2, CheckCircle2, Factory, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,25 +44,6 @@ type StepProps<T> = {
 }
 
 /** Blue strip summarising earlier steps (matches the mockups) */
-function Context({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
-  return (
-    <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-info-soft px-3 py-2 text-xs">
-      <Info className="size-4 text-primary" />
-      {children}
-      {action ? <div className="ml-auto">{action}</div> : null}
-    </div>
-  )
-}
-
-function Ctx({ icon: Icon, label, value }: { icon: typeof Building2; label: string; value?: string }) {
-  return (
-    <span className="flex items-center gap-1.5 border-l border-primary/20 pl-3 first-of-type:border-0 first-of-type:pl-0">
-      <Icon className="size-3.5 text-primary" />
-      {label}: <strong>{value}</strong>
-    </span>
-  )
-}
-
 /* ---------------- Step 1 ---------------- */
 
 export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseValues> & { onCancel: () => void }) {
