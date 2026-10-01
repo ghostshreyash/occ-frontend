@@ -478,7 +478,7 @@ export function ElpremarDetailPage() {
                   <div className="shrink-0 text-right">
                     <div className="text-xs font-medium">{whenLabel(u.date)}</div>
                     <div className="text-[0.65rem] tabular-nums text-muted-foreground">
-                      {u.date}{u.slot == null ? "" : ` · ${slotLabel(u.slot)}`}
+                      {u.slot == null ? u.date : slotLabel(u.slot)}
                     </div>
                   </div>
                 </li>

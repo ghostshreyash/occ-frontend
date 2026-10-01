@@ -6,6 +6,7 @@
  * (TanStack Query) later.
  */
 import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
+import { format } from "date-fns"
 import { elpremarSkills } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
 import { enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor, ticketActivities } from "@/data/occ-tables"
@@ -303,8 +304,10 @@ export function upcomingFor(name: string, count = 3): UpcomingActivity[] {
     .slice(0, count)
 }
 
-/** "Today" / "Tomorrow" / "in 4 days", for a DD-MM-YYYY date */
+/** "Today" / "Tomorrow" / "Fri 9 Oct" - a date you can act on, never a countdown */
 export function whenLabel(dmy: string) {
   const d = daysFromToday(dmy)
-  return d === 0 ? "Today" : d === 1 ? "Tomorrow" : `in ${d} days`
+  if (d === 0) return "Today"
+  if (d === 1) return "Tomorrow"
+  return format(parseDmy(dmy), "EEE d MMM")
 }
