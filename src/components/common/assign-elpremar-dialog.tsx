@@ -57,11 +57,14 @@ export type AssignTarget = {
 
 type DayState = "off" | "leave" | "full" | "booked" | "free"
 
-const dayStyle: Record<"free" | "booked" | "full" | "leave", { dot: string; label: string }> = {
+/**
+ * Leave is deliberately absent: a day on leave still blocks booking through
+ * `dayState`, but it is not called out in the calendar or its key.
+ */
+const dayStyle: Record<"free" | "booked" | "full", { dot: string; label: string }> = {
   free: { dot: "bg-healthy", label: "Available" },
   booked: { dot: "bg-info", label: "1 job booked" },
   full: { dot: "bg-critical", label: "Fully booked" },
-  leave: { dot: "bg-attention", label: "On leave" },
 }
 
 const parseDate = (d: string) => parse(d, "dd-MM-yyyy", new Date())
@@ -317,7 +320,9 @@ function ElpremarDetails({ e, location }: { e: Elpremar; location?: JobLocation 
 /**
  * The scheduling panel: who the work belongs to, the day it sits on and the
  * interval within that day. Opens on what the row already has and is read-only
- * until Reassign, which brings in the ELPREMAR search and unlocks both.
+ * until Reassign, which brings in the ELPREMAR search and unlocks both. A target
+ * with no ELPREMAR is a first assignment, so it opens in the search with Reassign
+ * disabled and the commit button reading Assign.
  * Rendered inline on the details screen and inside the dialog on the dashboard.
  * Mount with a `key` per target so state resets.
  */
@@ -365,8 +370,11 @@ export function WorkSchedule({
     slot: target.slot,
   }
 
+  // A row with nobody on it is a first assignment: open straight into the search,
+  // since there is no existing booking to show or to go back to
+  const fresh = !target.elpremar
   // Reassigning is a deliberate step: until then the booking is only on show
-  const [reassigning, setReassigning] = useState(false)
+  const [reassigning, setReassigning] = useState(fresh)
   const [query, setQuery] = useState("")
   const [selectedId, setSelectedId] = useState(booked.id)
   const [date, setDate] = useState<Date | undefined>(booked.date)
@@ -534,7 +542,12 @@ export function WorkSchedule({
         </p>
         {leadingAction}
         {canReassign ? (
-          reassigning ? (
+          fresh ? (
+            // Nothing to reassign from until this first assignment is made
+            <Button variant="secondary" size="sm" className={control} disabled title="Nobody is assigned yet">
+              Reassign
+            </Button>
+          ) : reassigning ? (
             <Button variant="secondary" size="sm" className={control} onClick={cancelReassign}>Back</Button>
           ) : (
             <Button variant="secondary" size="sm" className={control} onClick={startReassign}>Reassign</Button>
@@ -542,7 +555,7 @@ export function WorkSchedule({
         ) : null}
         {target.approvable === false && !canReassign ? null : target.approvable === false && reassigning ? (
           <Button size="sm" className={control} disabled={!chosen || !!clash} onClick={commit}>
-            <CheckCheck className="size-3.5" /> Reassign
+            <CheckCheck className="size-3.5" /> {fresh ? "Assign" : "Reassign"}
           </Button>
         ) : (
           <Button size="sm" className={control} disabled={!canApprove} onClick={commit}>
