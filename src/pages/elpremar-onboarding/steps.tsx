@@ -32,7 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { elpremarSkills } from "@/data/mock"
-import { elpremarRoles, userRoles } from "@/data/master-data"
+import { elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { enterpriseRecords, profileFor } from "@/data/occ-tables"
 import { nextElpremarId } from "@/data/elpremar-data"
 import {
@@ -93,23 +93,41 @@ function Avatar({ photo, className }: { photo?: File; className?: string }) {
   )
 }
 
-/** Mini profile shown alongside the later steps */
-export function ProfileCard({ draft }: { draft: ElpremarDraft }) {
-  const { basic, assignment } = draft
+function SummaryLine({ label, value }: { label: string; value?: string }) {
+  if (!value) return null
   return (
-    <div className="flex w-full flex-col items-center gap-1 rounded-lg bg-muted/60 p-4 text-center text-xs sm:w-44">
-      <Avatar photo={basic?.photo} className="mb-1 size-16" />
-      <div className="text-sm font-bold">{basic?.fullName}</div>
-      <div>{basic?.employeeId}</div>
-      {/* Only shown once the assignment step has been filled in */}
-      {assignment ? (
-        <>
-          <div>{assignment.department} Department</div>
-          <div className="text-muted-foreground">{assignment.plant}</div>
-        </>
-      ) : (
-        <div className="text-muted-foreground">Not yet assigned</div>
-      )}
+    <div>
+      <dt className="text-[0.62rem] font-semibold tracking-wide text-muted-foreground uppercase">{label}</dt>
+      <dd className="truncate" title={value}>{value}</dd>
+    </div>
+  )
+}
+
+/**
+ * What has been captured so far, shown beside the later steps. A portrait only
+ * appears once one has been uploaded - a placeholder here reads as a missing
+ * photo rather than as the summary this panel is for.
+ */
+export function ProfileCard({ draft }: { draft: ElpremarDraft }) {
+  const { basic, work, assignment } = draft
+  return (
+    <div className="flex w-full shrink-0 flex-col gap-2.5 self-start rounded-lg bg-muted/60 p-4 text-xs sm:w-52">
+      {basic?.photo ? <Avatar photo={basic.photo} className="size-16 self-center" /> : null}
+
+      <div>
+        <div className="text-sm font-bold">{basic?.fullName}</div>
+        <div className="tabular-nums text-muted-foreground">{basic?.employeeId}</div>
+      </div>
+
+      <dl className="space-y-2 border-t pt-2.5">
+        <SummaryLine label="Email" value={basic?.email} />
+        <SummaryLine label="Mobile" value={basic?.mobile} />
+        <SummaryLine label="Role" value={work ? roleStream(work.designation) : undefined} />
+        <SummaryLine label="Experience" value={work?.experience ? `${work.experience} yrs` : undefined} />
+        <SummaryLine label="Enterprise" value={assignment?.enterprise} />
+        <SummaryLine label="Plant" value={assignment?.plant} />
+        <SummaryLine label="Department" value={assignment?.department} />
+      </dl>
     </div>
   )
 }
