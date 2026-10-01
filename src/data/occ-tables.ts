@@ -6,10 +6,10 @@
 import { addDays, format } from "date-fns"
 
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { deployableElpremarNames, dialCodeFor, elpremarNames } from "@/data/master-data"
+import { deployableElpremarNames, dialCodeFor, elpremarNames, type AssetCriticality } from "@/data/master-data"
 import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
-type Priority = (typeof priorities)[number]
+export type Priority = (typeof priorities)[number]
 
 /**
  * Mock bookings are pinned to today rather than to fixed dates, so the console
@@ -236,10 +236,44 @@ function moreInspections(count: number): TaskRow[] {
  * Technical = field device / instrument faults, System = OCC platform and app
  * issues, Asset = panel or QR/asset-record problems, Access = user and role
  * requests, Report = health reports and exports, Assignment = ELPREMAR requests.
+ *
+ * Configurable: the Raise Ticket form and the Category filter both read this
+ * list, so adding a category here is the only change a new one needs.
  */
-export const ticketCategories = ["Technical", "Access", "Asset", "Report", "System", "Assignment"] as const
+export const ticketCategories = [
+  "System",
+  "Technical",
+  "Assignment",
+  "Asset",
+  "Inspection",
+  "Testing & Measurement",
+  "Maintenance",
+  "Report",
+  "Access",
+  "Data/Sync",
+  "Dashboard",
+  "Other",
+] as const
 
 export type TicketCategory = (typeof ticketCategories)[number]
+
+/**
+ * Which EVITA / OLIVINE module the ticket came from. A ticket raised inside a
+ * module carries its context across (asset, inspection or report id), so OCC
+ * never has to ask the reporter which record they were looking at.
+ */
+export const ticketSources = [
+  "OCC Console",
+  "EVITA",
+  "EMMSE",
+  "Asset",
+  "Inspection",
+  "Testing & Measurements",
+  "Maintenance",
+  "Reports",
+] as const
+
+export type TicketSource = (typeof ticketSources)[number]
 
 export type TicketRow = {
   id: string
@@ -249,6 +283,12 @@ export type TicketRow = {
   subject: string
   category: TicketCategory
   raised: string
+  /** Who reported it — an enterprise or plant user, not the OCC desk */
+  raisedBy: string
+  /** The module the ticket was raised from */
+  source: TicketSource
+  /** Last status change / comment / assignment, as `dd-MM-yyyy HH:mm` */
+  lastUpdated: string
   /** Who the ticket is assigned to (ELPREMAR or OCC desk owner) */
   elpremar?: string
   scheduled?: string
@@ -258,18 +298,78 @@ export type TicketRow = {
   status: WorkStatus
   /** What was done about it, captured when the ticket is closed */
   resolution?: string
+  /* --- contextual references, carried from the originating module --- */
+  /** Digital Asset ID the ticket is about */
+  assetId?: string
+  inspectionId?: string
+  maintenanceId?: string
+  reportId?: string
 }
 
-export const supportTickets: TicketRow[] = [
-  { id: "TK-4592", enterprise: "Tata Steel Limited", plant: "Jamshedpur Main Plant", country: "India", subject: "EVITA sync failing on tablet", category: "System", raised: day(-1), priority: "High", status: "open" },
-  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi Substation", country: "India", subject: "Request ELPREMAR assignment", category: "Assignment", raised: day(-1), priority: "Medium", status: "open" },
-  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar Substation", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Technical", raised: day(-2), elpremar: "Amit Sharma", scheduled: day(1), priority: "Critical", status: "in_progress" },
-  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra Warehouse", country: "India", subject: "Health report PDF not downloading", category: "Report", raised: day(-2), elpremar: "Anil Singh", scheduled: day(-2), priority: "Low", status: "closed" },
-  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata Unit 2", country: "India", subject: "Add new sub-division to hierarchy", category: "System", raised: day(-3), elpremar: "Priya Nair", scheduled: day(-3), priority: "Medium", status: "closed" },
-  { id: "TK-4587", enterprise: "Emirates Steel", plant: "Dubai Main Plant", country: "United Arab Emirates", subject: "EMMSE dashboard loading slowly", category: "System", raised: day(-3), elpremar: "Khalid Rahman", scheduled: day(-2), priority: "Medium", status: "closed" },
-  { id: "TK-4586", enterprise: "Tata Steel Europe", plant: "IJmuiden Unit 2", country: "Netherlands", subject: "Asset QR code not scanning", category: "Asset", raised: day(-4), priority: "High", status: "open" },
-  { id: "TK-4585", enterprise: "BHP Group", plant: "Sydney Utility Block", country: "Australia", subject: "User access request for plant head", category: "Access", raised: day(-4), elpremar: "Lukas Weber", scheduled: day(-4), priority: "Low", status: "closed" },
+/** `dd-MM-yyyy HH:mm`, for the Last Updated stamp and the activity history */
+const stamp = (offset: number, hour: number) => `${day(offset)} ${hh(hour)}`
+
+/** Enterprise and plant people who report problems, kept apart from the field crew */
+const requesters = [
+  "Rajesh Iyer",
+  "Meena Krishnan",
+  "Arun Prakash",
+  "Sneha Gupta",
+  "Imran Qureshi",
+  "Fatima Al Nuaimi",
+  "Hans Richter",
+  "Elena Fischer",
+  "Diego Alvarez",
+  "Grace Tan",
 ]
+
+export const supportTickets: TicketRow[] = [
+  { id: "TK-4592", enterprise: "Tata Steel Limited", plant: "Jamshedpur Main Plant", country: "India", subject: "EVITA sync failing on tablet", category: "System", raised: day(-1), raisedBy: "Rajesh Iyer", source: "EVITA", lastUpdated: stamp(-1, 10), priority: "High", status: "open" },
+  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi Substation", country: "India", subject: "Request ELPREMAR assignment", category: "Assignment", raised: day(-1), raisedBy: "Meena Krishnan", source: "OCC Console", lastUpdated: stamp(-1, 12), priority: "Medium", status: "open" },
+  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar Substation", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Testing & Measurement", raised: day(-2), raisedBy: "Arun Prakash", source: "Testing & Measurements", lastUpdated: stamp(0, 9), elpremar: "Amit Sharma", scheduled: day(1), slot: 11, priority: "Critical", status: "in_progress", assetId: "AST-JMN-0142", inspectionId: "TSK-8840" },
+  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra Warehouse", country: "India", subject: "Health report PDF not downloading", category: "Report", raised: day(-2), raisedBy: "Sneha Gupta", source: "Reports", lastUpdated: stamp(-1, 15), elpremar: "Anil Singh", scheduled: day(-2), slot: 10, priority: "Low", status: "closed", reportId: "RPT-MUN-2291", resolution: "Export service restarted; the report now downloads as PDF." },
+  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata Unit 2", country: "India", subject: "Add new sub-division to hierarchy", category: "System", raised: day(-3), raisedBy: "Imran Qureshi", source: "OCC Console", lastUpdated: stamp(-2, 11), elpremar: "Priya Nair", scheduled: day(-3), slot: 14, priority: "Medium", status: "closed", resolution: "Sub-division added under Electrical and access granted." },
+  { id: "TK-4587", enterprise: "Emirates Steel", plant: "Dubai Main Plant", country: "United Arab Emirates", subject: "EMMSE dashboard loading slowly", category: "Dashboard", raised: day(-3), raisedBy: "Fatima Al Nuaimi", source: "EMMSE", lastUpdated: stamp(-2, 16), elpremar: "Khalid Rahman", scheduled: day(-2), slot: 9, priority: "Medium", status: "closed", resolution: "Widget query tuned; dashboard now loads within 2s." },
+  { id: "TK-4586", enterprise: "Tata Steel Europe", plant: "IJmuiden Unit 2", country: "Netherlands", subject: "Asset QR code not scanning", category: "Asset", raised: day(-4), raisedBy: "Hans Richter", source: "Asset", lastUpdated: stamp(-4, 13), priority: "High", status: "open", assetId: "AST-IJM-0077" },
+  { id: "TK-4585", enterprise: "BHP Group", plant: "Sydney Utility Block", country: "Australia", subject: "User access request for plant head", category: "Access", raised: day(-4), raisedBy: "Grace Tan", source: "OCC Console", lastUpdated: stamp(-3, 10), elpremar: "Lukas Weber", scheduled: day(-4), slot: 15, priority: "Low", status: "closed", resolution: "Plant Head role granted and confirmed with the requester." },
+]
+
+/**
+ * The dashboard panel shows the latest few; the Support Tickets screen shows the
+ * whole desk. Same seeded approach as the maintenance and inspection books, so
+ * ids, owners and references stay put between renders.
+ */
+const ticketSubjectsByCategory: Record<TicketCategory, string[]> = {
+  System: ["EVITA sync failing on tablet", "Add new sub-division to hierarchy", "Session times out too quickly"],
+  Technical: ["Thermal camera not connecting", "Handheld device will not charge", "Sensor reading drifts after calibration"],
+  Assignment: ["Request ELPREMAR assignment", "Reassign shutdown activity to another engineer", "ELPREMAR unavailable for booked slot"],
+  Asset: ["Asset QR code not scanning", "Correct the panel rating on record", "Duplicate asset record created"],
+  Inspection: ["Inspection checklist missing a step", "Cannot submit inspection from the field", "Inspection photos not uploading"],
+  "Testing & Measurement": ["PD meter not pairing over Bluetooth", "IR test values not saving", "Measurement unit shown incorrectly"],
+  Maintenance: ["Maintenance activity stuck in progress", "INSTA CLEAN consumables not recorded", "Cannot close out completed maintenance"],
+  Report: ["Health report PDF not downloading", "Report shows last month's figures", "Add plant summary to the export"],
+  Access: ["User access request for plant head", "Reset login for a new engineer", "Role change for maintenance supervisor"],
+  "Data/Sync": ["Offline records not syncing back", "Duplicate readings after sync", "Sync stuck at 80 percent"],
+  Dashboard: ["EMMSE dashboard loading slowly", "KPI tile shows a stale count", "Map markers missing for one plant"],
+  Other: ["General query on platform usage", "Training request for new joiners", "Feedback on the console layout"],
+}
+
+/** Which module a category is most likely raised from */
+const sourceForCategory: Record<TicketCategory, TicketSource> = {
+  System: "OCC Console",
+  Technical: "EVITA",
+  Assignment: "OCC Console",
+  Asset: "Asset",
+  Inspection: "Inspection",
+  "Testing & Measurement": "Testing & Measurements",
+  Maintenance: "Maintenance",
+  Report: "Reports",
+  Access: "OCC Console",
+  "Data/Sync": "EVITA",
+  Dashboard: "EMMSE",
+  Other: "OCC Console",
+}
+
 
 /* ---------- ELPREMAR schedule (Assign ELPREMAR dialog) ---------- */
 
@@ -387,6 +487,18 @@ export const priorityTone: Record<Priority, string> = {
   Medium: "bg-info-soft text-info-soft-foreground",
   High: "bg-attention-soft text-attention-soft-foreground",
   Critical: "bg-critical-soft text-critical-soft-foreground",
+}
+
+/**
+ * How badly a failure on this asset would hurt. Only three levels, so High is the
+ * top of the scale and takes the critical red — unlike Priority, where High sits
+ * below Critical. Low stays neutral rather than green: a low-criticality asset is
+ * not a healthy one, it just matters less.
+ */
+export const criticalityTone: Record<AssetCriticality, string> = {
+  Low: "bg-neutral-soft text-neutral-soft-foreground",
+  Medium: "bg-attention-soft text-attention-soft-foreground",
+  High: "bg-critical-soft text-critical-soft-foreground",
 }
 
 /* ---------- Seeded pools for the enterprise profile ---------- */
@@ -671,62 +783,59 @@ const sites = enterpriseRecords.flatMap((e) =>
 /** The crew work is assigned to: trained people only, never someone still in training */
 const crew = deployableElpremarNames
 
-const ticketSubjects = [
-  "EVITA sync failing on tablet",
-  "Health report PDF not generating",
-  "Asset QR code not scanning",
-  "Request ELPREMAR assignment",
-  "PD meter not pairing over Bluetooth",
-  "Thermal image upload stuck",
-  "User access request for plant head",
-  "Add new sub-division to hierarchy",
-  "EMMSE dashboard loading slowly",
-  "Cleaning schedule not reflecting",
-]
-
-/** Tickets beyond the curated few, so every enterprise has a support history */
-function moreTickets(count: number): TicketRow[] {
-  let seed = 20250530
-  const random = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0
-    return seed / 2 ** 32
-  }
-  const pick = <T,>(pool: readonly T[]) => pool[Math.floor(random() * pool.length)]
-  const states: WorkStatus[] = ["open", "assigned", "in_progress", "closed"]
-  const rows: TicketRow[] = []
-
-  for (let i = 0; i < count; i++) {
-    const site = sites[i % sites.length]
-    const owner = crew[(i * 5) % crew.length]
-    const raised = day(Math.floor(random() * 40) - 34)
-    const status = pick(states)
-    // An open ticket has not been scheduled or owned yet
-    const assigned = status !== "open"
-
-    rows.push({
-      id: `TK-${4584 - i}`,
-      enterprise: site.enterprise,
-      plant: site.plant,
-      country: site.country,
-      subject: pick(ticketSubjects),
-      category: pick(ticketCategories),
-      raised,
-      elpremar: assigned ? owner : undefined,
-      scheduled: assigned ? raised : undefined,
-      slot: assigned ? pick(daySlots) : undefined,
-      priority: pick(priorities),
-      status,
-      resolution: status === "closed" ? "Verified with the plant team and closed." : undefined,
-    })
-  }
-  return rows
-}
-
 /** Everything on the books, newest id first — what the Maintenance Activities screen lists */
 export const maintenanceActivities: MaintenanceRow[] = [...maintenanceProgress, ...moreMaintenance(60)]
 
 /** The whole inspection queue — what the Inspection Activities screen lists */
 export const inspectionActivities: TaskRow[] = [...taskQueue, ...moreInspections(60)]
 
-/** The whole ticket history — what the Support Tickets screen lists */
-export const ticketActivities: TicketRow[] = [...supportTickets, ...moreTickets(40)]
+const ticketStates: WorkStatus[] = ["open", "open", "in_progress", "in_progress", "closed", "closed"]
+
+function moreTickets(count: number): TicketRow[] {
+  let seed = 20260117
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 2 ** 32
+  }
+  const pick = <T,>(pool: readonly T[]) => pool[Math.floor(random() * pool.length)]
+  const rows: TicketRow[] = []
+
+  for (let i = 0; i < count; i++) {
+    const site = pick(sites)
+    const category = pick(ticketCategories)
+    const status = pick(ticketStates)
+    const priority = pick(priorities)
+    const raisedOn = Math.floor(random() * 40) - 42
+    // Nothing is updated before it is raised, and an open ticket has not moved on
+    const updatedOn = status === "open" ? raisedOn : Math.min(raisedOn + 1 + Math.floor(random() * 6), 0)
+    const settled = status === "closed"
+    const owned = settled || status === "in_progress"
+    const short = site.plant.slice(0, 3).toUpperCase()
+
+    rows.push({
+      id: `TK-${4584 - i}`,
+      enterprise: site.enterprise,
+      plant: site.plant,
+      country: site.country,
+      subject: pick(ticketSubjectsByCategory[category]),
+      category,
+      raised: day(raisedOn),
+      raisedBy: pick(requesters),
+      source: sourceForCategory[category],
+      lastUpdated: stamp(updatedOn, pick(daySlots)),
+      ...(owned ? { elpremar: pick(crew), scheduled: day(updatedOn), slot: pick(daySlots) } : {}),
+      priority,
+      status,
+      ...(settled ? { resolution: "Verified with the reporter and closed out." } : {}),
+      // Only the modules that actually carry a record pass one across
+      ...(category === "Asset" || category === "Maintenance" ? { assetId: `AST-${short}-${String(100 + i).padStart(4, "0")}` } : {}),
+      ...(category === "Inspection" || category === "Testing & Measurement" ? { inspectionId: `TSK-${8800 - i}` } : {}),
+      ...(category === "Maintenance" ? { maintenanceId: `MT-${2280 - i}` } : {}),
+      ...(category === "Report" ? { reportId: `RPT-${short}-${2200 + i}` } : {}),
+    })
+  }
+  return rows
+}
+
+/** The whole support desk, newest ticket first — what the Support Tickets screen lists */
+export const allSupportTickets: TicketRow[] = [...supportTickets, ...moreTickets(44)]

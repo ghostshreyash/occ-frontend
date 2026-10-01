@@ -220,3 +220,14 @@ export const recentAssignedTasks: AssignedTask[] = [
   { date: "28-05-2025", elpremar: "Suresh Kumar", enterprise: "Tata Steel Limited", location: "Main Substation (11kV)", activity: "Assessment", priority: "High", status: "assigned" },
   { date: "29-05-2025", elpremar: "Amit Sharma", enterprise: "Reliance Industries", location: "DG Set - Unit 1", activity: "Testing", priority: "Medium", status: "assigned" },
 ]
+
+/**
+ * A plausible in-service date for an asset, as `dd-MM-yyyy`. Takes the caller's
+ * seeded RNG so a given activity always reports the same commissioning date.
+ */
+export function commissionDate(random: () => number) {
+  const day = 1 + Math.floor(random() * 28)
+  const month = 1 + Math.floor(random() * 12)
+  const year = 2010 + Math.floor(random() * 14)
+  return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`
+}

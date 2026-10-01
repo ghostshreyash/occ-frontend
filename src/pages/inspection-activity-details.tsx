@@ -5,7 +5,6 @@ import { toast } from "sonner"
 import {
   ArrowLeft,
   ClipboardCheck,
-  ExternalLink,
   Eye,
   FileText,
   Gauge,
@@ -26,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { inspectionTimeline, type Measurement, type Severity } from "@/data/inspection-detail"
 import { findInspection, updateInspection, useInspectionDetails, useInspectionRows } from "@/data/inspection-store"
 import { addMaintenanceFromInspection } from "@/data/maintenance-store"
-import { maintenanceActivities, priorityTone, slotLabel, ticketActivities } from "@/data/occ-tables"
+import { allSupportTickets, criticalityTone, maintenanceActivities, priorityTone, slotLabel } from "@/data/occ-tables"
 import { control, td, th } from "@/lib/data-table"
 import { inspectionStatus, workStatus, type WorkStatus } from "@/lib/status"
 
@@ -71,7 +70,7 @@ export function InspectionActivityDetailsPage() {
       ([
         ...rows.map((t) => ({ elpremar: t.elpremar, date: t.due, label: t.activity, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
         ...maintenanceActivities.map((m) => ({ elpremar: m.elpremar, date: m.scheduled, label: m.asset, plant: m.plant, enterprise: m.enterprise, slot: m.slot })),
-        ...ticketActivities.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
+        ...allSupportTickets.map((t) => ({ elpremar: t.elpremar, date: t.scheduled, label: t.subject, plant: t.plant, enterprise: t.enterprise, slot: t.slot })),
       ] as (Omit<Booking, "elpremar" | "date"> & { elpremar?: string; date?: string })[]).filter(
         (b): b is Booking => !!b.elpremar && !!b.date
       ),
@@ -332,17 +331,18 @@ export function InspectionActivityDetailsPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Asset & Location" icon={<MapPin className="size-4 text-primary" />} hoverable={false}>
+          <SectionCard title="Asset Details" icon={<MapPin className="size-4 text-primary" />} hoverable={false}>
             <div className="space-y-2.5">
-              <Detail label="Enterprise">{activity.enterprise}</Detail>
-              <Detail label="Plant">{activity.plant}, {activity.country}</Detail>
-              <Detail label="Location / Area">{detail.area}</Detail>
+              <Detail label="Asset ID"><span className="tabular-nums">{detail.assetTag}</span></Detail>
               <Detail label="Asset Name"><span className="font-medium">{activity.asset}</span></Detail>
-              <Detail label="Asset ID / Tag ID"><span className="tabular-nums">{detail.assetTag}</span></Detail>
+              <Detail label="Location">{detail.area}</Detail>
+              <Detail label="Asset Criticality">
+                <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", criticalityTone[detail.assetCriticality])}>
+                  {detail.assetCriticality}
+                </span>
+              </Detail>
+              <Detail label="Commission Date"><span className="tabular-nums">{detail.commissionedOn}</span></Detail>
               <Detail label="Asset Category">{detail.assetCategory}</Detail>
-              <Button variant="outline" size="sm" className={cn(control, "w-full bg-card")} asChild>
-                <Link to="/enterprises"><ExternalLink className="size-3.5" /> View Asset</Link>
-              </Button>
             </div>
           </SectionCard>
 

@@ -71,10 +71,12 @@ export type WorkStatus =
   | "closed"
   /** An approver sent the work back for correction */
   | "rejected"
+  /** A closed support ticket that came back */
+  | "reopened"
 
 export const workStatus: Record<
   WorkStatus,
-  { label: string; badge: "critical" | "info" | "warning" | "success" | "neutral" }
+  { label: string; badge: "critical" | "info" | "warning" | "success" | "neutral" | "highlight" }
 > = {
   open: { label: "Open", badge: "critical" },
   in_progress: { label: "In Progress", badge: "info" },
@@ -83,6 +85,7 @@ export const workStatus: Record<
   completed: { label: "Completed", badge: "success" },
   closed: { label: "Closed", badge: "neutral" },
   rejected: { label: "Rejected", badge: "critical" },
+  reopened: { label: "Reopened", badge: "warning" },
 }
 
 /**
@@ -92,22 +95,37 @@ export const workStatus: Record<
  */
 export const maintenanceStatus: Partial<Record<WorkStatus, (typeof workStatus)[WorkStatus]>> = {
   open: { label: "Pending For Approval", badge: "warning" },
-  assigned: { label: "Approved", badge: "success" },
+  // Purple, so signed-off work is not mistaken for finished work at a glance
+  assigned: { label: "Approved", badge: "highlight" },
 }
 
-/** The statuses a maintenance activity moves through, in order */
-export const maintenanceStatuses: WorkStatus[] = ["open", "assigned", "rejected", "in_progress", "completed"]
+/**
+ * The statuses a maintenance activity moves through, in order, and the options
+ * the Status filter offers. Rejected is reachable from the approval dialog and
+ * still renders on the row, but it is not offered as a filter.
+ */
+export const maintenanceStatuses: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
 
 /**
  * An inspection activity is signed off before it starts, so what the shared map
  * calls Pending reads as Approved. There is no separate assigned state.
  */
 export const inspectionStatus: Partial<Record<WorkStatus, (typeof workStatus)[WorkStatus]>> = {
-  pending: { label: "Approved", badge: "success" },
+  // Same purple as maintenance, so Approved never reads as finished work
+  pending: { label: "Approved", badge: "highlight" },
 }
 
 /** The statuses an inspection activity moves through, in order */
 export const inspectionStatuses: WorkStatus[] = ["pending", "in_progress", "completed"]
+
+/**
+ * A support ticket runs Open → In Progress → Closed. Reopened is carried so a
+ * ticket that comes back renders correctly; nothing sets it yet.
+ */
+export const ticketStatuses: WorkStatus[] = ["open", "in_progress", "closed", "reopened"]
+
+/** What the Status filter offers — the three states a ticket can be in */
+export const ticketFilterStatuses: WorkStatus[] = ["open", "in_progress", "closed"]
 
 /** Categorical series colours, in order, for charts with arbitrary groups */
 export const chartSeries = [

@@ -34,8 +34,8 @@ function StatusBadge({ status, as }: { status: WorkStatus; as?: StatusLook }) {
 /** A row on its way to becoming a Booking: not one until it has both a person and a date */
 type Draft = Omit<Booking, "elpremar" | "date"> & { elpremar?: string; date?: string }
 
-/** ELPREMAR / date cells stay blank until the row is assigned */
-const Unassigned = () => <span className="text-muted-foreground/60">—</span>
+/** A ticket with no owner yet reads as a state, not as a blank cell */
+const Unassigned = () => <span className="text-muted-foreground/70 italic">Unassigned</span>
 
 /** Same icon button as Recent Assigned Tasks; opens the row's dialog */
 function ActionButton({ onClick }: { onClick: () => void }) {
@@ -72,7 +72,7 @@ type Sort = { key: string; dir: "asc" | "desc" } | null
 type Accessors<T> = Record<string, (r: T) => string | number | undefined>
 
 const priorityRank: Record<string, number> = { Low: 0, Medium: 1, High: 2, Critical: 3 }
-const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, rejected: 2, assigned: 3, in_progress: 4, completed: 5, closed: 6 }
+const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, rejected: 2, reopened: 3, assigned: 4, in_progress: 5, completed: 6, closed: 7 }
 
 /** Sort by the chosen column; blank (unassigned) values always sink to the bottom */
 function sortRows<T>(rows: T[], sort: Sort, accessors: Accessors<T>) {

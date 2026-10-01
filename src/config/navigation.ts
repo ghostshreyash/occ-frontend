@@ -27,5 +27,5 @@ export const occNavigation: NavItem[] = [
   { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
   { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
   { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
-  { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy },
+  { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy, covers: ["/support-ticket-details"] },
 ]

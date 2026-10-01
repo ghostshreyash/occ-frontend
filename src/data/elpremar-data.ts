@@ -9,7 +9,7 @@ import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@
 import { format } from "date-fns"
 import { elpremarSkills } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
-import { enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor, ticketActivities } from "@/data/occ-tables"
+import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor } from "@/data/occ-tables"
 import type { EnterpriseRecord } from "@/data/occ-tables"
 
 /** Where they sit in the training-to-deployment lifecycle */
@@ -253,7 +253,7 @@ export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
 export const workloadFor = (name: string) => ({
   maintenance: maintenanceActivities.filter((r) => r.elpremar === name),
   tasks: inspectionActivities.filter((r) => r.elpremar === name),
-  tickets: ticketActivities.filter((r) => r.elpremar === name),
+  tickets: allSupportTickets.filter((r) => r.elpremar === name),
 })
 
 /** Counts by status across everything assigned to one ELPREMAR */
