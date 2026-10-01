@@ -129,6 +129,15 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   }
 })
 
+/**
+ * The next free employee ID. Onboarding fills this in rather than asking for
+ * it, so two people can never be handed the same one.
+ */
+export const nextElpremarId = () => {
+  const highest = elpremarRecords.reduce((n, e) => Math.max(n, Number(e.id.replace(/\D/g, "")) || 0), 1000)
+  return `ELP-${highest + 1}`
+}
+
 export const elpremarRegisterKpis = {
   total: elpremarRecords.length,
   trained: elpremarRecords.filter((e) => e.status === "trained").length,
@@ -230,4 +239,49 @@ export function workloadCounts(name: string) {
   const by = (k: WorkStatus) => all.filter((r) => r.status === k).length
   const done = by("completed") + by("closed")
   return { total: all.length, open: all.length - done, done }
+}
+
+/* ---------- Upcoming work ---------- */
+
+export type UpcomingActivity = {
+  id: string
+  kind: "Maintenance" | "Inspection" | "Support"
+  label: string
+  plant: string
+  date: string
+  slot?: number
+  status: WorkStatus
+}
+
+/*
+ * Work rows are dated relative to the real current date (occ-tables' day()),
+ * not the fixed REFERENCE the certificates use - so "upcoming" has to be
+ * measured from today, or the window drifts as real time passes.
+ */
+const daysFromToday = (dmy: string) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((parseDmy(dmy).getTime() - today.getTime()) / 86_400_000)
+}
+
+/** The next few jobs on one ELPREMAR's calendar, soonest first */
+export function upcomingFor(name: string, count = 3): UpcomingActivity[] {
+  const w = workloadFor(name)
+  // Tickets and tasks may carry no date yet, so the date is optional until filtered
+  const rows: (Omit<UpcomingActivity, "date"> & { date?: string })[] = [
+    ...w.maintenance.map((r) => ({ id: r.id, kind: "Maintenance" as const, label: r.asset, plant: r.plant, date: r.scheduled, slot: r.slot, status: r.status })),
+    ...w.tasks.map((r) => ({ id: r.id, kind: "Inspection" as const, label: r.activity, plant: r.plant, date: r.due, slot: r.slot, status: r.status })),
+    ...w.tickets.map((r) => ({ id: r.id, kind: "Support" as const, label: r.subject, plant: r.plant, date: r.scheduled, slot: r.slot, status: r.status })),
+  ]
+
+  return rows
+    .filter((r): r is UpcomingActivity => Boolean(r.date) && daysFromToday(r.date!) >= 0)
+    .sort((a, b) => daysFromToday(a.date) - daysFromToday(b.date) || (a.slot ?? 0) - (b.slot ?? 0))
+    .slice(0, count)
+}
+
+/** "Today" / "Tomorrow" / "in 4 days", for a DD-MM-YYYY date */
+export function whenLabel(dmy: string) {
+  const d = daysFromToday(dmy)
+  return d === 0 ? "Today" : d === 1 ? "Tomorrow" : `in ${d} days`
 }

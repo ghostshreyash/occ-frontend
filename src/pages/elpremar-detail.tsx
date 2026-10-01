@@ -9,7 +9,9 @@ import {
   Award,
   Building2,
   HardHat,
-  MapPin,
+  ClipboardList,
+  LifeBuoy,
+  Wrench,
   ShieldCheck,
   UserRound,
 } from "lucide-react"
@@ -25,10 +27,13 @@ import { SectionCard } from "@/components/common/section-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { ExpiryValue } from "@/components/common/expiry-value"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
+import { slotLabel } from "@/data/occ-tables"
 import {
   elpremarProfileFor,
   elpremarRecords,
   elpremarStatusMeta,
+  upcomingFor,
+  whenLabel,
   type ElpremarProfile,
 } from "@/data/elpremar-data"
 import { elpremarRoles, userRoles } from "@/data/master-data"
@@ -46,9 +51,6 @@ const showDate = (iso?: string) => {
   const d = parseISO(iso)
   return isValid(d) ? format(d, "dd MMM yyyy") : iso
 }
-
-const initials = (name: string) =>
-  name.replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
 
 /* ---------- Section schemas ---------- */
 
@@ -93,6 +95,13 @@ const accountSchema = z.object({
 type AccountValues = z.infer<typeof accountSchema>
 
 /** ELPREMAR detail: the full onboarding profile, editable, plus their assigned work */
+/** Icon and tint per activity kind, matching the three work cards above */
+const ACTIVITY_KINDS = {
+  Maintenance: { icon: Wrench, tone: "bg-info-soft text-info" },
+  Inspection: { icon: ClipboardList, tone: "bg-highlight-soft text-highlight" },
+  Support: { icon: LifeBuoy, tone: "bg-attention-soft text-attention" },
+} as const
+
 export function ElpremarDetailPage() {
   const { id } = useParams()
   const record = elpremarRecords.find((e) => e.id === id)
@@ -137,6 +146,7 @@ export function ElpremarDetailPage() {
 
   const { basic: b, posting: po, work: w, certifications: certs, account } = profile
   const meta = elpremarStatusMeta[record.status]
+  const upcoming = upcomingFor(record.name)
   const skills = workForm.watch("skills") ?? []
   const toggleSkill = (skill: string) =>
     workForm.setValue("skills", skills.includes(skill) ? skills.filter((s) => s !== skill) : [...skills, skill], {
@@ -386,25 +396,35 @@ export function ElpremarDetailPage() {
         />
       </SectionCard>
 
-      <SectionCard title="Assignment" hoverable={false}>
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-[0.65rem] font-bold", meta.chip)}>
-            {initials(b.name)}
-          </span>
-          <div className="flex flex-wrap gap-x-5 gap-y-1">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="size-3.5 text-muted-foreground" />
-              {po.city}, {po.country}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Building2 className="size-3.5 text-muted-foreground" />
-              {po.enterprise || "Not assigned to an enterprise"}
-            </span>
-            <span className="flex items-center gap-1.5">
-              Certified until <ExpiryValue validTill={record.certifiedUntil} relative={false} />
-            </span>
-          </div>
-        </div>
+      <SectionCard title="Upcoming Activities" hoverable={false}>
+        {upcoming.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Nothing scheduled{record.status === "not_trained" ? " — training is not complete yet." : "."}
+          </p>
+        ) : (
+          <ol className="divide-y">
+            {upcoming.map((u) => {
+              const kind = ACTIVITY_KINDS[u.kind]
+              return (
+                <li key={u.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                  <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", kind.tone)}>
+                    <kind.icon className="size-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium">{u.label}</div>
+                    <div className="truncate text-[0.65rem] text-muted-foreground">{u.kind} · {u.plant}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-xs font-medium">{whenLabel(u.date)}</div>
+                    <div className="text-[0.65rem] tabular-nums text-muted-foreground">
+                      {u.date}{u.slot == null ? "" : ` · ${slotLabel(u.slot)}`}
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
+        )}
       </SectionCard>
     </div>
   )
