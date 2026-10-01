@@ -3,11 +3,20 @@
  * Kept separate from mock.ts so the dashboard/map data stays readable.
  * Replace with API calls (TanStack Query) later.
  */
+import { addDays, format } from "date-fns"
+
 import type { HealthStatus, WorkStatus } from "@/lib/status"
 import { dialCodeFor, elpremarNames } from "@/data/master-data"
-import { activityTypes, priorities } from "@/data/mock"
+import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
 type Priority = (typeof priorities)[number]
+
+/**
+ * Mock bookings are pinned to today rather than to fixed dates, so the console
+ * always shows live work and the assign dialog can open on a row's own day.
+ * `day(2)` is the day after tomorrow. Drop this once the tables come from the API.
+ */
+const day = (offset: number) => format(addDays(new Date(), offset), "dd-MM-yyyy")
 
 /* ---------- India slice (India Customer Map page) ---------- */
 
@@ -35,7 +44,31 @@ export const indiaPlantStatus: { status: HealthStatus; value: number }[] = [
   { status: "offline", value: 6 },
 ]
 
+/* ---------- Working day ---------- */
+
+/** Hour-long intervals a job can be booked into (09:00 - 18:00) */
+export const daySlots = [9, 10, 11, 12, 13, 14, 15, 16, 17]
+
+const hh = (h: number) => `${String(h).padStart(2, "0")}:00`
+
+/** 14 -> "14:00 - 15:00" */
+export const slotLabel = (hour: number) => `${hh(hour)} - ${hh(hour + 1)}`
+
+/**
+ * Slot for a job the mock data records no time for. Hashing the job's own key
+ * keeps it stable between renders without putting a time on every legacy row.
+ */
+export function slotFor(key: string) {
+  const n = [...key].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)
+  return daySlots[n % daySlots.length]
+}
+
 /* ---------- Maintenance ---------- */
+
+/** The maintenance programmes an activity can belong to */
+export const maintenanceTypes = ["Preventive", "Condition-Based", "Fire Preventive"] as const
+
+export type MaintenanceType = (typeof maintenanceTypes)[number]
 
 export type MaintenanceRow = {
   id: string
@@ -43,31 +76,185 @@ export type MaintenanceRow = {
   plant: string
   enterprise: string
   country: string
-  type: "Preventive" | "Corrective" | "Condition Based" | "Emergency"
-  /** Unassigned rows have no ELPREMAR and no scheduled date yet */
-  elpremar?: string
-  scheduled?: string
+  type: MaintenanceType
+  /** Planned work is always owned and booked, so these are never blank */
+  elpremar: string
+  scheduled: string
+  /** Hour the booked interval starts */
+  slot: number
   status: WorkStatus
 }
 
+export const maintenanceProgress: MaintenanceRow[] = [
+  { id: "MT-2291", asset: "LT Panel - Block A", plant: "Mumbai Works", enterprise: "Tata Steel", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(-2), slot: 9, status: "completed" },
+  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar", enterprise: "Reliance Industries", country: "India", type: "Condition-Based", elpremar: "Amit Sharma", scheduled: day(0), slot: 10, status: "open" },
+  { id: "MT-2289", asset: "MCC - Unit 2", plant: "Dolvi", enterprise: "JSW Group", country: "India", type: "Preventive", elpremar: "Ramesh Patil", scheduled: day(0), slot: 9, status: "in_progress" },
+  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra", enterprise: "Adani Group", country: "India", type: "Fire Preventive", elpremar: "Anil Singh", scheduled: day(2), slot: 11, status: "open" },
+  // Deliberately shares Suresh Kumar's 10:00 slot with TSK-8837, so the dialog has a clash to show
+  { id: "MT-2287", asset: "HT Panel - Incomer 1", plant: "Hyderabad", enterprise: "NTPC", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(3), slot: 10, status: "assigned" },
+  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai", enterprise: "NTPC", country: "UAE", type: "Preventive", elpremar: "Khalid Rahman", scheduled: day(1), slot: 11, status: "open" },
+  { id: "MT-2285", asset: "UPS - 03", plant: "Frankfurt", enterprise: "Tata Steel", country: "Germany", type: "Fire Preventive", elpremar: "Lukas Weber", scheduled: day(4), slot: 10, status: "assigned" },
+  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston", enterprise: "Reliance Industries", country: "USA", type: "Condition-Based", elpremar: "Maria Lopez", scheduled: day(1), slot: 15, status: "open" },
+]
+
+/**
+ * The dashboard panel shows the latest few; the Maintenance Activities screen
+ * shows the whole book of work. Generated from fixed pools with a seeded RNG so
+ * ids, owners and intervals stay put between renders, and so nobody is booked
+ * into the same interval twice. Replace with GET /maintenance-activities later.
+ */
+const sites = [
+  { enterprise: "Tata Steel", plant: "Mumbai Works", country: "India" },
+  { enterprise: "Tata Steel", plant: "Jamshedpur", country: "India" },
+  { enterprise: "Reliance Industries", plant: "Jamnagar", country: "India" },
+  { enterprise: "JSW Group", plant: "Dolvi", country: "India" },
+  { enterprise: "Adani Group", plant: "Mundra", country: "India" },
+  { enterprise: "NTPC", plant: "Hyderabad", country: "India" },
+  { enterprise: "NTPC", plant: "Kolkata", country: "India" },
+  { enterprise: "NTPC", plant: "Dubai", country: "UAE" },
+  { enterprise: "Tata Steel", plant: "Frankfurt", country: "Germany" },
+  { enterprise: "Tata Steel", plant: "IJmuiden", country: "Netherlands" },
+  { enterprise: "Reliance Industries", plant: "Houston", country: "USA" },
+  { enterprise: "JSW Group", plant: "Sydney", country: "Australia" },
+]
+
+const crew = ["Suresh Kumar", "Amit Sharma", "Ramesh Patil", "Anil Singh", "Priya Nair", "Khalid Rahman", "Lukas Weber", "Maria Lopez"]
+const units = ["Block A", "Block B", "Unit 1", "Unit 2", "Unit 3", "Main", "Incomer 1", "Incomer 2", "T1", "T2", "SB1", "SB2", "03", "04"]
+const workStates: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
+
+function moreMaintenance(count: number): MaintenanceRow[] {
+  let seed = 20250528
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 2 ** 32
+  }
+  const pick = <T,>(pool: T[]) => pool[Math.floor(random() * pool.length)]
+  const taken = new Set(maintenanceProgress.map((m) => `${m.elpremar}|${m.scheduled}|${m.slot}`))
+  const rows: MaintenanceRow[] = []
+
+  for (let i = 0; i < count; i++) {
+    const site = pick(sites)
+    const elpremar = pick(crew)
+    const scheduled = day(Math.floor(random() * 50) - 28)
+    let slot = pick(daySlots)
+    // Shift along the day rather than book the same person twice at once
+    for (let n = 0; n < daySlots.length && taken.has(`${elpremar}|${scheduled}|${slot}`); n++)
+      slot = daySlots[(daySlots.indexOf(slot) + 1) % daySlots.length]
+    taken.add(`${elpremar}|${scheduled}|${slot}`)
+
+    rows.push({
+      id: `MT-${2283 - i}`,
+      asset: `${pick(assetCategories)} - ${pick(units)}`,
+      plant: site.plant,
+      enterprise: site.enterprise,
+      country: site.country,
+      type: pick([...maintenanceTypes]),
+      elpremar,
+      scheduled,
+      slot,
+      status: pick(workStates),
+    })
+  }
+  return rows
+}
+
+/** Everything on the books, newest id first — what the Maintenance Activities screen lists */
+export const maintenanceActivities: MaintenanceRow[] = [...maintenanceProgress, ...moreMaintenance(44)]
 
 /* ---------- Tasks ---------- */
 
+/** An inspection task only ever waits, runs or finishes — there is no separate assigned state */
+export type TaskStatus = Extract<WorkStatus, "pending" | "in_progress" | "completed">
+
 export type TaskRow = {
   id: string
-  elpremar?: string
+  /** Owned and booked from the start, so these are never blank */
+  elpremar: string
   enterprise: string
   plant: string
   asset: string
   country: string
+  /** An inspection activity — cleaning is maintenance work and belongs on that tab */
   activity: string
-  due?: string
+  due: string
+  /** Hour the booked interval starts */
+  slot: number
   priority: Priority
-  status: WorkStatus
+  status: TaskStatus
 }
 
+export const taskQueue: TaskRow[] = [
+  { id: "TSK-8841", elpremar: "Suresh Kumar", enterprise: "Tata Steel", plant: "Mumbai Works", asset: "LT Panel - Block A", country: "India", activity: "Thermal Scan", due: day(0), slot: 11, priority: "High", status: "in_progress" },
+  { id: "TSK-8840", elpremar: "Amit Sharma", enterprise: "Reliance Industries", plant: "Jamnagar", asset: "Transformer - T1", country: "India", activity: "Partial Discharge Testing", due: day(2), slot: 11, priority: "Critical", status: "pending" },
+  { id: "TSK-8839", elpremar: "Ramesh Patil", enterprise: "JSW Group", plant: "Dolvi", asset: "MCC - Unit 2", country: "India", activity: "Visual Inspection", due: day(3), slot: 11, priority: "Medium", status: "pending" },
+  { id: "TSK-8838", elpremar: "Anil Singh", enterprise: "Adani Group", plant: "Mundra", asset: "PCC - Main", country: "India", activity: "Preventive Assessment", due: day(-3), slot: 10, priority: "Low", status: "completed" },
+  { id: "TSK-8837", elpremar: "Suresh Kumar", enterprise: "NTPC", plant: "Hyderabad", asset: "HT Panel - Incomer 1", country: "India", activity: "Insulation Resistance Testing", due: day(3), slot: 10, priority: "Medium", status: "pending" },
+  { id: "TSK-8836", elpremar: "Khalid Rahman", enterprise: "NTPC", plant: "Dubai", asset: "APFC Panel - 1", country: "UAE", activity: "Preventive Assessment", due: day(2), slot: 9, priority: "High", status: "pending" },
+  { id: "TSK-8835", elpremar: "Lukas Weber", enterprise: "Tata Steel", plant: "Frankfurt", asset: "Fire Alarm Panel - FA1", country: "Germany", activity: "Fire Prevention System Check", due: day(4), slot: 14, priority: "Medium", status: "pending" },
+  { id: "TSK-8834", elpremar: "Maria Lopez", enterprise: "Reliance Industries", plant: "Houston", asset: "Switchboard - SB2", country: "USA", activity: "Thermal Scan", due: day(5), slot: 9, priority: "Low", status: "pending" },
+]
+
+/**
+ * The dashboard panel shows the latest few; the Inspection Activities screen
+ * shows the whole queue. Same seeded approach as the maintenance book, and it
+ * checks the maintenance bookings too so nobody is sent to two jobs at once.
+ */
+const inspectionWork = activityTypes.filter((a) => a !== "Panel Cleaning (INSTA CLEAN)")
+
+function moreInspections(count: number): TaskRow[] {
+  let seed = 20250529
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 2 ** 32
+  }
+  const pick = <T,>(pool: T[]) => pool[Math.floor(random() * pool.length)]
+  const taken = new Set(
+    [...maintenanceActivities.map((m) => `${m.elpremar}|${m.scheduled}|${m.slot}`),
+     ...taskQueue.map((t) => `${t.elpremar}|${t.due}|${t.slot}`)]
+  )
+  const states: TaskStatus[] = ["pending", "in_progress", "completed"]
+  const rows: TaskRow[] = []
+
+  for (let i = 0; i < count; i++) {
+    const site = pick(sites)
+    const elpremar = pick(crew)
+    const due = day(Math.floor(random() * 50) - 28)
+    let slot = pick(daySlots)
+    for (let n = 0; n < daySlots.length && taken.has(`${elpremar}|${due}|${slot}`); n++)
+      slot = daySlots[(daySlots.indexOf(slot) + 1) % daySlots.length]
+    taken.add(`${elpremar}|${due}|${slot}`)
+
+    rows.push({
+      id: `TSK-${8833 - i}`,
+      elpremar,
+      enterprise: site.enterprise,
+      plant: site.plant,
+      asset: `${pick(assetCategories)} - ${pick(units)}`,
+      country: site.country,
+      activity: pick(inspectionWork),
+      due,
+      slot,
+      priority: pick([...priorities]),
+      status: pick(states),
+    })
+  }
+  return rows
+}
+
+/** The whole inspection queue — what the Inspection Activities screen lists */
+export const inspectionActivities: TaskRow[] = [...taskQueue, ...moreInspections(44)]
 
 /* ---------- Support tickets ---------- */
+
+/**
+ * What the ticket is about; drives the Category column on the tickets table.
+ * Technical = field device / instrument faults, System = OCC platform and app
+ * issues, Asset = panel or QR/asset-record problems, Access = user and role
+ * requests, Report = health reports and exports, Assignment = ELPREMAR requests.
+ */
+export const ticketCategories = ["Technical", "Access", "Asset", "Report", "System", "Assignment"] as const
+
+export type TicketCategory = (typeof ticketCategories)[number]
 
 export type TicketRow = {
   id: string
@@ -75,13 +262,29 @@ export type TicketRow = {
   plant: string
   country: string
   subject: string
+  category: TicketCategory
   raised: string
+  /** Who the ticket is assigned to (ELPREMAR or OCC desk owner) */
   elpremar?: string
   scheduled?: string
+  /** Hour the booked interval starts */
+  slot?: number
   priority: Priority
   status: WorkStatus
+  /** What was done about it, captured when the ticket is closed */
+  resolution?: string
 }
 
+export const supportTickets: TicketRow[] = [
+  { id: "TK-4592", enterprise: "Tata Steel", plant: "Jamshedpur", country: "India", subject: "EVITA sync failing on tablet", category: "System", raised: day(-1), priority: "High", status: "open" },
+  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi", country: "India", subject: "Request ELPREMAR assignment", category: "Assignment", raised: day(-1), priority: "Medium", status: "open" },
+  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Technical", raised: day(-2), elpremar: "Amit Sharma", scheduled: day(1), priority: "Critical", status: "in_progress" },
+  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra", country: "India", subject: "Health report PDF not downloading", category: "Report", raised: day(-2), elpremar: "Anil Singh", scheduled: day(-2), priority: "Low", status: "closed" },
+  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata", country: "India", subject: "Add new sub-division to hierarchy", category: "System", raised: day(-3), elpremar: "Priya Nair", scheduled: day(-3), priority: "Medium", status: "closed" },
+  { id: "TK-4587", enterprise: "NTPC", plant: "Dubai", country: "UAE", subject: "EMMSE dashboard loading slowly", category: "System", raised: day(-3), elpremar: "Khalid Rahman", scheduled: day(-2), priority: "Medium", status: "closed" },
+  { id: "TK-4586", enterprise: "Tata Steel", plant: "IJmuiden", country: "Netherlands", subject: "Asset QR code not scanning", category: "Asset", raised: day(-4), priority: "High", status: "open" },
+  { id: "TK-4585", enterprise: "JSW Group", plant: "Sydney", country: "Australia", subject: "User access request for plant head", category: "Access", raised: day(-4), elpremar: "Lukas Weber", scheduled: day(-4), priority: "Low", status: "closed" },
+]
 
 /* ---------- ELPREMAR schedule (Assign ELPREMAR dialog) ---------- */
 
@@ -89,6 +292,8 @@ export type ScheduleEntry = {
   date: Date
   kind: "job" | "leave"
   label: string
+  /** Hour the job starts; leave covers the whole day and has no slot */
+  slot?: number
 }
 
 /**
@@ -116,8 +321,13 @@ export function mockElpremarSchedule(elpremarId: string, available: boolean): Sc
       entries.push({ date, kind: "leave", label: "On leave" })
     } else if (r < 0.42) {
       const count = r < 0.16 ? 2 : 1
+      const taken = new Set<number>()
       for (let j = 0; j < count; j++) {
-        entries.push({ date, kind: "job", label: jobs[Math.floor(random() * jobs.length)] })
+        // Two jobs on one day must not land in the same interval
+        let k = Math.floor(random() * daySlots.length)
+        while (taken.has(daySlots[k])) k = (k + 1) % daySlots.length
+        taken.add(daySlots[k])
+        entries.push({ date, kind: "job", label: jobs[Math.floor(random() * jobs.length)], slot: daySlots[k] })
       }
     }
   }
@@ -194,12 +404,12 @@ export const priorityTone: Record<Priority, string> = {
   Critical: "bg-critical-soft text-critical-soft-foreground",
 }
 
-/* ---------- Per-enterprise operations rows ---------- */
+/* ---------- Seeded pools for the enterprise profile ---------- */
 
 /**
- * The dashboard tables show every enterprise; the detail screen filters the same
- * rows to one. Generating them here keeps both reading from one dataset, so the
- * columns and the data can never drift apart.
+ * `profileFor` below draws every plant, department and contact from these pools
+ * via a hash of the enterprise id, so a given enterprise always renders the same
+ * profile between reloads without any of it being stored.
  */
 
 /** Stable hash so a given enterprise always draws the same values */
@@ -210,55 +420,9 @@ const seedOf = (s: string) => {
 }
 const pick = <T,>(pool: readonly T[], seed: number, offset: number) => pool[(seed + offset * 7) % pool.length]
 
-/** Industrial sites and retail sites run very different equipment */
-const industryAssets = [
-  "11kV/415V Power Transformer - T1",
-  "HT Panel - Incomer 1",
-  "LT Panel - Block A",
-  "MCC - Unit 2",
-  "PCC - Main",
-  "APFC Panel - 1",
-  "VFD - Conveyor Drive",
-  "Busbar Chamber - Main",
-  "ACB - Incomer",
-  "Relay Panel - Protection",
-]
-const retailAssets = [
-  "Lighting Distribution Board - Level 2",
-  "Distribution Board - Admin Wing",
-  "UPS - Server Room",
-  "APFC Panel - Basement",
-  "LT Panel - Chiller Plant",
-  "Battery Bank - Backup",
-  "Fire Alarm Panel - Atrium",
-  "Sub Distribution Board - Retail Floor",
-]
 const plantSuffixes = ["Main Plant", "Unit 2", "Substation", "Utility Block", "Warehouse", "Annexe"]
 /* Shared with the ELPREMAR registry, so assigned work always names a real person */
 const elpremarPool = elpremarNames
-const maintenanceKinds: MaintenanceRow["type"][] = ["Preventive", "Corrective", "Condition Based", "Emergency"]
-const activityKinds = [
-  "Visual Inspection",
-  "Thermal Inspection",
-  "Partial Discharge Testing",
-  "Insulation Resistance Testing",
-  "Panel Cleaning (INSTA CLEAN)",
-  "Fire Prevention System Check",
-]
-const workStatusPool: WorkStatus[] = ["completed", "completed", "in_progress", "assigned", "pending", "open"]
-const ticketSubjects = [
-  "EVITA sync failing on tablet",
-  "Request additional ELPREMAR for shutdown",
-  "Asset QR code not scanning after relabelling",
-  "Add new sub-department under Electrical",
-  "PD meter not pairing over Bluetooth",
-  "Health report PDF not downloading",
-  "User access request for new plant head",
-  "EMMSE dashboard loading slowly",
-  "Thermal images not uploading from the field",
-  "Correct the plant capacity on record",
-]
-const priorityPool: Priority[] = ["Low", "Medium", "High", "Critical"]
 
 /** Dates count back from a fixed reference so the data never shifts */
 const REFERENCE = new Date(2026, 8, 28)
@@ -266,67 +430,6 @@ const dateBack = (days: number) => {
   const d = new Date(REFERENCE)
   d.setDate(d.getDate() - days)
   return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`
-}
-
-const assetsFor = (e: EnterpriseRecord) => (e.sectorType === "Retail" ? retailAssets : industryAssets)
-const plantName = (e: EnterpriseRecord, seed: number, i: number) => `${e.city} ${pick(plantSuffixes, seed, i + 2)}`
-
-function buildMaintenance(e: EnterpriseRecord): MaintenanceRow[] {
-  const seed = seedOf(e.id)
-  return Array.from({ length: 5 + (seed % 3) }, (_, i) => {
-    const status = pick(workStatusPool, seed, i)
-    const unassigned = status === "open" || status === "pending"
-    return {
-      id: `MT-${3000 + (seed % 900) + i * 3}`,
-      asset: pick(assetsFor(e), seed, i),
-      plant: plantName(e, seed, i),
-      enterprise: e.name,
-      country: e.country,
-      type: pick(maintenanceKinds, seed, i + 1),
-      elpremar: unassigned ? undefined : pick(elpremarPool, seed, i + 3),
-      scheduled: unassigned ? undefined : dateBack(i * 9 + (seed % 5)),
-      status,
-    }
-  })
-}
-
-function buildTasks(e: EnterpriseRecord): TaskRow[] {
-  const seed = seedOf(e.id)
-  return Array.from({ length: 4 + (seed % 3) }, (_, i) => {
-    const status = pick(workStatusPool, seed, i + 2)
-    const unassigned = status === "open" || status === "pending"
-    return {
-      id: `TSK-${8000 + (seed % 800) + i * 5}`,
-      elpremar: unassigned ? undefined : pick(elpremarPool, seed, i + 1),
-      enterprise: e.name,
-      plant: plantName(e, seed, i + 1),
-      asset: pick(assetsFor(e), seed, i + 2),
-      country: e.country,
-      activity: pick(activityKinds, seed, i),
-      due: unassigned ? undefined : dateBack(i * 6 + (seed % 4)),
-      priority: pick(priorityPool, seed, i + 3),
-      status,
-    }
-  })
-}
-
-function buildTickets(e: EnterpriseRecord): TicketRow[] {
-  const seed = seedOf(e.id)
-  return Array.from({ length: 3 + (seed % 3) }, (_, i) => {
-    const closed = (seed + i) % 3 === 0
-    return {
-      id: `TK-${4500 + (seed % 200) + i * 4}`,
-      enterprise: e.name,
-      plant: plantName(e, seed, i + 3),
-      country: e.country,
-      subject: pick(ticketSubjects, seed, i),
-      raised: dateBack(i * 7 + (seed % 4)),
-      elpremar: closed ? pick(elpremarPool, seed, i + 4) : undefined,
-      scheduled: closed ? dateBack(i * 7) : undefined,
-      priority: pick(priorityPool, seed, i + 2),
-      status: closed ? "closed" : i === 0 ? "open" : "in_progress",
-    }
-  })
 }
 
 /* ---------- Enterprise detail: full onboarding profile ---------- */
@@ -542,15 +645,6 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
     },
   }
 }
-
-/*
- * Generated last: these read enterpriseRecords *and* the pools/helpers above.
- * Keep them at the end of the module - hoisted function declarations still
- * close over `const` pools, which are in the temporal dead zone until declared.
- */
-export const maintenanceProgress: MaintenanceRow[] = enterpriseRecords.flatMap(buildMaintenance)
-export const taskQueue: TaskRow[] = enterpriseRecords.flatMap(buildTasks)
-export const supportTickets: TicketRow[] = enterpriseRecords.flatMap(buildTickets)
 
 /**
  * Asset health split for one enterprise. The record carries a total and an

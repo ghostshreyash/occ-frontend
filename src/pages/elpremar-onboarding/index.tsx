@@ -108,7 +108,7 @@ export function ElpremarOnboardingPage() {
       <>
         <KeyInfo title="What happens next?" items={whatNext} />
         <Button variant="outline" size="sm" className="w-full bg-card text-xs text-primary" asChild>
-          <Link to="/elpremars/activity"><BarChart3 className="size-3.5" /> ELPREMAR Activity &amp; Availability <ArrowRight className="size-3.5" /></Link>
+          <Link to="/inspection-activities"><BarChart3 className="size-3.5" /> Inspection Activities <ArrowRight className="size-3.5" /></Link>
         </Button>
       </>
     )

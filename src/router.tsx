@@ -12,16 +12,20 @@ import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { RegisterPage } from "@/pages/auth/register"
 import { AccountRecoveryPage } from "@/pages/auth/account-recovery"
 import { DashboardPage } from "@/pages/dashboard"
-import { ElpremarActivityPage } from "@/pages/elpremar-activity"
+import { AddInspectionActivityPage } from "@/pages/add-inspection-activity"
 import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
 import { ElpremarDetailPage } from "@/pages/elpremar-detail"
 import { CriticalAlertsPage } from "@/pages/critical-alerts"
+import { MaintenanceActivitiesPage } from "@/pages/maintenance-activities"
+import { InspectionActivitiesPage } from "@/pages/inspection-activities"
+import { MaintenanceActivityDetailsPage } from "@/pages/maintenance-activity-details"
+import { InspectionActivityDetailsPage } from "@/pages/inspection-activity-details"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
 import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
 import { EnterpriseDetailPage } from "./pages/enterprise-detail"
 
-const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts"])
+const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts", "/maintenance-activities", "/inspection-activities"])
 
 /*
  * The hostname decides which sign-in a visitor sees (`src/lib/brand.ts`), so
@@ -56,11 +60,15 @@ export const router = createBrowserRouter([
           { path: "enterprises/:id", element: <EnterpriseDetailPage /> },
           { path: "enterprise-onboarding", element: <Navigate to="/enterprises" replace /> },
           { path: "elpremars", element: <ElpremarOnboardingPage /> },
-          { path: "elpremars/activity", element: <ElpremarActivityPage /> },
           { path: "elpremars/:id", element: <ElpremarDetailPage /> },
           // Old URL kept working for existing links
           { path: "elpremars/onboard", element: <Navigate to="/elpremars" replace /> },
           { path: "critical-alerts", element: <CriticalAlertsPage /> },
+          { path: "maintenance-activities", element: <MaintenanceActivitiesPage /> },
+          { path: "maintenance-activity-details/:id", element: <MaintenanceActivityDetailsPage /> },
+          { path: "inspection-activities", element: <InspectionActivitiesPage /> },
+          { path: "inspection-activities/add", element: <AddInspectionActivityPage /> },
+          { path: "inspection-activity-details/:id", element: <InspectionActivityDetailsPage /> },
           // Remaining sidebar entries show a placeholder until their mockups exist
           ...occNavigation
             .filter((item) => !built.has(item.path))

@@ -14,7 +14,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns"
-import { ChevronLeft, ChevronRight, HardHat, Mail, MapPin, Phone, Search, UserRoundSearch } from "lucide-react"
+import { CheckCheck, ChevronLeft, ChevronRight, HardHat, Mail, MapPin, Phone, Search, TriangleAlert, UserRoundSearch } from "lucide-react"
 import { cn } from "cn"
 
 import { Badge } from "@/components/ui/badge"
@@ -24,16 +24,19 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { elpremars, type Elpremar } from "@/data/mock"
-import { mockElpremarSchedule, type ScheduleEntry } from "@/data/occ-tables"
+import { daySlots, mockElpremarSchedule, slotFor, slotLabel, type ScheduleEntry } from "@/data/occ-tables"
+import { control } from "@/lib/data-table"
 
 /** A job already on someone's books, taken from the operations tables (dd-MM-yyyy dates) */
-export type Booking = { elpremar: string; date: string; label: string; plant: string; enterprise: string }
+export type Booking = { elpremar: string; date: string; label: string; plant: string; enterprise: string; slot?: number }
+
+/** What the admin settled on: who, which day, which interval, and how to file it */
+export type AssignResult = { elpremar: Elpremar; date: Date; slot: number; approved: boolean }
 
 /** The row being assigned */
 export type AssignTarget = {
@@ -44,6 +47,12 @@ export type AssignTarget = {
   plant: string
   elpremar?: string
   date?: string
+  /** The interval it currently sits in, so the dialog opens on it */
+  slot?: number
+  /** False for work with no approval step (inspection activities), which only gets reassigned */
+  approvable?: boolean
+  /** False once the work is done and its assignment is history — the panel becomes a view */
+  reassignable?: boolean
 }
 
 type DayState = "off" | "leave" | "full" | "booked" | "free"
@@ -55,7 +64,6 @@ const dayStyle: Record<"free" | "booked" | "full" | "leave", { dot: string; labe
   leave: { dot: "bg-attention", label: "On leave" },
 }
 
-const selectable = (s: DayState, day: Date, today: Date) => !isBefore(day, today) && (s === "free" || s === "booked")
 const parseDate = (d: string) => parse(d, "dd-MM-yyyy", new Date())
 
 function scheduleFor(e: Elpremar, bookings: Booking[]): ScheduleEntry[] {
@@ -63,7 +71,13 @@ function scheduleFor(e: Elpremar, bookings: Booking[]): ScheduleEntry[] {
     ...mockElpremarSchedule(e.id, e.available),
     ...bookings
       .filter((b) => b.elpremar === e.name)
-      .map((b) => ({ date: parseDate(b.date), kind: "job" as const, label: b.label })),
+      .map((b) => ({
+        date: parseDate(b.date),
+        kind: "job" as const,
+        label: b.label,
+        // Older rows carry no time, so derive a stable one from the job itself
+        slot: b.slot ?? slotFor(b.label + b.date),
+      })),
   ]
 }
 
@@ -86,8 +100,29 @@ function dayState(day: Date, entries: ScheduleEntry[]): DayState {
   const onDay = entries.filter((x) => isSameDay(x.date, day))
   if (onDay.some((x) => x.kind === "leave")) return "leave"
   if (day.getDay() === 0) return "off"
-  const jobs = onDay.length
-  return jobs >= 2 ? "full" : jobs === 1 ? "booked" : "free"
+  // Work is booked by the interval, so a day is only full once no interval is left
+  if (!openSlots(entries, day).length) return "full"
+  return onDay.length ? "booked" : "free"
+}
+
+/** A day can take this job if it is not past, not off, and still has a free interval */
+const bookable = (entries: ScheduleEntry[], day: Date, today: Date) =>
+  !isBefore(day, today) && !["off", "leave", "full"].includes(dayState(day, entries))
+
+/** Intervals already taken on `day`, mapped to the job sitting in each */
+function busySlots(entries: ScheduleEntry[], day: Date) {
+  return new Map(
+    entries
+      .filter((x) => x.kind === "job" && isSameDay(x.date, day) && x.slot !== undefined)
+      .map((x) => [x.slot!, x.label] as const)
+  )
+}
+
+/** Intervals still bookable on `day` — not taken, and not already gone if that day is today */
+function openSlots(entries: ScheduleEntry[], day: Date) {
+  const busy = busySlots(entries, day)
+  const now = new Date()
+  return daySlots.filter((h) => !busy.has(h) && !(isSameDay(day, now) && h <= now.getHours()))
 }
 
 function nextFreeDay(entries: ScheduleEntry[], today: Date) {
@@ -108,10 +143,13 @@ function ScheduleCalendar({
   entries,
   selected,
   onSelect,
+  readOnly,
 }: {
   entries: ScheduleEntry[]
   selected?: Date
   onSelect: (d: Date) => void
+  /** Viewing an existing booking: show the day, don't let it be changed */
+  readOnly?: boolean
 }) {
   const today = startOfDay(new Date())
   const [month, setMonth] = useState(() => startOfMonth(selected ?? today))
@@ -124,7 +162,7 @@ function ScheduleCalendar({
           variant="ghost"
           size="icon-xs"
           onClick={() => setMonth((m) => addMonths(m, -1))}
-          disabled={!isBefore(startOfMonth(today), month)}
+          disabled={!readOnly && !isBefore(startOfMonth(today), month)}
           aria-label="Previous month"
         >
           <ChevronLeft />
@@ -141,7 +179,7 @@ function ScheduleCalendar({
         {days.map((day) => {
           const inMonth = isSameMonth(day, month)
           const state = dayState(day, entries)
-          const canPick = inMonth && selectable(state, day, today)
+          const canPick = !readOnly && inMonth && bookable(entries, day, today)
           const past = isBefore(day, today)
           const isSelected = selected && isSameDay(day, selected)
           const dot = inMonth && state in dayStyle && !(past && state === "free") ?dayStyle[state as keyof typeof dayStyle].dot : "bg-transparent"
@@ -179,6 +217,68 @@ function ScheduleCalendar({
   )
 }
 
+/**
+ * The chosen day broken into working intervals: the ones the ELPREMAR is
+ * already on a job in are shown but locked, the rest can be booked.
+ */
+function SlotPicker({
+  entries,
+  day,
+  slot,
+  onSelect,
+  readOnly,
+}: {
+  entries: ScheduleEntry[]
+  day: Date
+  slot?: number
+  onSelect: (hour: number) => void
+  readOnly?: boolean
+}) {
+  const busy = busySlots(entries, day)
+  const open = openSlots(entries, day)
+
+  return (
+    <>
+      <div className="mt-3 flex items-baseline justify-between gap-2">
+        <span className="text-[0.65rem] font-semibold tracking-wide text-muted-foreground uppercase">Time interval</span>
+        <span className="text-[0.62rem] text-muted-foreground">{open.length} of {daySlots.length} free</span>
+      </div>
+      <div className="mt-1 space-y-1">
+        {daySlots.map((hour) => {
+          const job = busy.get(hour)
+          const free = open.includes(hour)
+          const picked = slot === hour
+          // The booked interval is shown even when something else now sits in it
+          const clash = picked && !!job
+          return (
+            <button
+              key={hour}
+              type="button"
+              disabled={readOnly || !free}
+              onClick={() => onSelect(hour)}
+              title={job ?? (free ? "Available" : "Already passed")}
+              aria-pressed={picked}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[0.7rem] ring-1 transition-colors",
+                clash && "bg-critical-soft font-medium text-critical-soft-foreground ring-critical",
+                picked && !clash && "bg-primary font-medium text-primary-foreground ring-primary",
+                !picked && job && "bg-info-soft/70 text-muted-foreground ring-transparent",
+                !picked && !job && !free && "text-muted-foreground/50 ring-transparent",
+                !picked && free && "ring-foreground/10 hover:bg-muted"
+              )}
+            >
+              <span className="shrink-0 tabular-nums">{slotLabel(hour)}</span>
+              <span className="min-w-0 flex-1 truncate text-right">
+                {job ?? (free ? "Free" : picked ? "Booked" : "Passed")}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
 function ElpremarDetails({ e, location }: { e: Elpremar; location?: JobLocation }) {
   return (
     <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-foreground/10">
@@ -205,7 +305,7 @@ function ElpremarDetails({ e, location }: { e: Elpremar; location?: JobLocation 
         <div className="mt-2 flex flex-wrap items-center gap-1">
           <span className="mr-0.5 text-[0.65rem] font-semibold tracking-wide text-muted-foreground uppercase">Skills</span>
           {e.skills.map((s) => (
-            <Badge key={s} variant="info" className="rounded px-1.5 py-0 text-[0.62rem]">{s}</Badge>
+            <Badge key={s} variant="info" className="rounded px-1.5 py-0 text-[0.65rem]">{s}</Badge>
           ))}
         </div>
       </div>
@@ -213,29 +313,32 @@ function ElpremarDetails({ e, location }: { e: Elpremar; location?: JobLocation 
   )
 }
 
+
 /**
- * Search an ELPREMAR, review their details and schedule, then pick a day to
- * assign the work item. Mount with a `key` per target so state resets.
+ * The scheduling panel: who the work belongs to, the day it sits on and the
+ * interval within that day. Opens on what the row already has and is read-only
+ * until Reassign, which brings in the ELPREMAR search and unlocks both.
+ * Rendered inline on the details screen and inside the dialog on the dashboard.
+ * Mount with a `key` per target so state resets.
  */
-export function AssignElpremarDialog({
+export function WorkSchedule({
   target,
   bookings,
-  onOpenChange,
   onAssign,
+  leadingAction,
 }: {
-  target: AssignTarget | null
+  target: AssignTarget
   bookings: Booking[]
-  onOpenChange: (open: boolean) => void
-  onAssign: (elpremar: Elpremar, date: Date) => void
+  onAssign: (result: AssignResult) => void
+  /** Sits before the panel's own buttons — the dialog puts its Cancel here */
+  leadingAction?: React.ReactNode
 }) {
   const today = startOfDay(new Date())
-  const [query, setQuery] = useState("")
-  const [selectedId, setSelectedId] = useState(() => elpremars.find((e) => e.name === target?.elpremar)?.id)
-  const [date, setDate] = useState<Date | undefined>()
 
-  // Don't count the row's own current booking against the person it's already assigned to
+  // Don't count the row's own current booking against the person it holds, so
+  // its own interval reads as its own rather than as a clash
   const otherBookings = useMemo(
-    () => bookings.filter((b) => !(b.elpremar === target?.elpremar && b.date === target?.date && b.label === target?.title)),
+    () => bookings.filter((b) => !(b.elpremar === target.elpremar && b.date === target.date && b.label === target.title)),
     [bookings, target]
   )
 
@@ -249,41 +352,89 @@ export function AssignElpremarDialog({
     [otherBookings]
   )
 
-  const atSite = (e: Elpremar) => locations.get(e.id)?.plant === target?.plant
-
   // Everyone is listed (the admin decides); those already assigned at this plant come first
+  const byProximity = useMemo(() => {
+    const here = (e: Elpremar) => locations.get(e.id)?.plant === target.plant
+    return [...elpremars].sort((a, b) => Number(here(b)) - Number(here(a)))
+  }, [locations, target])
+
+  /** What the row arrived with — what the panel opens on, and what Back returns to */
+  const booked = {
+    id: elpremars.find((e) => e.name === target.elpremar)?.id ?? byProximity[0]?.id,
+    date: target.date ? parseDate(target.date) : undefined,
+    slot: target.slot,
+  }
+
+  // Reassigning is a deliberate step: until then the booking is only on show
+  const [reassigning, setReassigning] = useState(false)
+  const [query, setQuery] = useState("")
+  const [selectedId, setSelectedId] = useState(booked.id)
+  const [date, setDate] = useState<Date | undefined>(booked.date)
+  const [slot, setSlot] = useState<number | undefined>(booked.slot)
+
+  const atSite = (e: Elpremar) => locations.get(e.id)?.plant === target.plant
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const here = (e: Elpremar) => locations.get(e.id)?.plant === target?.plant
-    return elpremars
-      .filter((e) =>
-        !q || [e.name, e.id, locations.get(e.id)?.plant ?? "", e.department, ...e.skills].some((f) => f.toLowerCase().includes(q))
-      )
-      .sort((a, b) => Number(here(b)) - Number(here(a)))
-  }, [query, locations, target])
+    if (!q) return byProximity
+    return byProximity.filter((e) =>
+      [e.name, e.id, locations.get(e.id)?.plant ?? "", e.department, ...e.skills].some((f) => f.toLowerCase().includes(q))
+    )
+  }, [query, byProximity, locations])
 
   const selected = elpremars.find((e) => e.id === selectedId)
   const entries = selected ? schedules.get(selected.id)! : []
-  const jobsOnDate = date ? entries.filter((x) => x.kind === "job" && isSameDay(x.date, date)) : []
+
+  // Someone else's job sitting in the very interval this row is booked into
+  const clash = date && slot !== undefined ? busySlots(entries, date).get(slot) : undefined
+
+  /** Keep a chosen interval only while it is still open for this person on this day */
+  const keepSlot = (sched: ScheduleEntry[], day?: Date, hour?: number) =>
+    day && hour !== undefined && openSlots(sched, day).includes(hour) ? hour : undefined
 
   const pick = (e: Elpremar) => {
     setSelectedId(e.id)
+    const sched = schedules.get(e.id)!
     // Keep the chosen day only if the new person is free on it too
-    if (date && !selectable(dayState(date, schedules.get(e.id)!), date, today)) setDate(undefined)
+    const day = date && bookable(sched, date, today) ? date : undefined
+    setDate(day)
+    setSlot(keepSlot(sched, day, slot))
   }
 
-  return (
-    <Dialog open={!!target} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-4 p-5 sm:max-w-4xl!">
-        <DialogHeader>
-          <DialogTitle>{target?.elpremar ? "Reassign ELPREMAR" : "Assign ELPREMAR"}</DialogTitle>
-          <DialogDescription>
-            <span className="font-medium text-foreground">{target?.title}</span> · {target?.subtitle}
-          </DialogDescription>
-        </DialogHeader>
+  const chooseDay = (day: Date) => {
+    setDate(day)
+    setSlot(keepSlot(entries, day, slot))
+  }
 
-        <div className="grid gap-4 md:grid-cols-[17rem_1fr]">
-          {/* Search + results */}
+  const startReassign = () => {
+    setReassigning(true)
+    // The booked day may be in the past, which is no longer a valid choice
+    if (!date || !bookable(entries, date, today)) {
+      setDate(undefined)
+      setSlot(undefined)
+    } else if (clash) setSlot(undefined)
+  }
+
+  const cancelReassign = () => {
+    setReassigning(false)
+    setQuery("")
+    setSelectedId(booked.id)
+    setDate(booked.date)
+    setSlot(booked.slot)
+  }
+
+  // Finished work keeps its assignment, so the panel is then a view of the booking
+  const canReassign = target.reassignable !== false
+  const chosen = selected && date && slot !== undefined
+  // An inspection activity has no approval step, so its Approve stays out of reach
+  const canApprove = !!chosen && !clash && target.approvable !== false
+  const commit = () => chosen && onAssign({ elpremar: selected, date, slot, approved: target.approvable !== false })
+
+  return (
+    <>
+      <div className={cn("grid gap-4", reassigning && "md:grid-cols-[17rem_1fr]")}>
+        {/* The ELPREMAR search only exists once the admin has chosen to reassign */}
+        {reassigning && (
           <div className="flex min-h-0 flex-col gap-2">
             <InputGroup className="h-8">
               <InputGroupAddon><Search /></InputGroupAddon>
@@ -315,8 +466,8 @@ export function AssignElpremarDialog({
                       <span className="block truncate font-medium">{e.name}</span>
                       <span className="block truncate text-[0.65rem] text-muted-foreground">{e.id} · {locations.get(e.id)?.plant ?? "Not on any job"}</span>
                       {atSite(e) && (
-                        <Badge variant="healthy" className="mt-0.5 rounded px-1 py-0 text-[0.58rem]">
-                          <MapPin className="size-2.5!" /> At {target?.plant}
+                        <Badge variant="healthy" className="mt-0.5 rounded px-1 py-0 text-[0.62rem]">
+                          <MapPin className="size-2.5!" /> At {target.plant}
                         </Badge>
                       )}
                     </span>
@@ -332,57 +483,110 @@ export function AssignElpremarDialog({
               )}
             </div>
           </div>
+        )}
 
-          {/* Details + schedule */}
-          {selected ? (
-            <div className="grid content-start gap-3 lg:grid-cols-[1fr_15rem]">
-              <div className="space-y-3 lg:col-span-2">
-                <ElpremarDetails e={selected} location={locations.get(selected.id)} />
-              </div>
-              <div className="rounded-lg p-2 ring-1 ring-foreground/10">
-                <ScheduleCalendar key={selected.id} entries={entries} selected={date} onSelect={setDate} />
-              </div>
-              <div className="rounded-lg p-3 text-xs ring-1 ring-foreground/10">
-                <div className="text-[0.65rem] font-semibold tracking-wide text-muted-foreground uppercase">Scheduled date</div>
-                {date ? (
-                  <>
-                    <div className="mt-1 text-sm font-semibold">{format(date, "EEE, d MMM yyyy")}</div>
-                    <div className="mt-3 text-[0.65rem] font-semibold tracking-wide text-muted-foreground uppercase">
-                      Already booked that day
-                    </div>
-                    {jobsOnDate.length ? (
-                      <ul className="mt-1 space-y-1">
-                        {jobsOnDate.map((j, i) => (
-                          <li key={i} className="flex items-center gap-1.5">
-                            <span className="size-1.5 rounded-full bg-info" /> {j.label}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-1 text-muted-foreground">Nothing — the full day is free.</p>
-                    )}
-                  </>
-                ) : (
-                  <p className="mt-1 text-muted-foreground">Pick an available day in the calendar.</p>
-                )}
-              </div>
+        {selected ? (
+          <div className="grid content-start gap-3 lg:grid-cols-[1fr_16rem]">
+            <div className="space-y-3 lg:col-span-2">
+              <ElpremarDetails e={selected} location={locations.get(selected.id)} />
             </div>
+            <div className="rounded-lg p-2 ring-1 ring-foreground/10">
+              <ScheduleCalendar
+                key={`${selected.id}-${reassigning}`}
+                entries={entries}
+                selected={date}
+                onSelect={chooseDay}
+                readOnly={!reassigning}
+              />
+            </div>
+            <div className="rounded-lg p-3 text-xs ring-1 ring-foreground/10">
+              <div className="text-[0.65rem] font-semibold tracking-wide text-muted-foreground uppercase">Scheduled date</div>
+              {date ? (
+                <>
+                  <div className="mt-1 text-sm font-semibold">{format(date, "EEE, d MMM yyyy")}</div>
+                  <SlotPicker entries={entries} day={date} slot={slot} onSelect={setSlot} readOnly={!reassigning} />
+                </>
+              ) : (
+                <p className="mt-1 text-muted-foreground">Pick an available day in the calendar.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
+            <UserRoundSearch className="size-8 text-muted-foreground/60" />
+            Search and select an ELPREMAR to see their details and schedule.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-xs text-muted-foreground">
+          {clash ? (
+            <span className="flex items-center gap-1.5 font-medium text-critical">
+              <TriangleAlert className="size-3.5" />
+              {slotLabel(slot!)} is already taken by {clash} — reassign to approve.
+            </span>
+          ) : chosen ? (
+            <><span className="font-medium text-foreground">{selected.name}</span> · {format(date, "EEE, d MMM")} · {slotLabel(slot)}</>
           ) : (
-            <div className="flex min-h-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
-              <UserRoundSearch className="size-8 text-muted-foreground/60" />
-              Search and select an ELPREMAR to see their details and schedule.
-            </div>
+            "Pick a day and a free time interval."
           )}
-        </div>
-
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" size="sm">Cancel</Button>
-          </DialogClose>
-          <Button size="sm" disabled={!selected || !date} onClick={() => selected && date && onAssign(selected, date)}>
-            Assign{selected && date ? ` ${selected.name} · ${format(date, "d MMM")}` : ""}
+        </p>
+        {leadingAction}
+        {canReassign ? (
+          reassigning ? (
+            <Button variant="secondary" size="sm" className={control} onClick={cancelReassign}>Back</Button>
+          ) : (
+            <Button variant="secondary" size="sm" className={control} onClick={startReassign}>Reassign</Button>
+          )
+        ) : null}
+        {target.approvable === false && !canReassign ? null : target.approvable === false && reassigning ? (
+          <Button size="sm" className={control} disabled={!chosen || !!clash} onClick={commit}>
+            <CheckCheck className="size-3.5" /> Reassign
           </Button>
-        </DialogFooter>
+        ) : (
+          <Button size="sm" className={control} disabled={!canApprove} onClick={commit}>
+            <CheckCheck className="size-3.5" /> Approve
+          </Button>
+        )}
+      </div>
+    </>
+  )
+}
+
+/** The dashboard's row action: the same panel, in a dialog. */
+export function AssignElpremarDialog({
+  target,
+  bookings,
+  onOpenChange,
+  onAssign,
+}: {
+  target: AssignTarget | null
+  bookings: Booking[]
+  onOpenChange: (open: boolean) => void
+  onAssign: (result: AssignResult) => void
+}) {
+  return (
+    <Dialog open={!!target} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-4 p-5 sm:max-w-4xl!">
+        <DialogHeader>
+          <DialogTitle>Scheduled Work</DialogTitle>
+          <DialogDescription>
+            <span className="font-medium text-foreground">{target?.title}</span> · {target?.subtitle}
+          </DialogDescription>
+        </DialogHeader>
+        {target ? (
+          <WorkSchedule
+            target={target}
+            bookings={bookings}
+            onAssign={onAssign}
+            leadingAction={
+              <DialogClose asChild>
+                <Button variant="outline" size="sm" className={control}>Cancel</Button>
+              </DialogClose>
+            }
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   )

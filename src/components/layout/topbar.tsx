@@ -35,7 +35,7 @@ export function Topbar() {
 
       <div className="min-w-0">
         <h1 className="truncate text-lg font-bold leading-tight">Olivine Command Centre (OCC)</h1>
-        <p className="hidden text-[0.7rem] tracking-wide text-topbar-muted-foreground sm:block">
+        <p className="hidden text-[0.7rem] font-semibold tracking-wide text-topbar-foreground/90 sm:block">
           REAL-TIME VISIBILITY &nbsp;|&nbsp; FASTER RESPONSE &nbsp;|&nbsp; HIGHER RELIABILITY
         </p>
       </div>

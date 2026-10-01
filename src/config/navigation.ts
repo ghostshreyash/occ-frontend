@@ -1,16 +1,9 @@
 import {
-  BarChart3,
   Building2,
-  Factory,
   FileText,
   HardHat,
   House,
   LifeBuoy,
-  MessageCircle,
-  Network,
-  TabletSmartphone,
-  TriangleAlert,
-  UserRoundCog,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
@@ -20,22 +13,19 @@ export type NavItem = {
   path: string
   icon: LucideIcon
   badge?: number
+  /**
+   * Other route prefixes that belong to this section, so a details screen keeps
+   * its sidebar entry highlighted even though it sits on its own path.
+   */
+  covers?: string[]
 }
 
 /** OCC sidebar, in the order shown in the mockups */
 export const occNavigation: NavItem[] = [
-  { title: "OCC Global Dashboard", path: "/", icon: House },
+  { title: "Dashboard", path: "/", icon: House },
   { title: "Enterprises", path: "/enterprises", icon: Building2 },
-  { title: "Enterprise Status", path: "/enterprise-status", icon: Building2 },
-  { title: "Plant Status", path: "/plant-status", icon: Factory },
-  { title: "Critical Alerts", path: "/critical-alerts", icon: TriangleAlert, badge: 5 },
-  { title: "Escalation Centre", path: "/escalation-centre", icon: UserRoundCog },
-  { title: "EMMSE Connectivity", path: "/emmse-connectivity", icon: Network },
-  { title: "EVITA Activity", path: "/evita-activity", icon: TabletSmartphone },
   { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
-  { title: "Maintenance Progress", path: "/maintenance-progress", icon: Wrench },
-  { title: "24×7 Helpdesk/Chatbot", path: "/helpdesk", icon: MessageCircle },
+  { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
+  { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
   { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy },
-  { title: "Enterprise Reliability Trends", path: "/reliability-trends", icon: BarChart3 },
-  { title: "MIS / Reporting", path: "/mis-reporting", icon: FileText },
 ]
