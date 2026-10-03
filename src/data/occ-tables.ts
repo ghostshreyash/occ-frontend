@@ -441,35 +441,42 @@ export type EnterpriseRecord = {
   assets: number
   elpremars: number
   onboarded: string
+  /** Operational health of their assets */
   status: HealthStatus | "onboarding"
+  /**
+   * Whether the account may be used. Deactivation is how an enterprise is
+   * stopped from using the app - records are never deleted, so history stays.
+   */
+  accountStatus: "active" | "deactivated"
 }
 
 export const enterpriseRecords: EnterpriseRecord[] = [
-  { id: "TSL-ENT-001", name: "Tata Steel Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mumbai", plants: 12, assets: 6842, elpremars: 48, onboarded: "12-01-2024", status: "healthy" },
-  { id: "RIL-ENT-002", name: "Reliance Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jamnagar", plants: 9, assets: 5921, elpremars: 41, onboarded: "03-03-2024", status: "attention" },
-  { id: "JSW-ENT-003", name: "JSW Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Dolvi", plants: 11, assets: 4876, elpremars: 36, onboarded: "22-04-2024", status: "healthy" },
-  { id: "ADN-ENT-004", name: "Adani Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mundra", plants: 8, assets: 3994, elpremars: 29, onboarded: "17-06-2024", status: "critical" },
-  { id: "NTP-ENT-005", name: "NTPC", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy" },
-  { id: "ABC-ENT-006", name: "ABC Industries Ltd.", sectorType: "Industry", sector: "MSME", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding" },
-  { id: "EMR-ENT-007", name: "Emirates Steel", sectorType: "Industry", sector: "Mid Cap", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention" },
-  { id: "SBC-ENT-008", name: "SABIC", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy" },
-  { id: "THY-ENT-009", name: "Thyssenkrupp AG", sectorType: "Industry", sector: "Large Cap", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy" },
-  { id: "SGX-ENT-010", name: "Singapore Grid Co.", sectorType: "Retail", sector: "Commercial Offices", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy" },
-  { id: "HIN-ENT-011", name: "Hindalco Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention" },
-  { id: "VED-ENT-012", name: "Vedanta Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy" },
-  { id: "BPC-ENT-013", name: "Bharat Petroleum", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical" },
-  { id: "UTC-ENT-014", name: "UltraTech Cement", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy" },
-  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention" },
-  { id: "TAT-ENT-016", name: "Tata Steel Europe", sectorType: "Industry", sector: "Large Cap", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention" },
-  { id: "LYB-ENT-017", name: "LyondellBasell", sectorType: "Industry", sector: "Large Cap", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy" },
-  { id: "VAL-ENT-018", name: "Vale S.A.", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical" },
-  { id: "ESK-ENT-019", name: "Eskom Holdings", sectorType: "Industry", sector: "Government / PSU", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy" },
-  { id: "BHP-ENT-020", name: "BHP Group", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding" },
+  { id: "TSL-ENT-001", name: "Tata Steel Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mumbai", plants: 12, assets: 6842, elpremars: 48, onboarded: "12-01-2024", status: "healthy", accountStatus: "active" },
+  { id: "RIL-ENT-002", name: "Reliance Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jamnagar", plants: 9, assets: 5921, elpremars: 41, onboarded: "03-03-2024", status: "attention", accountStatus: "active" },
+  { id: "JSW-ENT-003", name: "JSW Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Dolvi", plants: 11, assets: 4876, elpremars: 36, onboarded: "22-04-2024", status: "healthy", accountStatus: "active" },
+  { id: "ADN-ENT-004", name: "Adani Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mundra", plants: 8, assets: 3994, elpremars: 29, onboarded: "17-06-2024", status: "critical", accountStatus: "active" },
+  { id: "NTP-ENT-005", name: "NTPC", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy", accountStatus: "active" },
+  { id: "ABC-ENT-006", name: "ABC Industries Ltd.", sectorType: "Industry", sector: "MSME", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding", accountStatus: "active" },
+  { id: "EMR-ENT-007", name: "Emirates Steel", sectorType: "Industry", sector: "Mid Cap", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention", accountStatus: "active" },
+  { id: "SBC-ENT-008", name: "SABIC", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy", accountStatus: "deactivated" },
+  { id: "THY-ENT-009", name: "Thyssenkrupp AG", sectorType: "Industry", sector: "Large Cap", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy", accountStatus: "active" },
+  { id: "SGX-ENT-010", name: "Singapore Grid Co.", sectorType: "Retail", sector: "Commercial Offices", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy", accountStatus: "active" },
+  { id: "HIN-ENT-011", name: "Hindalco Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention", accountStatus: "active" },
+  { id: "VED-ENT-012", name: "Vedanta Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy", accountStatus: "active" },
+  { id: "BPC-ENT-013", name: "Bharat Petroleum", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical", accountStatus: "active" },
+  { id: "UTC-ENT-014", name: "UltraTech Cement", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy", accountStatus: "active" },
+  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention", accountStatus: "active" },
+  { id: "TAT-ENT-016", name: "Tata Steel Europe", sectorType: "Industry", sector: "Large Cap", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention", accountStatus: "active" },
+  { id: "LYB-ENT-017", name: "LyondellBasell", sectorType: "Industry", sector: "Large Cap", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy", accountStatus: "active" },
+  { id: "VAL-ENT-018", name: "Vale S.A.", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical", accountStatus: "deactivated" },
+  { id: "ESK-ENT-019", name: "Eskom Holdings", sectorType: "Industry", sector: "Government / PSU", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy", accountStatus: "active" },
+  { id: "BHP-ENT-020", name: "BHP Group", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding", accountStatus: "active" },
 ]
 
 export const enterpriseRegisterKpis = {
   total: enterpriseRecords.length,
-  active: enterpriseRecords.filter((e) => e.status !== "onboarding").length,
+  /* Active means the account may be used, not that the assets are healthy */
+  active: enterpriseRecords.filter((e) => e.accountStatus === "active").length,
   onboarding: enterpriseRecords.filter((e) => e.status === "onboarding").length,
   plants: enterpriseRecords.reduce((n, e) => n + e.plants, 0),
   assets: enterpriseRecords.reduce((n, e) => n + e.assets, 0),
@@ -579,6 +586,12 @@ export type EnterpriseProfile = {
   location: { country: string; state: string; city: string; pin: string; latitude: string; longitude: string; address: string }
   plants: PlantProfile[]
   account: { email: string; role: string; lastLogin: string }
+}
+
+/** Coordinates for a city, for filling a location in from its address */
+export const coordsForCity = (city: string) => {
+  const point = coordsFor[city]
+  return point ? { lat: point[0], lng: point[1] } : undefined
 }
 
 export const stateFor: Record<string, string> = {

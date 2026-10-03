@@ -19,7 +19,8 @@ const coordinate = (label: string, limit: number) =>
 
 export const enterpriseSchema = z.object({
   name: required("Enterprise name"),
-  shortName: required("Short name"),
+  /* Optional - two companies under one group may share a prefix anyway */
+  shortName: z.string().optional(),
   /** Industry or Retail - drives which sector list applies */
   sectorType: required("Sector"),
   /** The specific sector, from the list for the chosen sector type */

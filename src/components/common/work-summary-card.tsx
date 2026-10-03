@@ -27,7 +27,7 @@ type Stream = {
 }
 
 /** One stream's card: total, status mix, and a per-status breakdown */
-function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | null }) {
+function StreamCard({ stream, reduced, aggregate }: { stream: Stream; reduced: boolean | null; aggregate?: boolean }) {
   const total = stream.rows.length
   const counts = STATUS_ORDER.map((s) => ({ ...s, n: stream.rows.filter((r) => r.status === s.key).length }))
   const present = counts.filter((c) => c.n > 0)
@@ -69,6 +69,7 @@ function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | nu
         )}
       </p>
 
+      {aggregate ? null : (
       <div className="mt-2 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-muted">
         {present.map((c, i) => (
           <motion.span
@@ -81,7 +82,9 @@ function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | nu
           />
         ))}
       </div>
+      )}
 
+      {aggregate ? null : (
       <ul className="mt-2.5 space-y-1">
         {present.length === 0 ? (
           <li className="text-[0.7rem] text-muted-foreground">No items</li>
@@ -95,6 +98,7 @@ function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | nu
           ))
         )}
       </ul>
+      )}
     </motion.section>
   )
 }
@@ -106,12 +110,15 @@ function StreamCard({ stream, reduced }: { stream: Stream; reduced: boolean | nu
 export function WorkSummaryCard({
   enterprise,
   elpremar,
+  aggregate,
   className,
 }: {
   /** Narrow to one enterprise's work */
   enterprise?: string
   /** Narrow to one ELPREMAR's assigned work */
   elpremar?: string
+  /** Totals only, no per-status breakdown - OCC does not track the detail */
+  aggregate?: boolean
   className?: string
 }) {
   const reduced = useReducedMotion()
@@ -136,7 +143,7 @@ export function WorkSummaryCard({
       className={cn("grid gap-2 md:grid-cols-3", className)}
     >
       {streams.map((s) => (
-        <StreamCard key={s.key} stream={s} reduced={reduced} />
+        <StreamCard key={s.key} stream={s} reduced={reduced} aggregate={aggregate} />
       ))}
     </motion.div>
   )

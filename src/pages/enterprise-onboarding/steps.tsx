@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { Context, Ctx } from "@/components/common/wizard"
+import { areaForPostalCode } from "@/data/master-data"
+import { coordsForCity } from "@/data/occ-tables"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Building2, CheckCircle2, Factory, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
 
@@ -62,7 +64,7 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
     >
       <form id="step-enterprise" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
         <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" />
-        <TextField control={control} name="shortName" label="Short Name / Abbreviation" required placeholder="Enter short name (e.g. TATA)" />
+        <TextField control={control} name="shortName" label="Short Name / Abbreviation" placeholder="Enter short name (e.g. TATA)" />
 
         {/* Type drives the sector list; changing it clears a now-invalid sector */}
         <SelectField
@@ -105,6 +107,19 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
   const lat = parseFloat(watch("latitude") ?? "")
   const lng = parseFloat(watch("longitude") ?? "")
 
+  // The postal code resolves city, state and coordinates in one go
+  const fillFromPin = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    setValue("city", area.city)
+    setValue("state", area.state)
+    const point = coordsForCity(area.city)
+    if (point) {
+      setValue("latitude", point.lat)
+      setValue("longitude", point.lng)
+    }
+  }
+
   return (
     <StepCard
       title="Step 2 of 6: Location Details"
@@ -128,11 +143,15 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
 
         {/* Postal code sits in line with the address it belongs to */}
         <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" required onValueChange={fillFromPin} />
 
-        {/* Coordinates sit directly above the map that fills them in */}
-        <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" placeholder="19.0759" />
-        <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" placeholder="72.8777" />
+        {/*
+          * Derived, not typed: entering the postal code resolves the address and
+          * fills these in. Adjusting the map pin below overrides them. Stands in
+          * for the places API that will do the lookup for real.
+          */}
+        <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" description="Filled from the address" />
+        <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" description="Filled from the address" />
 
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">
