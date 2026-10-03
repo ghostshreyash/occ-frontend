@@ -72,7 +72,17 @@ const parseDmy = (d: string) => {
   return new Date(yyyy, mm - 1, dd)
 }
 
-export type Certificate = { id: string; name: string; issuer: string; issued: string; validTill: string }
+export type Certificate = {
+  id: string
+  name: string
+  /** The number the issuing body printed on it */
+  number: string
+  issuer: string
+  issued: string
+  validTill: string
+  /** How many scans are held against it */
+  documents: number
+}
 
 /**
  * Certificates held by one ELPREMAR. Shared by the register (which shows the
@@ -85,7 +95,9 @@ function certsFor(id: string, count: number): Certificate[] {
     return {
       id: `${id}-C${i + 1}`,
       name: c.name,
+      number: `OGS-${String(10000 + ((s + i * 137) % 89999))}`,
       issuer: c.issuer,
+      documents: 1 + ((s + i) % 2),
       issued: dateOffset(-(300 + ((s + i * 40) % 900))),
       // Spread crosses today: a few have lapsed, which is what the register is for
       validTill: dateOffset(-45 + ((s + i * 70) % 820)),

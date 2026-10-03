@@ -38,16 +38,8 @@ import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
 import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import { countries, indianStates, salutations, timeZones } from "@/data/mock"
-import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
-import {
-  assetHealthFor,
-  enterpriseRecords,
-  profileFor,
-  type DepartmentProfile,
-  type EnterpriseProfile,
-  type EnterpriseRecord,
-  type PlantProfile,
-} from "@/data/occ-tables"
+import { areaForPostalCode, departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { assetHealthFor, coordsForCity, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
 import {
@@ -185,6 +177,18 @@ export function EnterpriseDetailPage() {
   const editingCountryIsIndia = locationForm.watch("country") === "India"
   const health = assetHealthFor(record)
   const pct = (n: number) => Math.round((n / record.assets) * 100)
+
+  // Editing a plant's postal code resolves its city and coordinates
+  const fillPlantFromPin = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    plantForm.setValue("city", area.city)
+    const point = coordsForCity(area.city)
+    if (point) {
+      plantForm.setValue("latitude", point.lat)
+      plantForm.setValue("longitude", point.lng)
+    }
+  }
 
   /*
    * Deactivation stops the enterprise using the app; the record and its history
@@ -459,6 +463,12 @@ export function EnterpriseDetailPage() {
               <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
               <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
               <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
+              {/* The plant's own location - work is dispatched here */}
+              <TextField control={plantForm.control} name="pin" label="Postal Code" required onValueChange={fillPlantFromPin} />
+              <TextField control={plantForm.control} name="city" label="City" required />
+              <div />
+              <TextField control={plantForm.control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
+              <TextField control={plantForm.control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
               <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
             </form>
           }

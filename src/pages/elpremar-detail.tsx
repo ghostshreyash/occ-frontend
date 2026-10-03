@@ -395,9 +395,11 @@ export function ElpremarDetailPage() {
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className={th}>#</TableHead>
                       <TableHead className={th}>Certificate</TableHead>
+                      <TableHead className={th}>Certificate No.</TableHead>
                       <TableHead className={th}>Issuing Organisation</TableHead>
                       <TableHead className={`${th} hidden sm:table-cell`}>Issued</TableHead>
                       <TableHead className={th}>Valid Till</TableHead>
+                      <TableHead className={th}>Documents</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -405,10 +407,14 @@ export function ElpremarDetailPage() {
                       <TableRow key={c.id}>
                         <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
                         <TableCell className={`${td} font-medium`}>{c.name}</TableCell>
+                        <TableCell className={`${td} tabular-nums`}>{c.number}</TableCell>
                         <TableCell className={td}>{c.issuer}</TableCell>
                         <TableCell className={`${td} hidden tabular-nums sm:table-cell`}>{c.issued}</TableCell>
                         <TableCell className={td}>
                           <ExpiryValue validTill={c.validTill} />
+                        </TableCell>
+                        <TableCell className={`${td} text-muted-foreground`}>
+                          {c.documents} file{c.documents > 1 ? "s" : ""}
                         </TableCell>
                       </TableRow>
                     ))}
