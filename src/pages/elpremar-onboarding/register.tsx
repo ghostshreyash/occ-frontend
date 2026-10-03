@@ -5,10 +5,9 @@ import {
   ArrowDownWideNarrow,
   ArrowUp,
   FileDown,
-  CircleAlert,
-  GraduationCap,
   HardHat,
-  MapPinned,
+  UserCheck,
+  UserMinus,
   MapPin,
   Plus,
   Search,
@@ -69,12 +68,12 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
     () =>
       elpremarRecords
         .filter((e) => {
-          if (role !== "all" && e.role !== role) return false
+          if (role !== "all" && !e.roles.includes(role)) return false
           if (status !== "all" && e.status !== status) return false
           if (location !== "all" && e.city !== location) return false
           const q = query.trim().toLowerCase()
           if (!q) return true
-          return [e.name, e.id, e.role, e.enterprise, e.plant, e.city, e.department].some((v) => v.toLowerCase().includes(q))
+          return [e.name, e.id, e.designation, ...e.roles, e.enterprise, e.plant, e.city, e.department].some((v) => v.toLowerCase().includes(q))
         })
         .sort(SORTS[sort].compare),
     [query, role, status, location, sort]
@@ -117,11 +116,10 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
         }
       />
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="grid grid-cols-3 gap-2">
         <StatCard label="Total ELPREMARs" value={elpremarRegisterKpis.total} delta={elpremarRegisterKpis.delta.total} icon={HardHat} tone="info" variant="plain" />
-        <StatCard label="Trained" value={elpremarRegisterKpis.trained} icon={GraduationCap} tone="info" variant="plain" />
-        <StatCard label="Not Trained" value={elpremarRegisterKpis.notTrained} icon={CircleAlert} tone="attention" variant="plain" />
-        <StatCard label="In Field" value={elpremarRegisterKpis.inField} delta={elpremarRegisterKpis.delta.inField} icon={MapPinned} tone="healthy" variant="plain" />
+        <StatCard label="Active" value={elpremarRegisterKpis.active} delta={elpremarRegisterKpis.delta.active} icon={UserCheck} tone="healthy" variant="plain" />
+        <StatCard label="Inactive" value={elpremarRegisterKpis.inactive} icon={UserMinus} tone="neutral" variant="plain" />
       </div>
 
       <SectionCard
@@ -160,7 +158,7 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
             onChange={setStatus}
             allLabel="All Statuses"
             width="w-36"
-            options={["trained", "not_trained", "in_field"]}
+            options={["active", "inactive"]}
             renderOption={(v) => elpremarStatusMeta[v as keyof typeof elpremarStatusMeta].label}
           />
 
@@ -192,7 +190,7 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
             <TableHeader>
               <TableRow className="bg-muted/60 hover:bg-muted/60">
                 <TableHead className={`${th} pl-3`}>ELPREMAR</TableHead>
-                <TableHead className={th}>Role</TableHead>
+                <TableHead className={th}>Designation / Role</TableHead>
                 <TableHead className={`${th} hidden lg:table-cell`}>Location</TableHead>
                 <TableHead className={th}>Experience</TableHead>
                 <TableHead className={`${th} hidden md:table-cell`}>
@@ -232,7 +230,10 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
                       </Link>
                     </TableCell>
                     <TableCell className={td}>
-                      <span title={e.role}>{roleStream(e.role)}</span>
+                      <div className="font-medium">{e.designation}</div>
+                      <div className="text-[0.65rem] text-muted-foreground" title={e.roles.join(", ")}>
+                        {e.roles.map(roleStream).join(", ")}
+                      </div>
                     </TableCell>
                     <TableCell className={`${td} hidden lg:table-cell`}>
                       <div>{e.city}</div>

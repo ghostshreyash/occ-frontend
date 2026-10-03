@@ -44,8 +44,13 @@ export function TextField<T extends FieldValues>({
   startIcon,
   inputClassName,
   clearable,
+  onValueChange,
   ...inputProps
-}: BaseProps<T> & Omit<React.ComponentProps<typeof Input>, "name">) {
+}: BaseProps<T> &
+  Omit<React.ComponentProps<typeof Input>, "name"> & {
+    /** Runs after the value changes - used to fill dependent fields */
+    onValueChange?: (value: string) => void
+  }) {
   return (
     <Controller
       control={control}
@@ -62,6 +67,10 @@ export function TextField<T extends FieldValues>({
               {...inputProps}
               {...field}
               value={field.value ?? ""}
+              onChange={(e) => {
+                field.onChange(e)
+                onValueChange?.(e.target.value)
+              }}
             />
             {clearable && field.value ? (
               <button

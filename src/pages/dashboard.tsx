@@ -81,7 +81,7 @@ export function DashboardPage() {
 
   const elpremarStatus = useMemo(() => {
     const roster = view === "india" ? elpremarRecords.filter((e) => e.country === "India") : elpremarRecords
-    const active = roster.filter((e) => e.active).length
+    const active = roster.filter((e) => e.status === "active").length
     return [
       { key: "active", label: "Active", value: active, color: "var(--success)" },
       { key: "inactive", label: "Inactive", value: roster.length - active, color: "var(--neutral)" },

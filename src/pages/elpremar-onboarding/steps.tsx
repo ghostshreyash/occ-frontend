@@ -6,11 +6,10 @@ import {
   ArrowRight,
   Building2,
   Check,
-  CheckCircle2,
-  Circle,
   Factory,
   FileBadge,
   HardHat,
+  MapPin,
   KeyRound,
   Lock,
   Network,
@@ -30,11 +29,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { PasswordField, PhoneField, SelectField, TextField } from "@/components/form/fields"
 import { Context, Ctx } from "@/components/common/wizard"
+import { Attachments } from "@/components/form/attachments"
+import { today } from "@/lib/validation"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { elpremarSkills } from "@/data/mock"
-import { elpremarRoles, roleStream, userRoles } from "@/data/master-data"
+import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { enterpriseRecords, profileFor } from "@/data/occ-tables"
 import { nextElpremarId } from "@/data/elpremar-data"
 import {
@@ -119,13 +119,25 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   const form = useForm<BasicValues>({
     resolver: zodResolver(basicSchema),
     defaultValues: draft.basic ?? {
-      fullName: "", employeeId: nextElpremarId(), dob: "", mobile: "", email: "", postalCode: "", address: "",
+      fullName: "", employeeId: nextElpremarId(), dob: "", mobileCode: "+91", mobile: "", email: "",
+      postalCode: "", district: "", city: "", state: "", addressLine1: "", addressLine2: "",
     },
   })
-  const { control } = form
+  const { control, setValue } = form
+
+  // Postal code resolves the rest of the location, the way the places API will
+  const fillFromPostalCode = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    setValue("district", area.district)
+    setValue("city", area.city)
+    setValue("state", area.state)
+  }
+
   return (
     <Card title="Step 1 of 5: Basic Details">
-      <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} className="flex flex-col gap-5 sm:flex-row" noValidate>
+      <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} noValidate>
+        <div className="flex flex-col gap-5 sm:flex-row">
         <Controller
           control={control}
           name="photo"
@@ -170,11 +182,31 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
               </Field>
             )}
           />
-          <TextField control={control} name="postalCode" label="Postal Code" inputMode="numeric" placeholder="e.g. 400001" />
-          <TextField control={control} name="mobile" label="Mobile Number" required type="tel" placeholder="+91 98765 43210" />
+          <PhoneField control={control} codeName="mobileCode" name="mobile" label="Mobile Number" required />
           <TextField control={control} name="email" label="Email ID" required type="email" />
-          <TextareaField control={control} name="address" label="Address" rows={2} maxLength={250} className="md:col-span-2" />
         </div>
+      </div>
+
+      {/* Address field-wise: dispatch depends on the physical location */}
+      <div className="mt-5 rounded-lg ring-1 ring-border p-4">
+        <h4 className="flex items-center gap-2 font-semibold"><MapPin className="size-5 text-primary" /> Address</h4>
+        <p className="mb-3 text-xs text-muted-foreground">Enter the postal code and the district, city and state fill in automatically.</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <TextField
+            control={control}
+            name="postalCode"
+            label="Postal Code"
+            inputMode="numeric"
+            placeholder="e.g. 400001"
+            onValueChange={fillFromPostalCode}
+          />
+          <TextField control={control} name="district" label="District" />
+          <TextField control={control} name="city" label="City" />
+          <TextField control={control} name="state" label="State" />
+          <TextField control={control} name="addressLine1" label="Flat / Building No." className="md:col-span-1" />
+          <TextField control={control} name="addressLine2" label="Street / Area" className="md:col-span-1" />
+        </div>
+      </div>
       </form>
       <Footer formId="elp-basic" onCancel={onCancel} />
     </Card>
@@ -187,52 +219,68 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   const form = useForm<WorkValues>({
     resolver: zodResolver(workSchema),
     defaultValues: draft.work ?? {
-      designation: "", experience: "", skills: [], certifications: [],
+      roles: [], designation: "", experience: "", certifications: [], kycDocuments: [],
     },
   })
   const { control, watch, setValue } = form
   const certifications = watch("certifications")
   const [adding, setAdding] = useState(false)
-  const cert = useForm<CertificationValues>({ resolver: zodResolver(certificationSchema), defaultValues: { name: "", organisation: "", validTill: "" } })
+  const cert = useForm<CertificationValues>({ resolver: zodResolver(certificationSchema), defaultValues: { name: "", number: "", organisation: "", certificateId: "", validTill: "", documents: [] } })
 
-  const addCertificate = cert.handleSubmit((v) => {
-    setValue("certifications", [...certifications, v])
-    cert.reset()
-    setAdding(false)
-  })
+  const saveCertificate = (keepOpen: boolean) =>
+    cert.handleSubmit((v) => {
+      setValue("certifications", [...certifications, v])
+      cert.reset()
+      setAdding(keepOpen)
+    })
+  const addCertificate = saveCertificate(false)
 
   return (
-    <Card title="Step 2 of 5: Work & Skills">
+    <Card title="Step 2 of 5: Work &amp; Role">
       <form id="elp-work" onSubmit={form.handleSubmit(onNext)} noValidate>
         <ElpremarContext draft={draft} />
         <div className="grid gap-4 md:grid-cols-2">
-          <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
+          <SelectField control={control} name="designation" label="Designation" required options={[...elpremarDesignations]} />
           <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
         </div>
 
         <Controller
           control={control}
-          name="skills"
+          name="roles"
           render={({ field, fieldState }) => (
             <div className="mt-5 rounded-lg bg-info-soft/60 p-4">
-              <h4 className="flex items-center gap-2 font-semibold"><Settings className="size-5 text-primary" /> Skills &amp; Competencies</h4>
-              <p className="mb-3 text-xs text-muted-foreground">Select the key skills and areas of expertise (multiple selection allowed).</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[...elpremarSkills, "Other"].map((skill) => {
-                  const checked = field.value.includes(skill)
+              <h4 className="flex items-center gap-2 font-semibold"><HardHat className="size-5 text-primary" /> Role</h4>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Which streams this ELPREMAR is certified to work on. More than one may apply.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {elpremarRoles.map((r) => {
+                  const checked = field.value.includes(r)
                   return (
-                    <div key={skill} className="flex items-center gap-2">
+                    <div key={r} className="flex items-center gap-2">
                       <Checkbox
-                        id={`skill-${skill}`}
+                        id={`role-${r}`}
                         checked={checked}
-                        onCheckedChange={(c) => field.onChange(c ? [...field.value, skill] : field.value.filter((s) => s !== skill))}
+                        onCheckedChange={(c) => field.onChange(c ? [...field.value, r] : field.value.filter((v) => v !== r))}
                       />
-                      <Label htmlFor={`skill-${skill}`} className="font-normal">{skill}</Label>
+                      <Label htmlFor={`role-${r}`} className="font-normal">{roleStream(r)}</Label>
                     </div>
                   )
                 })}
               </div>
               {fieldState.error ? <p className="mt-2 text-sm text-critical">{fieldState.error.message}</p> : null}
+            </div>
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="kycDocuments"
+          render={({ field }) => (
+            <div className="mt-5 rounded-lg ring-1 ring-border p-4">
+              <h4 className="flex items-center gap-2 font-semibold"><FileBadge className="size-5 text-primary" /> Identity Documents</h4>
+              <p className="mb-3 text-xs text-muted-foreground">KYC and identity proof. More than one file may be attached.</p>
+              <Attachments files={field.value} onChange={field.onChange} inputId="kyc-upload" />
             </div>
           )}
         />
@@ -248,8 +296,10 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
             <TableRow className="bg-muted/70">
               <TableHead className="w-10">#</TableHead>
               <TableHead>Certificate / Training Name</TableHead>
+              <TableHead>Certificate No.</TableHead>
               <TableHead>Issuing Organization</TableHead>
               <TableHead>Valid Till</TableHead>
+              <TableHead className="w-56">Document</TableHead>
               <TableHead className="w-24 text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -258,8 +308,16 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
               <TableRow key={c.name + i}>
                 <TableCell>{i + 1}</TableCell>
                 <TableCell>{c.name}</TableCell>
+                <TableCell className="tabular-nums">{c.number}</TableCell>
                 <TableCell>{c.organisation}</TableCell>
                 <TableCell>{c.validTill.split("-").reverse().join("-")}</TableCell>
+                <TableCell className="max-w-56 text-xs text-muted-foreground">
+                  {c.documents.length ? (
+                    <span className="block truncate" title={c.documents.map((f) => f.name).join(", ")}>
+                      {c.documents.length} file{c.documents.length > 1 ? "s" : ""}
+                    </span>
+                  ) : "None"}
+                </TableCell>
                 <TableCell className="text-center">
                   <Button type="button" variant="ghost" size="icon-sm" className="text-primary" aria-label="Edit"
                     onClick={() => { cert.reset(c); setValue("certifications", certifications.filter((_, j) => j !== i)); setAdding(true) }}>
@@ -276,8 +334,16 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
               <TableRow>
                 <TableCell>{certifications.length + 1}</TableCell>
                 <TableCell><Input placeholder="Certificate name" {...cert.register("name")} aria-invalid={!!cert.formState.errors.name} /></TableCell>
+                <TableCell><Input placeholder="Certificate no." {...cert.register("number")} aria-invalid={!!cert.formState.errors.number} /></TableCell>
                 <TableCell><Input placeholder="Organisation" {...cert.register("organisation")} aria-invalid={!!cert.formState.errors.organisation} /></TableCell>
                 <TableCell><Input type="date" {...cert.register("validTill")} aria-invalid={!!cert.formState.errors.validTill} /></TableCell>
+                <TableCell className="max-w-56">
+                  <Controller
+                    control={cert.control}
+                    name="documents"
+                    render={({ field }) => <Attachments files={field.value} onChange={field.onChange} inputId="cert-upload" compact />}
+                  />
+                </TableCell>
                 <TableCell className="text-center">
                   <Button type="button" size="icon-sm" aria-label="Save certificate" onClick={addCertificate}><Check /></Button>
                 </TableCell>
@@ -286,9 +352,19 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
           </TableBody>
         </Table>
         <div className="p-3">
-          <Button type="button" variant="outline" size="sm" className="text-primary" onClick={() => setAdding(true)} disabled={adding}>
+          {/* Saves whatever row is open first, so a second certificate is one click away */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-primary"
+            onClick={() => (adding ? saveCertificate(true)() : setAdding(true))}
+          >
             <Plus /> Add Certificate / Training
           </Button>
+          {adding ? (
+            <span className="ml-2 text-xs text-muted-foreground">Saves the row above and opens another.</span>
+          ) : null}
         </div>
       </div>
       <Footer formId="elp-work" onBack={onBack} />
@@ -307,7 +383,7 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
   const form = useForm<AssignmentValues>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: draft.assignment ?? {
-      enterprise: "", plant: "", department: "", subDepartment: "", supervisor: "", effectiveFrom: "",
+      enterprise: "", plant: "", department: "", subDepartment: "", supervisor: "", effectiveFrom: today(),
     },
   })
   const { control, watch, setValue } = form
@@ -328,6 +404,10 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
   ].filter((v, i, a) => a.indexOf(v) === i)
 
   const clear = (...names: (keyof AssignmentValues)[]) => names.forEach((n) => setValue(n, ""))
+
+  // Designation is captured in the previous step
+  const isSupervisor = draft.work?.designation === "Supervisor"
+  if (isSupervisor && watch("supervisor")) setValue("supervisor", "")
 
   return (
     <Card
@@ -359,7 +439,6 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
             control={control}
             name="department"
             label="Department"
-            required
             disabled={!plant}
             placeholder={plant ? "Select" : "Select a plant first"}
             options={departments.map((d) => d.name)}
@@ -373,13 +452,15 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
             placeholder={department ? "Select" : "Select a department first"}
             options={subDepartments.map((s) => s.name)}
           />
+          {/* A supervisor has nobody above them to report to */}
           <SelectField
             control={control}
             name="supervisor"
             label="Reporting Supervisor"
-            required
-            disabled={!department}
-            placeholder={department ? "Select" : "Select a department first"}
+            disabled={isSupervisor || !department}
+            placeholder={
+              isSupervisor ? "Not applicable for a supervisor" : department ? "Select" : "Select a department first"
+            }
             options={supervisorOptions}
           />
           <TextField control={control} name="effectiveFrom" label="Effective From" required type="date" />
@@ -524,35 +605,39 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
               <Row label="Mobile Number" value={basic?.mobile} />
               <Row label="Email ID" value={basic?.email} />
               <Row label="Postal Code" value={basic?.postalCode} />
-              <Row label="Address" value={basic?.address} />
+              <Row label="District" value={basic?.district} />
+              <Row label="City" value={basic?.city} />
+              <Row label="State" value={basic?.state} />
+              <Row label="Address" value={[basic?.addressLine1, basic?.addressLine2].filter(Boolean).join(", ")} />
             </div>
           </div>
         </ReviewSection>
 
-        <ReviewSection icon={Settings} title="2. Work & Skills" onEdit={() => onEdit(1)}>
-          <Row label="Role / Designation" value={work?.designation} />
+        <ReviewSection icon={Settings} title="2. Work &amp; Role" onEdit={() => onEdit(1)}>
+          <Row label="Designation" value={work?.designation} />
+          <Row label="Role" value={work?.roles.map(roleStream).join(", ")} />
           <Row label="Experience" value={work ? `${work.experience} Years` : ""} />
-          <div className="pt-2 text-sm font-semibold">Skills &amp; Competencies</div>
-          <div className="grid gap-1 sm:grid-cols-2">
-            {elpremarSkills.map((s) => {
-              const has = work?.skills.includes(s)
-              return (
-                <span key={s} className={cn("flex items-center gap-1.5 text-xs", !has && "text-muted-foreground")}>
-                  {has ? <CheckCircle2 className="size-4 text-healthy" /> : <Circle className="size-4" />} {s}
-                </span>
-              )
-            })}
-          </div>
+
           <div className="pt-2 text-sm font-semibold">Certifications &amp; Training</div>
           {work?.certifications.length ? (
             <ol className="ml-5 list-decimal space-y-0.5 text-xs">
               {work.certifications.map((c) => (
                 <li key={c.name}>
-                  {c.name} <span className="text-muted-foreground">(Valid till: {c.validTill.split("-").reverse().join("-")})</span>
+                  {c.name} <span className="text-muted-foreground">
+                    (No: {c.number} - valid till {c.validTill.split("-").reverse().join("-")}
+                    {c.documents.length ? `, ${c.documents.length} document(s)` : ""})
+                  </span>
                 </li>
               ))}
             </ol>
           ) : <p className="text-xs text-muted-foreground">None added</p>}
+
+          <div className="pt-2 text-sm font-semibold">Identity Documents</div>
+          {work?.kycDocuments.length ? (
+            <ul className="ml-5 list-disc space-y-0.5 text-xs">
+              {work.kycDocuments.map((f) => <li key={f.name}>{f.name}</li>)}
+            </ul>
+          ) : <p className="text-xs text-muted-foreground">None attached</p>}
         </ReviewSection>
 
         <ReviewSection icon={Building2} title="3. Enterprise Assignment" onEdit={() => onEdit(2)}>
