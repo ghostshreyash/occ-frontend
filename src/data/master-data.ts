@@ -16,6 +16,14 @@
 export const sectorTypes = ["Industry", "Retail"] as const
 export type SectorType = (typeof sectorTypes)[number]
 
+/**
+ * How big an enterprise is, held separately from its sector. The two are never
+ * combined into one stored value — a classification like "Industry, Large" is
+ * aggregated from the two fields at read time, so either can be filtered alone.
+ */
+export const enterpriseScales = ["Large", "Mid", "Small"] as const
+export type EnterpriseScale = (typeof enterpriseScales)[number]
+
 export const industrySectors = [
   "Large Cap",
   "Mid Cap",
@@ -97,6 +105,9 @@ export const userRoles = [
   "Plant Manager",
   "ELPREMAR",
   "OCC Admin",
+  "OCC Manager",
+  "OCC Technician",
+  "OCC EMMSE",
   "OCC Support",
   "System Admin",
 ] as const
@@ -158,6 +169,19 @@ const inTraining = 3
  */
 export const elpremarLifecycle = (i: number) =>
   i >= elpremarRoster.length - inTraining ? "not_trained" : i % 4 === 0 ? "trained" : "in_field"
+
+/**
+ * Whose platform account has been switched off. Purely administrative — someone
+ * who has left, is on long leave, or whose registration has lapsed. It is NOT a
+ * health or warning state, and it is independent of training: an inactive member
+ * can be fully trained, and an untrained one is still an active registration.
+ *
+ * Taken by index rather than hashed so the split is stable, and chosen from the
+ * middle of the roster so nobody named in the hand-written work rows is caught.
+ */
+const inactiveAccounts = new Set([5, 11, 16])
+
+export const elpremarActive = (i: number) => !inactiveAccounts.has(i)
 
 /** Who can be given work: anyone past training, deployed or on the bench */
 export const deployableElpremarNames = elpremarRoster

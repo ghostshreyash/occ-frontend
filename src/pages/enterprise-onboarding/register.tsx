@@ -28,7 +28,7 @@ import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
 import { enterpriseRecords, enterpriseRegisterKpis, type EnterpriseRecord } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
-import { sectorTypes } from "@/data/master-data"
+import { enterpriseScales, sectorTypes } from "@/data/master-data"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
@@ -70,6 +70,7 @@ const initials = (name: string) =>
 export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const [query, setQuery] = useState("")
   const [sectorType, setSectorType] = useState("all")
+  const [scale, setScale] = useState("all")
   const [status, setStatus] = useState("all")
   const [location, setLocation] = useState("all")
   const [sector, setSector] = useState("all")
@@ -85,6 +86,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
       enterpriseRecords
         .filter((e) => {
           if (sectorType !== "all" && e.sectorType !== sectorType) return false
+          if (scale !== "all" && e.scale !== scale) return false
           if (sector !== "all" && e.sector !== sector) return false
           if (status !== "all" && e.status !== status) return false
           if (location !== "all" && e.country !== location) return false
@@ -93,7 +95,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
           return [e.name, e.id, e.sector, e.sectorType, e.country, e.city].some((v) => v.toLowerCase().includes(q))
         })
         .sort(SORTS[sort].compare),
-    [query, sectorType, sector, status, location, sort]
+    [query, sectorType, scale, sector, status, location, sort]
   )
 
   /*
@@ -101,7 +103,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
    * Adjusting during render (rather than in an effect) avoids a wasted commit —
    * see react.dev "You Might Not Need an Effect".
    */
-  const filterKey = `${query}|${sectorType}|${sector}|${status}|${location}|${sort}|${pageSize}`
+  const filterKey = `${query}|${sectorType}|${scale}|${sector}|${status}|${location}|${sort}|${pageSize}`
   const [lastFilterKey, setLastFilterKey] = useState(filterKey)
   if (lastFilterKey !== filterKey) {
     setLastFilterKey(filterKey)
@@ -113,10 +115,11 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const start = (current - 1) * pageSize
   const pageRows = rows.slice(start, start + pageSize)
 
-  const filtered = query.trim() !== "" || sectorType !== "all" || sector !== "all" || status !== "all" || location !== "all"
+  const filtered = query.trim() !== "" || sectorType !== "all" || scale !== "all" || sector !== "all" || status !== "all" || location !== "all"
   const clearFilters = () => {
     setQuery("")
     setSectorType("all")
+    setScale("all")
     setSector("all")
     setStatus("all")
     setLocation("all")
@@ -171,6 +174,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
 
           <FilterSelect id="ent-location" label="Location" value={location} onChange={setLocation} allLabel="All Locations" options={countries} width="w-40" icon={MapPin} />
           <FilterSelect id="ent-sector-type" label="Sector" value={sectorType} onChange={setSectorType} allLabel="All Sectors" options={[...sectorTypes]} width="w-32" />
+          <FilterSelect id="ent-scale" label="Scale" value={scale} onChange={setScale} allLabel="All Scales" options={[...enterpriseScales]} width="w-32" />
           <FilterSelect id="ent-sector" label="Sector value" value={sector} onChange={setSector} allLabel="All Values" options={sectors} width="w-40" />
           <FilterSelect
             id="ent-status"
