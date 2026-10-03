@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 import type { DateRange } from "react-day-picker"
 import { isAfter, isBefore, parse, startOfDay } from "date-fns"
 import { toast } from "sonner"
@@ -24,7 +24,7 @@ const look = (s: WorkStatus) => maintenanceStatus[s] ?? workStatus[s]
 /** dd-MM-yyyy is what the rows carry; everything here compares real dates */
 const parseDate = (d: string) => parse(d, "dd-MM-yyyy", new Date())
 
-type SortKey = "id" | "enterprise" | "plant" | "asset" | "type" | "elpremar" | "scheduled" | "status"
+type SortKey = "id" | "enterprise" | "plant" | "asset" | "type" | "inspectionId" | "elpremar" | "scheduled" | "status"
 
 const statusRank: Record<WorkStatus, number> = { open: 0, pending: 1, rejected: 2, reopened: 3, assigned: 4, in_progress: 5, completed: 6, closed: 7 }
 
@@ -34,6 +34,7 @@ const sortValue: Record<SortKey, (r: MaintenanceRow) => string | number> = {
   plant: (r) => r.plant,
   asset: (r) => r.asset,
   type: (r) => r.type,
+  inspectionId: (r) => r.inspectionId,
   elpremar: (r) => r.elpremar,
   // Sort on the moment, not the text, so the interval breaks ties within a day
   scheduled: (r) => parseDate(r.scheduled).getTime() + r.slot / 100,
@@ -49,6 +50,7 @@ const exportColumns: ExportColumn<MaintenanceRow>[] = [
   { header: "Plant", value: (r) => r.plant },
   { header: "Asset", value: (r) => r.asset },
   { header: "Type", value: (r) => r.type },
+  { header: "Inspection", value: (r) => r.inspectionId },
   { header: "ELPREMAR", value: (r) => r.elpremar },
   { header: "Scheduled", value: (r) => `${r.scheduled} ${slotLabel(r.slot)}` },
   { header: "Status", value: (r) => look(r.status).label },
@@ -81,7 +83,7 @@ export function MaintenanceActivitiesPage() {
       }
       // Search runs over everything the row shows, including its status wording and interval
       if (!q) return true
-      const haystack = [r.id, r.enterprise, r.plant, r.asset, r.type, r.elpremar, r.scheduled, slotLabel(r.slot), look(r.status).label]
+      const haystack = [r.id, r.enterprise, r.plant, r.asset, r.type, r.inspectionId, r.elpremar, r.scheduled, slotLabel(r.slot), look(r.status).label]
       return haystack.some((f) => f.toLowerCase().includes(q))
     })
   }, [rows, query, status, enterprise, range])
@@ -172,6 +174,7 @@ export function MaintenanceActivitiesPage() {
                 <SortHead label="Plant" column="plant" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Asset" column="asset" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Type" column="type" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
+                <SortHead label="Inspection" column="inspectionId" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="ELPREMAR" column="elpremar" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Scheduled" column="scheduled" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Status" column="status" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
@@ -191,6 +194,14 @@ export function MaintenanceActivitiesPage() {
                   <TableCell className={td}>{r.plant}</TableCell>
                   <TableCell className={cn(td, "font-medium")}>{r.asset}</TableCell>
                   <TableCell className={td}>{r.type}</TableCell>
+                  <TableCell className={cn(td, "whitespace-nowrap")} onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      to={`/inspection-activity-details/${r.inspectionId}`}
+                      className="tabular-nums text-primary hover:underline"
+                    >
+                      {r.inspectionId}
+                    </Link>
+                  </TableCell>
                   <TableCell className={td}>{r.elpremar}</TableCell>
                   <TableCell className={cn(td, "tabular-nums whitespace-nowrap")}>
                     {r.scheduled}
@@ -212,7 +223,7 @@ export function MaintenanceActivitiesPage() {
               ))}
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={11} className="py-8 text-center text-xs text-muted-foreground">
                     No maintenance activities match the filters.
                   </TableCell>
                 </TableRow>

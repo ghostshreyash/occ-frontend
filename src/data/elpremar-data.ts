@@ -5,7 +5,7 @@
  * a deterministic full profile for the detail screen. Replace with API calls
  * (TanStack Query) later.
  */
-import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
+import { dialCodeFor, elpremarActive, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
 import { format } from "date-fns"
 import { elpremarSkills } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
@@ -31,6 +31,8 @@ export type ElpremarRecord = {
   certifiedUntil: string
   joined: string
   status: ElpremarStatus
+  /** Administrative registration state, independent of training and health */
+  active: boolean
 }
 
 export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "warning" | "info"; stripe: string; chip: string }> = {
@@ -118,6 +120,7 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   const name = person.name
   // A tenth of the workforce sits unassigned, a fifth is on leave
   const status: ElpremarStatus = elpremarLifecycle(i)
+  const active = elpremarActive(i)
   // Nobody is posted to a plant before they have been trained
   const unassigned = status === "not_trained"
   const posting = postingFor(enterprise, s)
@@ -142,6 +145,7 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
     certifiedUntil: earliest.validTill,
     joined: dateOffset(-(200 + (s % 1600))),
     status,
+    active,
   }
 })
 
@@ -156,6 +160,8 @@ export const nextElpremarId = () => {
 
 export const elpremarRegisterKpis = {
   total: elpremarRecords.length,
+  active: elpremarRecords.filter((e) => e.active).length,
+  inactive: elpremarRecords.filter((e) => !e.active).length,
   trained: elpremarRecords.filter((e) => e.status === "trained").length,
   notTrained: elpremarRecords.filter((e) => e.status === "not_trained").length,
   inField: elpremarRecords.filter((e) => e.status === "in_field").length,

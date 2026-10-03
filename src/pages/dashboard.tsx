@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   ArrowRight,
   Building2,
@@ -25,24 +25,38 @@ import { StatCard } from "@/components/common/stat-card"
 import { CountUp } from "@/components/common/count-up"
 import { SectionCard } from "@/components/common/section-card"
 import { DonutChart } from "@/components/common/donut-chart"
+import { ClassificationDonut } from "@/components/common/classification-donut"
+import { classify, enterpriseClassification, indiaEnterpriseClassification } from "@/data/enterprise-classification"
+import { elpremarRecords } from "@/data/elpremar-data"
 import { CustomerMap, MapViewToggle, type MapView } from "@/components/common/customer-map"
 import { OperationsTables } from "@/components/common/operations-tables"
 import {
   criticalAlerts,
-  enterpriseStatus,
   globalKpis,
   mapPlants,
   mapRegionLabels,
-  plantStatus,
   recentActivities,
   regionSummary,
   systemConnectivity,
 } from "@/data/mock"
 import { topCustomers } from "@/data/mock"
-import { indiaEnterpriseStatus, indiaKpis, indiaPlantStatus } from "@/data/occ-tables"
-import { alertSeverity, chartSeries, healthStatus, workStatus } from "@/lib/status"
+import { indiaKpis } from "@/data/occ-tables"
+import { alertSeverity, chartSeries, healthStatus, workStatus, type HealthStatus } from "@/lib/status"
 
-const onboardingSlice = { label: "Onboarded", color: "var(--neutral)" }
+/**
+ * Health wording for this screen only.
+ *
+ * "Critical" is reserved for an asset's functional importance, so a *state*
+ * never carries that word here: the bands read Healthy / Alarming / At Risk.
+ * The shared `healthStatus` labels are deliberately left alone — the rest of
+ * the console still reads from them.
+ */
+const bandLabel: Record<HealthStatus, string> = {
+  healthy: "Healthy",
+  attention: "Alarming",
+  critical: "At Risk",
+  offline: healthStatus.offline.label,
+}
 
 const connectivityIcons = [Server, Cloud, Waypoints, RefreshCw]
 const activityIcons = { enterprise: Building2, plant: Factory, inspection: FileCheck2, ticket: Database }
@@ -53,6 +67,26 @@ export function DashboardPage() {
   const indiaPlants = mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)
   const plants = view === "india" ? indiaPlants : mapPlants
   const kpis = view === "india" ? indiaKpis : globalKpis
+  /*
+   * Registration standing off the ELPREMAR master data, so the donut agrees with
+   * the register it links to. Active/Inactive is administrative — green and a
+   * neutral grey, never a warning colour, because an inactive account is an
+   * admin state rather than a health or risk condition.
+   */
+  // Sector on the inner ring, scale on the outer — rolled up from the two fields
+  const classification = useMemo(
+    () => classify(view === "india" ? indiaEnterpriseClassification : enterpriseClassification),
+    [view]
+  )
+
+  const elpremarStatus = useMemo(() => {
+    const roster = view === "india" ? elpremarRecords.filter((e) => e.country === "India") : elpremarRecords
+    const active = roster.filter((e) => e.active).length
+    return [
+      { key: "active", label: "Active", value: active, color: "var(--success)" },
+      { key: "inactive", label: "Inactive", value: roster.length - active, color: "var(--neutral)" },
+    ]
+  }, [view])
 
   return (
     <div className="space-y-3">
@@ -75,8 +109,8 @@ export function DashboardPage() {
         <StatCard label="Total Plants" value={kpis.plants.value} change={kpis.plants.change} icon={Factory} tone="success" />
         <StatCard label="Total Assets (Monitored)" value={kpis.assets.value} change={kpis.assets.change} icon={Server} tone="highlight" />
         <StatCard label="Healthy Assets (Green)" value={kpis.healthy.value} percent={kpis.healthy.percent} icon={HeartPulse} tone="healthy" />
-        <StatCard label="Attention (Orange)" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
-        <StatCard label="Critical (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
+        <StatCard label="Alarming (Orange)" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
+        <StatCard label="At Risk (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
       </div>
 
       {/* Map with Enterprise Distribution alongside it, side by side from tablet up */}
@@ -117,7 +151,7 @@ export function DashboardPage() {
               {(["healthy", "attention", "critical"] as const).map((s) => (
                 <li key={s} className="flex items-center gap-1">
                   <span className={`size-1.5 rounded-full ${healthStatus[s].dot}`} />
-                  {healthStatus[s].label}
+                  {bandLabel[s]}
                 </li>
               ))}
             </ul>
@@ -183,21 +217,15 @@ export function DashboardPage() {
 
       {/* Status donuts: Enterprise, Plant, Asset Health — one row from tablet up (same grid as the India page) */}
       <div className="grid gap-3 md:grid-cols-3">
-        <SectionCard title={view === "india" ? "Enterprise Status (India)" : "Enterprise Status"} viewAllTo="/enterprise-status">
-          <DonutChart
-            centerLabel="Enterprises"
-            data={(view === "india" ? indiaEnterpriseStatus : enterpriseStatus).map((s) => {
-              const meta = s.status === "onboarding" ? onboardingSlice : healthStatus[s.status]
-              return { key: s.status, label: meta.label, value: s.value, color: meta.color }
-            })}
-          />
+        <SectionCard
+          title={view === "india" ? "Enterprise Classification (India)" : "Enterprise Classification"}
+          viewAllTo="/enterprises"
+        >
+          <ClassificationDonut centerLabel="Enterprises" data={classification} />
         </SectionCard>
 
-        <SectionCard title={view === "india" ? "Plant Status (India)" : "Plant Status"} viewAllTo="/plant-status">
-          <DonutChart
-            centerLabel="Plants"
-            data={(view === "india" ? indiaPlantStatus : plantStatus).map((s) => ({ key: s.status, label: healthStatus[s.status].label, value: s.value, color: healthStatus[s.status].color }))}
-          />
+        <SectionCard title={view === "india" ? "ELPREMAR Status (India)" : "ELPREMAR Status"} viewAllTo="/elpremars">
+          <DonutChart centerLabel="Registered" data={elpremarStatus} />
         </SectionCard>
 
         <SectionCard title={view === "india" ? "Asset Health (India)" : "Asset Health (Global)"}>
@@ -205,7 +233,7 @@ export function DashboardPage() {
             centerLabel="Assets"
             data={(["healthy", "attention", "critical"] as const).map((s) => ({
               key: s,
-              label: healthStatus[s].label,
+              label: bandLabel[s],
               value: kpis[s].value,
               color: healthStatus[s].color,
             }))}
