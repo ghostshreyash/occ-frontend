@@ -8,10 +8,16 @@ export const basicSchema = z.object({
   employeeId: required("Employee / ID number"),
   dob: required("Date of birth"),
   gender: z.enum(["Male", "Female", "Other"], "Select gender"),
+  mobileCode: z.string().optional(),
   mobile: phone,
   email: z.email("Enter a valid email address"),
+  /* Address is captured field-wise - the physical location drives dispatch */
   postalCode: z.string().optional(),
-  address: z.string().optional(),
+  district: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
 })
 
 /**
@@ -21,23 +27,33 @@ export const basicSchema = z.object({
 export const assignmentSchema = z.object({
   enterprise: required("Enterprise"),
   plant: required("Plant"),
-  department: required("Department"),
+  /* Retail enterprises do not share the industrial department structure */
+  department: z.string().optional(),
   subDepartment: z.string().optional(),
-  supervisor: required("Reporting supervisor"),
+  /* A supervisor has nobody above them to record */
+  supervisor: z.string().optional(),
   effectiveFrom: required("Effective from"),
 })
 
 export const certificationSchema = z.object({
   name: required("Certificate name"),
+  /** The number the issuing body printed on the certificate */
+  number: required("Certificate number"),
   organisation: required("Issuing organisation"),
+  certificateId: z.string().optional(),
   validTill: required("Valid till"),
+  /** Scans of the certificate; more than one may be held */
+  documents: z.array(z.instanceof(File)),
 })
 
 export const workSchema = z.object({
-  designation: required("Role / designation"),
+  /** One person can cover more than one stream */
+  roles: z.array(z.string()).min(1, "Select at least one role"),
+  designation: required("Designation"),
   experience: z.string().regex(/^\d{1,2}$/, "Enter years of experience"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
   certifications: z.array(certificationSchema),
+  /** Identity documents - more than one may be held */
+  kycDocuments: z.array(z.instanceof(File)),
 })
 
 export const credentialsSchema = z

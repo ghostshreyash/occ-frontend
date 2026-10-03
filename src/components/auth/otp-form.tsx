@@ -10,6 +10,7 @@ import { OtpChannelPicker } from "@/components/auth/otp-channel-picker"
 import { formatDuration, useCountdown } from "@/hooks/use-countdown"
 import { AuthError, type OtpChallenge, type OtpChannel } from "@/lib/auth/types"
 import { CHANNEL_LABEL, OTP_LENGTH, resendOtp, switchOtpChannel } from "@/lib/auth/auth-service"
+import { fallbackChannelFor } from "@/lib/auth/otp-policy"
 
 const channelIcon: Record<OtpChannel, React.ReactNode> = {
   sms: <MessageSquare className="size-5" />,
@@ -110,7 +111,14 @@ export function OtpForm({
   const sendToChannel = (channel: OtpChannel) =>
     send(() => switchOtpChannel(challenge, channel), `Code sent by ${CHANNEL_LABEL[channel].toLowerCase()}.`)
 
-  const emailFallback = challenge.channel !== "email" && challenge.availableChannels.includes("email")
+  /*
+   * The other way of reaching this person, offered as one link. Which one it is
+   * depends on where the code went: an e-mail-first role is offered their phone,
+   * an SMS-first role is offered their inbox.
+   */
+  const other = fallbackChannelFor(challenge.channel)
+  const otherAvailable = challenge.availableChannels.includes(other)
+  const otherLabel = other === "email" ? "Send to e-mail instead" : "Send to phone instead"
 
   return (
     <div>
@@ -187,14 +195,14 @@ export function OtpForm({
             </span>
           )}
 
-          {emailFallback ? (
+          {otherAvailable ? (
             <button
               type="button"
-              onClick={() => sendToChannel("email")}
+              onClick={() => sendToChannel(other)}
               disabled={sending}
               className="inline-flex items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline disabled:opacity-50"
             >
-              <Mail className="size-3.5" /> Send to e-mail instead
+              {other === "email" ? <Mail className="size-3.5" /> : <MessageSquare className="size-3.5" />} {otherLabel}
             </button>
           ) : null}
 

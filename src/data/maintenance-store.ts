@@ -63,6 +63,7 @@ export function addMaintenanceFromInspection(source: {
     scheduled: source.scheduled,
     slot: source.slot,
     status: "open",
+    inspectionId: source.inspectionId,
   }
   rows = [row, ...rows]
   details = {
