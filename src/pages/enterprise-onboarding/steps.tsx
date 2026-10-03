@@ -185,9 +185,23 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
     defaultValues: data.plant ?? {
       name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phoneCode: "+91", phone: "",
       capacity: "", capacityUnit: "", commissioningDate: "", timeZone: timeZones[0], notes: "",
-    },
+     city: "", pin: "", latitude: "", longitude: "",},
   })
-  const { control } = form
+  const { control, watch, setValue } = form
+  const plantLat = parseFloat(watch("latitude") ?? "")
+  const plantLng = parseFloat(watch("longitude") ?? "")
+
+  // The plant's postal code resolves its city and coordinates
+  const fillPlantFromPin = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    setValue("city", area.city)
+    const point = coordsForCity(area.city)
+    if (point) {
+      setValue("latitude", point.lat)
+      setValue("longitude", point.lng)
+    }
+  }
   const loc = data.location
   return (
     <StepCard
@@ -223,6 +237,27 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
         <PhoneField control={control} codeName="phoneCode" name="phone" label="Phone Number" required />
 
         <TextareaField control={control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
+
+        {/*
+          * The plant's exact location. Work is dispatched here, so this is what
+          * matters - the head office address is for correspondence only.
+          */}
+        <TextField control={control} name="pin" label="Postal Code" required onValueChange={fillPlantFromPin} />
+        <TextField control={control} name="city" label="City" required />
+        <div className="md:col-span-1" />
+        <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
+        <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
+        <div className="md:col-span-3">
+          <FieldLabel className="mb-2">Adjust Plant Location</FieldLabel>
+          <LocationPicker
+            lat={Number.isNaN(plantLat) ? undefined : plantLat}
+            lng={Number.isNaN(plantLng) ? undefined : plantLng}
+            onChange={({ lat, lng }) => {
+              setValue("latitude", String(lat))
+              setValue("longitude", String(lng))
+            }}
+          />
+        </div>
 
         <h4 className="text-sm font-semibold md:col-span-3">
           Additional Information
@@ -429,6 +464,11 @@ export function SubDepartmentAccountStep({
         </div>
         <div>
           <PasswordField control={account.control} name="confirmPassword" label="Confirm Password" required />
+          {/* Stated here so whoever onboards knows this password is temporary */}
+          <p className="md:col-span-2 rounded-md bg-muted/40 p-2.5 text-[0.7rem] text-muted-foreground">
+            The enterprise is prompted to set their own password the first time they sign in, and is
+            notified when the account is created. OCC cannot read or reset it afterwards.
+          </p>
           {confirmValue && confirmValue === passwordValue ? (
             <p className="mt-1 text-xs font-medium text-healthy-soft-foreground">Passwords match.</p>
           ) : null}

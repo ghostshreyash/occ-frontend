@@ -6,7 +6,7 @@
 import { addDays, format } from "date-fns"
 
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { activeElpremarNames, dialCodeFor, elpremarNames, type AssetCriticality } from "@/data/master-data"
+import { activeElpremarNames, dialCodeFor, elpremarNames, postalCodeForCity, type AssetCriticality } from "@/data/master-data"
 import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
 export type Priority = (typeof priorities)[number]
@@ -562,6 +562,10 @@ export type PlantProfile = {
   code: string
   city: string
   state: string
+  /** The plant's own location - work is dispatched here, not to the head office */
+  pin: string
+  latitude: string
+  longitude: string
   salutation: string
   head: string
   email: string
@@ -612,6 +616,38 @@ export const stateFor: Record<string, string> = {
   Melbourne: "Victoria", Perth: "Western Australia", Brisbane: "Queensland",
 }
 const coordsFor: Record<string, [string, string]> = {
+  /* Plant cities, so a plant never falls back to 0,0 */
+  Jamshedpur: ["22.8046", "86.2029"],
+  Pune: ["18.5204", "73.8567"],
+  Chennai: ["13.0827", "80.2707"],
+  Kolkata: ["22.5726", "88.3639"],
+  Nagpur: ["21.1458", "79.0882"],
+  Vijayanagar: ["15.1394", "76.6400"],
+  Vadodara: ["22.3072", "73.1812"],
+  "Abu Dhabi": ["24.4539", "54.3773"],
+  Sharjah: ["25.3463", "55.4209"],
+  "Ras Al Khaimah": ["25.8007", "55.9762"],
+  Jubail: ["27.0046", "49.6460"],
+  Yanbu: ["24.0895", "38.0637"],
+  Dammam: ["26.4207", "50.0888"],
+  Jurong: ["1.3329", "103.7436"],
+  Duisburg: ["51.4344", "6.7623"],
+  Hamburg: ["53.5511", "9.9937"],
+  Dortmund: ["51.5136", "7.4653"],
+  Rotterdam: ["51.9244", "4.4777"],
+  Amsterdam: ["52.3676", "4.9041"],
+  Dallas: ["32.7767", "-96.7970"],
+  Pittsburgh: ["40.4406", "-79.9959"],
+  Cleveland: ["41.4993", "-81.6944"],
+  "Sao Paulo": ["-23.5505", "-46.6333"],
+  "São Paulo": ["-23.5505", "-46.6333"],
+  "Rio de Janeiro": ["-22.9068", "-43.1729"],
+  "Belo Horizonte": ["-19.9167", "-43.9345"],
+  Durban: ["-29.8587", "31.0218"],
+  "Cape Town": ["-33.9249", "18.4241"],
+  Pretoria: ["-25.7479", "28.2293"],
+  Melbourne: ["-37.8136", "144.9631"],
+  Perth: ["-31.9505", "115.8605"],
   Mumbai: ["19.0760", "72.8777"], Jamnagar: ["22.4707", "70.0577"], Dolvi: ["18.7000", "73.0000"],
   Mundra: ["22.8394", "69.7219"], Hyderabad: ["17.3850", "78.4867"], Hosur: ["12.7409", "77.8253"],
   Renukoot: ["24.2000", "83.0333"], Jharsuguda: ["21.8558", "84.0062"], Kochi: ["9.9312", "76.2673"],
@@ -707,6 +743,9 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       id: short + "-P" + (i + 1),
       city,
       state: stateFor[city] ?? e.country,
+      pin: postalCodeForCity(city) ?? String(110000 + (s % 789999)),
+      latitude: (coordsFor[city] ?? ["0.0000", "0.0000"])[0],
+      longitude: (coordsFor[city] ?? ["0.0000", "0.0000"])[1],
       name: city + " " + pick(plantSuffixes, s, 2),
       type: pick(plantTypePool, s, 3),
       code: short + "-" + city.slice(0, 3).toUpperCase() + "-" + String(i + 1).padStart(3, "0"),

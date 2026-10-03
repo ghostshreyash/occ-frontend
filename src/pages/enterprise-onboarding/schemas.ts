@@ -45,6 +45,14 @@ export const plantSchema = z.object({
   type: required("Plant type"),
   code: optionalText,
   address: required("Plant address"),
+  /*
+   * The plant's own location, not the head office's. Work is dispatched here,
+   * so these coordinates are the ones that matter.
+   */
+  city: required("Plant city"),
+  pin: required("Postal code"),
+  latitude: coordinate("Latitude", 90),
+  longitude: coordinate("Longitude", 180),
   salutation: required("Salutation"),
   head: required("Plant head"),
   email: z.email("Enter a valid email address"),

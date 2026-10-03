@@ -192,6 +192,10 @@ const postalAreas: Record<string, { district: string; city: string; state: strin
 /** Look up a postal code. Returns undefined when it is not a code we know. */
 export const areaForPostalCode = (code: string) => postalAreas[code.trim()]
 
+/** The postal code for a city, where we know one */
+export const postalCodeForCity = (city: string) =>
+  Object.keys(postalAreas).find((code) => postalAreas[code].city === city)
+
 /** Codes we can resolve, for placeholder text and test data */
 export const knownPostalCodes = Object.keys(postalAreas)
 
