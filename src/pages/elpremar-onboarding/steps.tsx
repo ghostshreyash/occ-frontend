@@ -227,11 +227,13 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   const [adding, setAdding] = useState(false)
   const cert = useForm<CertificationValues>({ resolver: zodResolver(certificationSchema), defaultValues: { name: "", number: "", organisation: "", certificateId: "", validTill: "", documents: [] } })
 
-  const addCertificate = cert.handleSubmit((v) => {
-    setValue("certifications", [...certifications, v])
-    cert.reset()
-    setAdding(false)
-  })
+  const saveCertificate = (keepOpen: boolean) =>
+    cert.handleSubmit((v) => {
+      setValue("certifications", [...certifications, v])
+      cert.reset()
+      setAdding(keepOpen)
+    })
+  const addCertificate = saveCertificate(false)
 
   return (
     <Card title="Step 2 of 5: Work &amp; Role">
@@ -297,7 +299,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
               <TableHead>Certificate No.</TableHead>
               <TableHead>Issuing Organization</TableHead>
               <TableHead>Valid Till</TableHead>
-              <TableHead>Document</TableHead>
+              <TableHead className="w-56">Document</TableHead>
               <TableHead className="w-24 text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -309,8 +311,12 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
                 <TableCell className="tabular-nums">{c.number}</TableCell>
                 <TableCell>{c.organisation}</TableCell>
                 <TableCell>{c.validTill.split("-").reverse().join("-")}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {c.documents.length ? `${c.documents.length} file${c.documents.length > 1 ? "s" : ""}` : "None"}
+                <TableCell className="max-w-56 text-xs text-muted-foreground">
+                  {c.documents.length ? (
+                    <span className="block truncate" title={c.documents.map((f) => f.name).join(", ")}>
+                      {c.documents.length} file{c.documents.length > 1 ? "s" : ""}
+                    </span>
+                  ) : "None"}
                 </TableCell>
                 <TableCell className="text-center">
                   <Button type="button" variant="ghost" size="icon-sm" className="text-primary" aria-label="Edit"
@@ -331,7 +337,7 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
                 <TableCell><Input placeholder="Certificate no." {...cert.register("number")} aria-invalid={!!cert.formState.errors.number} /></TableCell>
                 <TableCell><Input placeholder="Organisation" {...cert.register("organisation")} aria-invalid={!!cert.formState.errors.organisation} /></TableCell>
                 <TableCell><Input type="date" {...cert.register("validTill")} aria-invalid={!!cert.formState.errors.validTill} /></TableCell>
-                <TableCell>
+                <TableCell className="max-w-56">
                   <Controller
                     control={cert.control}
                     name="documents"
@@ -346,9 +352,19 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
           </TableBody>
         </Table>
         <div className="p-3">
-          <Button type="button" variant="outline" size="sm" className="text-primary" onClick={() => setAdding(true)} disabled={adding}>
+          {/* Saves whatever row is open first, so a second certificate is one click away */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-primary"
+            onClick={() => (adding ? saveCertificate(true)() : setAdding(true))}
+          >
             <Plus /> Add Certificate / Training
           </Button>
+          {adding ? (
+            <span className="ml-2 text-xs text-muted-foreground">Saves the row above and opens another.</span>
+          ) : null}
         </div>
       </div>
       <Footer formId="elp-work" onBack={onBack} />
@@ -389,6 +405,10 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
 
   const clear = (...names: (keyof AssignmentValues)[]) => names.forEach((n) => setValue(n, ""))
 
+  // Designation is captured in the previous step
+  const isSupervisor = draft.work?.designation === "Supervisor"
+  if (isSupervisor && watch("supervisor")) setValue("supervisor", "")
+
   return (
     <Card
       title="Step 3 of 5: Assign Enterprise"
@@ -419,7 +439,6 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
             control={control}
             name="department"
             label="Department"
-            required
             disabled={!plant}
             placeholder={plant ? "Select" : "Select a plant first"}
             options={departments.map((d) => d.name)}
@@ -433,13 +452,15 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
             placeholder={department ? "Select" : "Select a department first"}
             options={subDepartments.map((s) => s.name)}
           />
+          {/* A supervisor has nobody above them to report to */}
           <SelectField
             control={control}
             name="supervisor"
             label="Reporting Supervisor"
-            required
-            disabled={!department}
-            placeholder={department ? "Select" : "Select a department first"}
+            disabled={isSupervisor || !department}
+            placeholder={
+              isSupervisor ? "Not applicable for a supervisor" : department ? "Select" : "Select a department first"
+            }
             options={supervisorOptions}
           />
           <TextField control={control} name="effectiveFrom" label="Effective From" required type="date" />

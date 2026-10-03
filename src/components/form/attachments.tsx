@@ -31,11 +31,11 @@ export function Attachments({
   }
 
   return (
-    <div className={cn("flex flex-col gap-1.5", compact && "gap-1")}>
+    <div className={cn("flex min-w-0 flex-col gap-1.5", compact && "gap-1")}>
       {files.length ? (
         <ul className={cn("flex flex-col gap-1", compact && "gap-0.5")}>
           {files.map((f) => (
-            <li key={f.name + f.size} className="flex items-center gap-1.5 text-xs">
+            <li key={f.name + f.size} className="flex min-w-0 items-center gap-1.5 text-xs">
               <FileText className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate" title={f.name}>{f.name}</span>
               <button

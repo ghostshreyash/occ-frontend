@@ -172,6 +172,7 @@ export function ElpremarDetailPage() {
     ...(postedPlant ? [`${postedPlant.salutation} ${postedPlant.head}`] : []),
   ].filter((v, i, a) => a.indexOf(v) === i)
   const clearPosting = (...names: (keyof PostingValues)[]) => names.forEach((n) => postingForm.setValue(n, ""))
+  const isSupervisor = workForm.watch("designation") === "Supervisor"
   const roles = workForm.watch("roles") ?? []
   const toggleRole = (role: string) =>
     workForm.setValue("roles", roles.includes(role) ? roles.filter((r) => r !== role) : [...roles, role], {
@@ -358,12 +359,15 @@ export function ElpremarDetailPage() {
                 placeholder={postedDepartment ? "Select" : "Select a department first"}
                 options={postedSubDepartments.map((s) => s.name)}
               />
+              {/* A supervisor has nobody above them to report to */}
               <SelectField
                 control={postingForm.control}
                 name="supervisor"
                 label="Reporting Supervisor"
-                disabled={!postedDepartment}
-                placeholder={postedDepartment ? "Select" : "Select a department first"}
+                disabled={isSupervisor || !postedDepartment}
+                placeholder={
+                  isSupervisor ? "Not applicable for a supervisor" : postedDepartment ? "Select" : "Select a department first"
+                }
                 options={postedSupervisors}
               />
               <TextField control={postingForm.control} name="effectiveFrom" label="Effective From" />

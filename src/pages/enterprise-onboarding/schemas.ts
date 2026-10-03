@@ -49,7 +49,8 @@ export const plantSchema = z.object({
    * The plant's own location, not the head office's. Work is dispatched here,
    * so these coordinates are the ones that matter.
    */
-  city: required("Plant city"),
+  /* Resolved from the postal code rather than typed */
+  city: optionalText,
   pin: required("Postal code"),
   latitude: coordinate("Latitude", 90),
   longitude: coordinate("Longitude", 180),
