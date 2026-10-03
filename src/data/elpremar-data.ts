@@ -7,19 +7,20 @@
  */
 import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
 import { format } from "date-fns"
-import { elpremarSkills } from "@/data/mock"
 import type { WorkStatus } from "@/lib/status"
 import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor } from "@/data/occ-tables"
 import type { EnterpriseRecord } from "@/data/occ-tables"
 
-/** Where they sit in the training-to-deployment lifecycle */
-export type ElpremarStatus = "trained" | "not_trained" | "in_field"
+/** Whether the account is live. Only trained, certified people are onboarded. */
+export type ElpremarStatus = "active" | "inactive"
 
 export type ElpremarRecord = {
   id: string
   name: string
   salutation: string
-  role: string
+  /** One person can cover more than one stream */
+  roles: string[]
+  designation: string
   enterprise: string
   plant: string
   city: string
@@ -33,10 +34,9 @@ export type ElpremarRecord = {
   status: ElpremarStatus
 }
 
-export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "warning" | "info"; stripe: string; chip: string }> = {
-  trained: { label: "Trained", badge: "info", stripe: "bg-info", chip: "bg-info-soft text-info-soft-foreground" },
-  not_trained: { label: "Not Trained", badge: "warning", stripe: "bg-attention", chip: "bg-attention-soft text-attention-soft-foreground" },
-  in_field: { label: "In Field", badge: "success", stripe: "bg-healthy", chip: "bg-healthy-soft text-healthy-soft-foreground" },
+export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "neutral"; stripe: string; chip: string }> = {
+  active: { label: "Active", badge: "success", stripe: "bg-healthy", chip: "bg-healthy-soft text-healthy-soft-foreground" },
+  inactive: { label: "Inactive", badge: "neutral", stripe: "bg-neutral", chip: "bg-neutral-soft text-neutral-soft-foreground" },
 }
 
 /* ---------- Seeded helpers ---------- */
@@ -119,7 +119,8 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   // A tenth of the workforce sits unassigned, a fifth is on leave
   const status: ElpremarStatus = elpremarLifecycle(i)
   // Nobody is posted to a plant before they have been trained
-  const unassigned = status === "not_trained"
+  // A suspended account keeps its posting; it just cannot be given new work
+  const unassigned = false
   const posting = postingFor(enterprise, s)
   const certs = certsFor(id, 2 + (s % 3))
   // The one that lapses first is the one that limits what they can be sent to do
@@ -130,7 +131,9 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
     name,
     // Salutation follows the roster's gender, never the seed
     salutation: person.gender === "Female" ? (s % 7 === 0 ? "Dr." : "Ms.") : s % 9 === 0 ? "Dr." : "Mr.",
-    role: pick(elpremarRoles, s, 2),
+    // Most cover one stream; every third covers two
+    roles: s % 3 === 0 ? [pick(elpremarRoles, s, 2), pick(elpremarRoles, s, 5)].filter((v, n, a) => a.indexOf(v) === n) : [pick(elpremarRoles, s, 2)],
+    designation: s % 4 === 0 ? "Supervisor" : "Operator",
     enterprise: unassigned ? "" : enterprise.name,
     plant: unassigned ? "" : posting.plant.name,
     // Where they actually work, which is the plant's city rather than the HQ's
@@ -156,11 +159,10 @@ export const nextElpremarId = () => {
 
 export const elpremarRegisterKpis = {
   total: elpremarRecords.length,
-  trained: elpremarRecords.filter((e) => e.status === "trained").length,
-  notTrained: elpremarRecords.filter((e) => e.status === "not_trained").length,
-  inField: elpremarRecords.filter((e) => e.status === "in_field").length,
+  active: elpremarRecords.filter((e) => e.status === "active").length,
+  inactive: elpremarRecords.filter((e) => e.status === "inactive").length,
   /** Absolute month-over-month movement; these are counts in the tens */
-  delta: { total: 2, inField: 3 },
+  delta: { total: 2, active: 3 },
 }
 
 /* ---------- Full profile ---------- */
@@ -189,9 +191,9 @@ export type ElpremarProfile = {
     effectiveFrom: string
   }
   work: {
-    role: string
+    roles: string[]
+    designation: string
     experience: string
-    skills: string[]
   }
   certifications: Certificate[]
   account: { email: string; role: string; webAccess: boolean; mobileAccess: boolean; lastLogin: string }
@@ -231,10 +233,9 @@ export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
       effectiveFrom: dateOffset(-(30 + (s % 400))),
     },
     work: {
-      role: e.role,
+      roles: e.roles,
+      designation: e.designation,
       experience: String(e.experience),
-      // Three skills, always distinct
-      skills: [0, 1, 2].map((n) => elpremarSkills[(s + n * 3) % elpremarSkills.length]).filter((v, n, a) => a.indexOf(v) === n),
     },
     certifications: certsFor(e.id, e.certifications),
     account: {

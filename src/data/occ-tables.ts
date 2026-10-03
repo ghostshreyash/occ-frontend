@@ -6,7 +6,7 @@
 import { addDays, format } from "date-fns"
 
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { deployableElpremarNames, dialCodeFor, elpremarNames, type AssetCriticality } from "@/data/master-data"
+import { activeElpremarNames, dialCodeFor, elpremarNames, type AssetCriticality } from "@/data/master-data"
 import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
 export type Priority = (typeof priorities)[number]
@@ -746,7 +746,7 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
 /**
  * Asset health split for one enterprise. The record carries a total and an
  * overall status; these are the per-band counts behind that status, using the
- * platform's Healthy / Attention Required / Poor Condition bands.
+ * platform's Healthy / Alarming / At Risk bands.
  */
 export function assetHealthFor(e: EnterpriseRecord) {
   const mix =
@@ -780,8 +780,8 @@ const sites = enterpriseRecords.flatMap((e) =>
     .map((plant) => ({ enterprise: e.name, plant: plant.name, country: e.country })),
 )
 
-/** The crew work is assigned to: trained people only, never someone still in training */
-const crew = deployableElpremarNames
+/** The crew work is assigned to: active accounts only */
+const crew = activeElpremarNames
 
 /** Everything on the books, newest id first — what the Maintenance Activities screen lists */
 export const maintenanceActivities: MaintenanceRow[] = [...maintenanceProgress, ...moreMaintenance(60)]

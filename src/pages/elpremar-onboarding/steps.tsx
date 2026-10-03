@@ -6,8 +6,6 @@ import {
   ArrowRight,
   Building2,
   Check,
-  CheckCircle2,
-  Circle,
   Factory,
   FileBadge,
   HardHat,
@@ -32,9 +30,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { Context, Ctx } from "@/components/common/wizard"
+import { Attachments } from "@/components/form/attachments"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { elpremarSkills } from "@/data/mock"
-import { elpremarRoles, roleStream, userRoles } from "@/data/master-data"
+import { elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { enterpriseRecords, profileFor } from "@/data/occ-tables"
 import { nextElpremarId } from "@/data/elpremar-data"
 import {
@@ -187,13 +185,13 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   const form = useForm<WorkValues>({
     resolver: zodResolver(workSchema),
     defaultValues: draft.work ?? {
-      designation: "", experience: "", skills: [], certifications: [],
+      roles: [], designation: "", experience: "", certifications: [], kycDocuments: [],
     },
   })
   const { control, watch, setValue } = form
   const certifications = watch("certifications")
   const [adding, setAdding] = useState(false)
-  const cert = useForm<CertificationValues>({ resolver: zodResolver(certificationSchema), defaultValues: { name: "", organisation: "", validTill: "" } })
+  const cert = useForm<CertificationValues>({ resolver: zodResolver(certificationSchema), defaultValues: { name: "", number: "", organisation: "", certificateId: "", validTill: "", documents: [] } })
 
   const addCertificate = cert.handleSubmit((v) => {
     setValue("certifications", [...certifications, v])
@@ -202,37 +200,51 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
   })
 
   return (
-    <Card title="Step 2 of 5: Work & Skills">
+    <Card title="Step 2 of 5: Work &amp; Role">
       <form id="elp-work" onSubmit={form.handleSubmit(onNext)} noValidate>
         <ElpremarContext draft={draft} />
         <div className="grid gap-4 md:grid-cols-2">
-          <SelectField control={control} name="designation" label="Role / Designation" required options={[...elpremarRoles]} />
+          <SelectField control={control} name="designation" label="Designation" required options={[...elpremarDesignations]} />
           <TextField control={control} name="experience" label="Experience (Years)" required inputMode="numeric" />
         </div>
 
         <Controller
           control={control}
-          name="skills"
+          name="roles"
           render={({ field, fieldState }) => (
             <div className="mt-5 rounded-lg bg-info-soft/60 p-4">
-              <h4 className="flex items-center gap-2 font-semibold"><Settings className="size-5 text-primary" /> Skills &amp; Competencies</h4>
-              <p className="mb-3 text-xs text-muted-foreground">Select the key skills and areas of expertise (multiple selection allowed).</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[...elpremarSkills, "Other"].map((skill) => {
-                  const checked = field.value.includes(skill)
+              <h4 className="flex items-center gap-2 font-semibold"><HardHat className="size-5 text-primary" /> Role</h4>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Which streams this ELPREMAR is certified to work on. More than one may apply.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {elpremarRoles.map((r) => {
+                  const checked = field.value.includes(r)
                   return (
-                    <div key={skill} className="flex items-center gap-2">
+                    <div key={r} className="flex items-center gap-2">
                       <Checkbox
-                        id={`skill-${skill}`}
+                        id={`role-${r}`}
                         checked={checked}
-                        onCheckedChange={(c) => field.onChange(c ? [...field.value, skill] : field.value.filter((s) => s !== skill))}
+                        onCheckedChange={(c) => field.onChange(c ? [...field.value, r] : field.value.filter((v) => v !== r))}
                       />
-                      <Label htmlFor={`skill-${skill}`} className="font-normal">{skill}</Label>
+                      <Label htmlFor={`role-${r}`} className="font-normal">{roleStream(r)}</Label>
                     </div>
                   )
                 })}
               </div>
               {fieldState.error ? <p className="mt-2 text-sm text-critical">{fieldState.error.message}</p> : null}
+            </div>
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="kycDocuments"
+          render={({ field }) => (
+            <div className="mt-5 rounded-lg ring-1 ring-border p-4">
+              <h4 className="flex items-center gap-2 font-semibold"><FileBadge className="size-5 text-primary" /> Identity Documents</h4>
+              <p className="mb-3 text-xs text-muted-foreground">KYC and identity proof. More than one file may be attached.</p>
+              <Attachments files={field.value} onChange={field.onChange} inputId="kyc-upload" />
             </div>
           )}
         />
@@ -248,8 +260,10 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
             <TableRow className="bg-muted/70">
               <TableHead className="w-10">#</TableHead>
               <TableHead>Certificate / Training Name</TableHead>
+              <TableHead>Certificate No.</TableHead>
               <TableHead>Issuing Organization</TableHead>
               <TableHead>Valid Till</TableHead>
+              <TableHead>Document</TableHead>
               <TableHead className="w-24 text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -258,8 +272,12 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
               <TableRow key={c.name + i}>
                 <TableCell>{i + 1}</TableCell>
                 <TableCell>{c.name}</TableCell>
+                <TableCell className="tabular-nums">{c.number}</TableCell>
                 <TableCell>{c.organisation}</TableCell>
                 <TableCell>{c.validTill.split("-").reverse().join("-")}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {c.documents.length ? `${c.documents.length} file${c.documents.length > 1 ? "s" : ""}` : "None"}
+                </TableCell>
                 <TableCell className="text-center">
                   <Button type="button" variant="ghost" size="icon-sm" className="text-primary" aria-label="Edit"
                     onClick={() => { cert.reset(c); setValue("certifications", certifications.filter((_, j) => j !== i)); setAdding(true) }}>
@@ -276,8 +294,16 @@ export function WorkSkillsStep({ draft, onNext, onBack }: { draft: ElpremarDraft
               <TableRow>
                 <TableCell>{certifications.length + 1}</TableCell>
                 <TableCell><Input placeholder="Certificate name" {...cert.register("name")} aria-invalid={!!cert.formState.errors.name} /></TableCell>
+                <TableCell><Input placeholder="Certificate no." {...cert.register("number")} aria-invalid={!!cert.formState.errors.number} /></TableCell>
                 <TableCell><Input placeholder="Organisation" {...cert.register("organisation")} aria-invalid={!!cert.formState.errors.organisation} /></TableCell>
                 <TableCell><Input type="date" {...cert.register("validTill")} aria-invalid={!!cert.formState.errors.validTill} /></TableCell>
+                <TableCell>
+                  <Controller
+                    control={cert.control}
+                    name="documents"
+                    render={({ field }) => <Attachments files={field.value} onChange={field.onChange} inputId="cert-upload" compact />}
+                  />
+                </TableCell>
                 <TableCell className="text-center">
                   <Button type="button" size="icon-sm" aria-label="Save certificate" onClick={addCertificate}><Check /></Button>
                 </TableCell>
@@ -529,30 +555,31 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
           </div>
         </ReviewSection>
 
-        <ReviewSection icon={Settings} title="2. Work & Skills" onEdit={() => onEdit(1)}>
-          <Row label="Role / Designation" value={work?.designation} />
+        <ReviewSection icon={Settings} title="2. Work &amp; Role" onEdit={() => onEdit(1)}>
+          <Row label="Designation" value={work?.designation} />
+          <Row label="Role" value={work?.roles.map(roleStream).join(", ")} />
           <Row label="Experience" value={work ? `${work.experience} Years` : ""} />
-          <div className="pt-2 text-sm font-semibold">Skills &amp; Competencies</div>
-          <div className="grid gap-1 sm:grid-cols-2">
-            {elpremarSkills.map((s) => {
-              const has = work?.skills.includes(s)
-              return (
-                <span key={s} className={cn("flex items-center gap-1.5 text-xs", !has && "text-muted-foreground")}>
-                  {has ? <CheckCircle2 className="size-4 text-healthy" /> : <Circle className="size-4" />} {s}
-                </span>
-              )
-            })}
-          </div>
+
           <div className="pt-2 text-sm font-semibold">Certifications &amp; Training</div>
           {work?.certifications.length ? (
             <ol className="ml-5 list-decimal space-y-0.5 text-xs">
               {work.certifications.map((c) => (
                 <li key={c.name}>
-                  {c.name} <span className="text-muted-foreground">(Valid till: {c.validTill.split("-").reverse().join("-")})</span>
+                  {c.name} <span className="text-muted-foreground">
+                    (No: {c.number} - valid till {c.validTill.split("-").reverse().join("-")}
+                    {c.documents.length ? `, ${c.documents.length} document(s)` : ""})
+                  </span>
                 </li>
               ))}
             </ol>
           ) : <p className="text-xs text-muted-foreground">None added</p>}
+
+          <div className="pt-2 text-sm font-semibold">Identity Documents</div>
+          {work?.kycDocuments.length ? (
+            <ul className="ml-5 list-disc space-y-0.5 text-xs">
+              {work.kycDocuments.map((f) => <li key={f.name}>{f.name}</li>)}
+            </ul>
+          ) : <p className="text-xs text-muted-foreground">None attached</p>}
         </ReviewSection>
 
         <ReviewSection icon={Building2} title="3. Enterprise Assignment" onEdit={() => onEdit(2)}>

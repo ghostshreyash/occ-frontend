@@ -101,6 +101,13 @@ export const userRoles = [
   "System Admin",
 ] as const
 
+/**
+ * Team designation. A supervisor never works as an operator, and a helper is
+ * recorded as an operator - the two were agreed to be the same thing.
+ * Separate from the role streams below: one person can hold several of those.
+ */
+export const elpremarDesignations = ["Supervisor", "Operator"] as const
+
 export const elpremarRoles = [
   "ELPREMAR – EVITA Field Inspection",
   "ELPREMAR – INSTA CLEAN Cleaning",
@@ -145,23 +152,21 @@ export const elpremarRoster = [
 /** Just the names, for pools that only need to assign work */
 export const elpremarNames = elpremarRoster.map((e) => e.name)
 
-/** How many of the newest roster members have not finished training */
-const inTraining = 3
+/** How many of the roster are suspended rather than working */
+const suspended = 2
 
 /**
- * Where a roster member sits in the training-to-deployment lifecycle, by index.
- * Taken by position rather than hashed, so every bucket is populated across a
- * roster this small, and the untrained are the newest joiners at the end of the
- * list - the hand-written work rows name the earlier members by hand, and those
- * people have to be able to hold the work assigned to them.
+ * Whether a roster member's account is live. Taken by position rather than
+ * hashed, so the bucket is actually populated across a roster this small, and
+ * the inactive ones are at the end of the list - the hand-written work rows
+ * name the earlier members, and those people have to be able to hold that work.
  * Shared so a member's status and the crew work is assigned to cannot drift.
  */
-export const elpremarLifecycle = (i: number) =>
-  i >= elpremarRoster.length - inTraining ? "not_trained" : i % 4 === 0 ? "trained" : "in_field"
+export const elpremarLifecycle = (i: number) => (i >= elpremarRoster.length - suspended ? "inactive" : "active")
 
-/** Who can be given work: anyone past training, deployed or on the bench */
-export const deployableElpremarNames = elpremarRoster
-  .filter((_, i) => elpremarLifecycle(i) !== "not_trained")
+/** Who can be given work: active accounts only */
+export const activeElpremarNames = elpremarRoster
+  .filter((_, i) => elpremarLifecycle(i) === "active")
   .map((e) => e.name)
 
 /* ---------- Assets ---------- */
@@ -334,8 +339,8 @@ export const dcVoltageRatings = [
 /** Health score bands from the specification */
 export const healthBands = [
   { min: 70, max: 100, label: "Healthy", tone: "healthy" as const },
-  { min: 50, max: 69, label: "Attention Required", tone: "attention" as const },
-  { min: 0, max: 49, label: "Poor Condition", tone: "critical" as const },
+  { min: 50, max: 69, label: "Alarming", tone: "attention" as const },
+  { min: 0, max: 49, label: "At Risk", tone: "critical" as const },
 ]
 
 export const healthBandFor = (score: number) =>

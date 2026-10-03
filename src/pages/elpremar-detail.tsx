@@ -36,8 +36,8 @@ import {
   whenLabel,
   type ElpremarProfile,
 } from "@/data/elpremar-data"
-import { elpremarRoles, userRoles } from "@/data/master-data"
-import { countries, elpremarSkills, salutations } from "@/data/mock"
+import { elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
+import { countries, salutations } from "@/data/mock"
 import { optionalEmail, phone, required } from "@/lib/validation"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
@@ -79,9 +79,9 @@ const postingSchema = z.object({
 type PostingValues = z.infer<typeof postingSchema>
 
 const workSchema = z.object({
-  role: required("Role / Designation"),
+  roles: z.array(z.string()).min(1, "Select at least one role"),
+  designation: required("Designation"),
   experience: z.string().regex(/^\d{1,2}$/, "Enter years of experience"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
 })
 type WorkValues = z.infer<typeof workSchema>
 
@@ -160,9 +160,9 @@ export function ElpremarDetailPage() {
     ...(postedPlant ? [`${postedPlant.salutation} ${postedPlant.head}`] : []),
   ].filter((v, i, a) => a.indexOf(v) === i)
   const clearPosting = (...names: (keyof PostingValues)[]) => names.forEach((n) => postingForm.setValue(n, ""))
-  const skills = workForm.watch("skills") ?? []
-  const toggleSkill = (skill: string) =>
-    workForm.setValue("skills", skills.includes(skill) ? skills.filter((s) => s !== skill) : [...skills, skill], {
+  const roles = workForm.watch("roles") ?? []
+  const toggleRole = (role: string) =>
+    workForm.setValue("roles", roles.includes(role) ? roles.filter((r) => r !== role) : [...roles, role], {
       shouldValidate: true,
     })
 
@@ -229,54 +229,44 @@ export function ElpremarDetailPage() {
 
         <DetailSection
           icon={HardHat}
-          title="Work & Skills"
+          title="Work & Role"
           step={2}
-          complete={Boolean(w.role)}
-          summary={`${w.role} · ${w.experience} yrs`}
+          complete={w.roles.length > 0}
+          summary={`${w.designation} · ${w.experience} yrs`}
           sectionKey="work"
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(workForm, "work")}
           view={
-            <div className="space-y-2.5">
-              <ValueGrid
-                rows={[
-                  { label: "Role / Designation", value: w.role },
-                  { label: "Experience", value: `${w.experience} years` },
-                ]}
-              />
-              <div>
-                <p className="mb-1.5 text-[0.62rem] font-semibold tracking-wide text-foreground uppercase">Skills &amp; Competencies</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {w.skills.map((s) => (
-                    <span key={s} className="rounded-full bg-info-soft px-2 py-0.5 text-[0.65rem] font-medium text-info-soft-foreground">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <ValueGrid
+              rows={[
+                { label: "Designation", value: w.designation },
+                { label: "Role", value: w.roles.map(roleStream).join(", ") },
+                { label: "Experience", value: `${w.experience} years` },
+              ]}
+            />
           }
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="space-y-2.5" noValidate>
               <div className="grid gap-2.5 md:grid-cols-3">
-                <SelectField control={workForm.control} name="role" label="Role / Designation" required options={elpremarRoles} />
+                <SelectField control={workForm.control} name="designation" label="Designation" required options={[...elpremarDesignations]} />
                 <TextField control={workForm.control} name="experience" label="Experience (Years)" required inputMode="numeric" />
               </div>
               <fieldset>
                 <legend className="mb-1.5 text-xs font-medium">
-                  Skills &amp; Competencies <span className="text-critical">*</span>
+                  Role <span className="text-critical">*</span>
                 </legend>
-                <div className="grid gap-1.5 rounded-md bg-muted/40 p-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {elpremarSkills.map((s) => (
-                    <label key={s} className="flex cursor-pointer items-center gap-2 text-xs">
-                      <Checkbox checked={skills.includes(s)} onCheckedChange={() => toggleSkill(s)} className="size-3.5" />
-                      {s}
+                {/* More than one stream can apply to the same person */}
+                <div className="grid gap-1.5 rounded-md bg-muted/40 p-2.5 sm:grid-cols-3">
+                  {elpremarRoles.map((r) => (
+                    <label key={r} className="flex cursor-pointer items-center gap-2 text-xs">
+                      <Checkbox checked={roles.includes(r)} onCheckedChange={() => toggleRole(r)} className="size-3.5" />
+                      {roleStream(r)}
                     </label>
                   ))}
                 </div>
-                {workForm.formState.errors.skills ? (
-                  <p className="mt-1 text-xs text-critical">{workForm.formState.errors.skills.message}</p>
+                {workForm.formState.errors.roles ? (
+                  <p className="mt-1 text-xs text-critical">{workForm.formState.errors.roles.message}</p>
                 ) : null}
               </fieldset>
             </form>
@@ -310,7 +300,7 @@ export function ElpremarDetailPage() {
               />
             ) : (
               <p className="text-xs text-muted-foreground">
-                Not assigned to an enterprise yet{record.status === "not_trained" ? " - training is not complete." : "."}
+                Not assigned to an enterprise yet.
               </p>
             )
           }
@@ -460,7 +450,7 @@ export function ElpremarDetailPage() {
       <SectionCard title="Upcoming Activities" hoverable={false}>
         {upcoming.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            Nothing scheduled{record.status === "not_trained" ? " — training is not complete yet." : "."}
+            Nothing scheduled.
           </p>
         ) : (
           <ol className="divide-y">

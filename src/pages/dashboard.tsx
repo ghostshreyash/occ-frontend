@@ -75,8 +75,8 @@ export function DashboardPage() {
         <StatCard label="Total Plants" value={kpis.plants.value} change={kpis.plants.change} icon={Factory} tone="success" />
         <StatCard label="Total Assets (Monitored)" value={kpis.assets.value} change={kpis.assets.change} icon={Server} tone="highlight" />
         <StatCard label="Healthy Assets (Green)" value={kpis.healthy.value} percent={kpis.healthy.percent} icon={HeartPulse} tone="healthy" />
-        <StatCard label="Attention (Orange)" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
-        <StatCard label="Critical (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
+        <StatCard label="Alarming (Orange)" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
+        <StatCard label="At Risk (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
       </div>
 
       {/* Map with Enterprise Distribution alongside it, side by side from tablet up */}

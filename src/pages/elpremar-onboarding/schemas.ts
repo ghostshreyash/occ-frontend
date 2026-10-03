@@ -29,15 +29,23 @@ export const assignmentSchema = z.object({
 
 export const certificationSchema = z.object({
   name: required("Certificate name"),
+  /** The number the issuing body printed on the certificate */
+  number: required("Certificate number"),
   organisation: required("Issuing organisation"),
+  certificateId: z.string().optional(),
   validTill: required("Valid till"),
+  /** Scans of the certificate; more than one may be held */
+  documents: z.array(z.instanceof(File)),
 })
 
 export const workSchema = z.object({
-  designation: required("Role / designation"),
+  /** One person can cover more than one stream */
+  roles: z.array(z.string()).min(1, "Select at least one role"),
+  designation: required("Designation"),
   experience: z.string().regex(/^\d{1,2}$/, "Enter years of experience"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
   certifications: z.array(certificationSchema),
+  /** Identity documents - more than one may be held */
+  kycDocuments: z.array(z.instanceof(File)),
 })
 
 export const credentialsSchema = z

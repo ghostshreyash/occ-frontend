@@ -217,8 +217,8 @@ export function EnterpriseDetailPage() {
         <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
         {/* Asset health split, using the platform's three bands */}
         <StatCard label="Healthy Assets" value={health.healthy} percent={pct(health.healthy)} icon={HeartPulse} tone="healthy" variant="plain" />
-        <StatCard label="Attention Required" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
-        <StatCard label="Poor Condition" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
+        <StatCard label="Alarming" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
+        <StatCard label="At Risk" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
       </div>
 
       <WorkSummaryCard enterprise={e.name} />
