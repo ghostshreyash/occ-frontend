@@ -7,7 +7,7 @@ import { BrandStory } from "@/components/auth/brand-story"
 import { OtpForm } from "@/components/auth/otp-form"
 import { useBrand } from "@/lib/brand"
 import { useAuth } from "@/lib/auth/context"
-import { verifyOtp } from "@/lib/auth/auth-service"
+import { otpDestinations, verifyOtp } from "@/lib/auth/auth-service"
 
 /**
  * Sign in — step 2 of 2.
@@ -45,6 +45,7 @@ export function VerifyOtpPage() {
         <OtpForm
           challenge={challenge}
           onChallengeChange={setChallenge}
+          destinations={otpDestinations()}
           verifyLabel="Verify & continue"
           onVerify={async (code) => {
             const user = await verifyOtp(challenge, code)

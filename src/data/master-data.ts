@@ -16,6 +16,14 @@
 export const sectorTypes = ["Industry", "Retail"] as const
 export type SectorType = (typeof sectorTypes)[number]
 
+/**
+ * How big an enterprise is, held separately from its sector. The two are never
+ * combined into one stored value — a classification like "Industry, Large" is
+ * aggregated from the two fields at read time, so either can be filtered alone.
+ */
+export const enterpriseScales = ["Large", "Mid", "Small"] as const
+export type EnterpriseScale = (typeof enterpriseScales)[number]
+
 export const industrySectors = [
   "Large Cap",
   "Mid Cap",
@@ -97,6 +105,9 @@ export const userRoles = [
   "Plant Manager",
   "ELPREMAR",
   "OCC Admin",
+  "OCC Manager",
+  "OCC Technician",
+  "OCC EMMSE",
   "OCC Support",
   "System Admin",
 ] as const
@@ -164,7 +175,12 @@ const suspended = 3
  */
 export const elpremarLifecycle = (i: number) => (i >= elpremarRoster.length - suspended ? "inactive" : "active")
 
-/** Who can be given work: active accounts only */
+/**
+ * Who can be given work. Inactive is purely administrative - someone who has
+ * left, is on long leave, or whose registration has lapsed. It is not a health
+ * or warning state. There is no trained / untrained split: an ELPREMAR is only
+ * onboarded once they are trained and certified.
+ */
 export const activeElpremarNames = elpremarRoster
   .filter((_, i) => elpremarLifecycle(i) === "active")
   .map((e) => e.name)

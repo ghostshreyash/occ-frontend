@@ -6,7 +6,7 @@
 import { addDays, format } from "date-fns"
 
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { activeElpremarNames, dialCodeFor, elpremarNames, postalCodeForCity, type AssetCriticality } from "@/data/master-data"
+import { activeElpremarNames, dialCodeFor, elpremarNames, postalCodeForCity, type AssetCriticality, type EnterpriseScale } from "@/data/master-data"
 import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
 export type Priority = (typeof priorities)[number]
@@ -83,18 +83,23 @@ export type MaintenanceRow = {
   /** Hour the booked interval starts */
   slot: number
   status: WorkStatus
+  /** The inspection this work traces back to. Every job has one. */
+  inspectionId: string
 }
 
+/** A row before its inspection is attached — the inspection queue is built later */
+type UnlinkedMaintenance = Omit<MaintenanceRow, "inspectionId">
+
 export const maintenanceProgress: MaintenanceRow[] = [
-  { id: "MT-2291", asset: "LT Panel - Block A", plant: "Mumbai Unit 2", enterprise: "Tata Steel Limited", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(-2), slot: 9, status: "completed" },
-  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar Substation", enterprise: "Reliance Industries", country: "India", type: "Condition-Based", elpremar: "Amit Sharma", scheduled: day(0), slot: 10, status: "open" },
-  { id: "MT-2289", asset: "MCC - Unit 2", plant: "Dolvi Substation", enterprise: "JSW Group", country: "India", type: "Preventive", elpremar: "Ramesh Patil", scheduled: day(0), slot: 9, status: "in_progress" },
-  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra Warehouse", enterprise: "Adani Group", country: "India", type: "Fire Preventive", elpremar: "Anil Singh", scheduled: day(2), slot: 11, status: "open" },
+  { id: "MT-2291", asset: "LT Panel - Block A", plant: "Mumbai Unit 2", enterprise: "Tata Steel Limited", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(-2), slot: 9, inspectionId: "TSK-8841", status: "completed" },
+  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar Substation", enterprise: "Reliance Industries", country: "India", type: "Condition-Based", elpremar: "Amit Sharma", scheduled: day(0), slot: 10, inspectionId: "TSK-8840", status: "open" },
+  { id: "MT-2289", asset: "MCC - Unit 2", plant: "Dolvi Substation", enterprise: "JSW Group", country: "India", type: "Preventive", elpremar: "Ramesh Patil", scheduled: day(0), slot: 9, inspectionId: "TSK-8839", status: "in_progress" },
+  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra Warehouse", enterprise: "Adani Group", country: "India", type: "Fire Preventive", elpremar: "Anil Singh", scheduled: day(2), slot: 11, inspectionId: "TSK-8838", status: "open" },
   // Deliberately shares Suresh Kumar's 10:00 slot with TSK-8837, so the dialog has a clash to show
-  { id: "MT-2287", asset: "HT Panel - Incomer 1", plant: "Hyderabad Main Plant", enterprise: "NTPC", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(3), slot: 10, status: "assigned" },
-  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai Main Plant", enterprise: "Emirates Steel", country: "United Arab Emirates", type: "Preventive", elpremar: "Khalid Rahman", scheduled: day(1), slot: 11, status: "open" },
-  { id: "MT-2285", asset: "UPS - 03", plant: "Frankfurt Utility Block", enterprise: "Thyssenkrupp AG", country: "Germany", type: "Fire Preventive", elpremar: "Lukas Weber", scheduled: day(4), slot: 10, status: "assigned" },
-  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston Main Plant", enterprise: "LyondellBasell", country: "United States", type: "Condition-Based", elpremar: "Maria Lopez", scheduled: day(1), slot: 15, status: "open" },
+  { id: "MT-2287", asset: "HT Panel - Incomer 1", plant: "Hyderabad Main Plant", enterprise: "NTPC", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(3), slot: 10, inspectionId: "TSK-8837", status: "assigned" },
+  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai Main Plant", enterprise: "Emirates Steel", country: "United Arab Emirates", type: "Preventive", elpremar: "Khalid Rahman", scheduled: day(1), slot: 11, inspectionId: "TSK-8836", status: "open" },
+  { id: "MT-2285", asset: "UPS - 03", plant: "Frankfurt Utility Block", enterprise: "Thyssenkrupp AG", country: "Germany", type: "Fire Preventive", elpremar: "Lukas Weber", scheduled: day(4), slot: 10, inspectionId: "TSK-8835", status: "assigned" },
+  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston Main Plant", enterprise: "LyondellBasell", country: "United States", type: "Condition-Based", elpremar: "Maria Lopez", scheduled: day(1), slot: 15, inspectionId: "TSK-8834", status: "open" },
 ]
 
 /**
@@ -107,7 +112,7 @@ export const maintenanceProgress: MaintenanceRow[] = [
 const units = ["Block A", "Block B", "Unit 1", "Unit 2", "Unit 3", "Main", "Incomer 1", "Incomer 2", "T1", "T2", "SB1", "SB2", "03", "04"]
 const workStates: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
 
-function moreMaintenance(count: number): MaintenanceRow[] {
+function moreMaintenance(count: number): UnlinkedMaintenance[] {
   let seed = 20250528
   const random = () => {
     seed = (seed * 1664525 + 1013904223) >>> 0
@@ -115,7 +120,7 @@ function moreMaintenance(count: number): MaintenanceRow[] {
   }
   const pick = <T,>(pool: T[]) => pool[Math.floor(random() * pool.length)]
   const taken = new Set(maintenanceProgress.map((m) => `${m.elpremar}|${m.scheduled}|${m.slot}`))
-  const rows: MaintenanceRow[] = []
+  const rows: UnlinkedMaintenance[] = []
 
   for (let i = 0; i < count; i++) {
     // Walked in order, not picked at random, so every site and every
@@ -194,7 +199,7 @@ function moreInspections(count: number): TaskRow[] {
   }
   const pick = <T,>(pool: T[]) => pool[Math.floor(random() * pool.length)]
   const taken = new Set(
-    [...maintenanceActivities.map((m) => `${m.elpremar}|${m.scheduled}|${m.slot}`),
+    [...maintenanceBook.map((m) => `${m.elpremar}|${m.scheduled}|${m.slot}`),
      ...taskQueue.map((t) => `${t.elpremar}|${t.due}|${t.slot}`)]
   )
   const states: TaskStatus[] = ["pending", "in_progress", "completed"]
@@ -433,6 +438,8 @@ export type EnterpriseRecord = {
   name: string
   /** "Industry" or "Retail" - see master-data.sectorTypes */
   sectorType: string
+  /** Large / Mid / Small - a separate field from the sector, never combined with it */
+  scale: EnterpriseScale
   /** Sector within that type - see master-data.sectorsFor() */
   sector: string
   country: string
@@ -451,26 +458,26 @@ export type EnterpriseRecord = {
 }
 
 export const enterpriseRecords: EnterpriseRecord[] = [
-  { id: "TSL-ENT-001", name: "Tata Steel Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mumbai", plants: 12, assets: 6842, elpremars: 48, onboarded: "12-01-2024", status: "healthy", accountStatus: "active" },
-  { id: "RIL-ENT-002", name: "Reliance Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jamnagar", plants: 9, assets: 5921, elpremars: 41, onboarded: "03-03-2024", status: "attention", accountStatus: "active" },
-  { id: "JSW-ENT-003", name: "JSW Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Dolvi", plants: 11, assets: 4876, elpremars: 36, onboarded: "22-04-2024", status: "healthy", accountStatus: "active" },
-  { id: "ADN-ENT-004", name: "Adani Group", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mundra", plants: 8, assets: 3994, elpremars: 29, onboarded: "17-06-2024", status: "critical", accountStatus: "active" },
-  { id: "NTP-ENT-005", name: "NTPC", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy", accountStatus: "active" },
-  { id: "ABC-ENT-006", name: "ABC Industries Ltd.", sectorType: "Industry", sector: "MSME", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding", accountStatus: "active" },
-  { id: "EMR-ENT-007", name: "Emirates Steel", sectorType: "Industry", sector: "Mid Cap", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention", accountStatus: "active" },
-  { id: "SBC-ENT-008", name: "SABIC", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy", accountStatus: "inactive" },
-  { id: "THY-ENT-009", name: "Thyssenkrupp AG", sectorType: "Industry", sector: "Large Cap", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy", accountStatus: "active" },
-  { id: "SGX-ENT-010", name: "Singapore Grid Co.", sectorType: "Retail", sector: "Commercial Offices", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy", accountStatus: "active" },
-  { id: "HIN-ENT-011", name: "Hindalco Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention", accountStatus: "active" },
-  { id: "VED-ENT-012", name: "Vedanta Limited", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy", accountStatus: "active" },
-  { id: "BPC-ENT-013", name: "Bharat Petroleum", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical", accountStatus: "active" },
-  { id: "UTC-ENT-014", name: "UltraTech Cement", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy", accountStatus: "active" },
-  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention", accountStatus: "active" },
-  { id: "TAT-ENT-016", name: "Tata Steel Europe", sectorType: "Industry", sector: "Large Cap", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention", accountStatus: "active" },
-  { id: "LYB-ENT-017", name: "LyondellBasell", sectorType: "Industry", sector: "Large Cap", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy", accountStatus: "active" },
-  { id: "VAL-ENT-018", name: "Vale S.A.", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical", accountStatus: "inactive" },
-  { id: "ESK-ENT-019", name: "Eskom Holdings", sectorType: "Industry", sector: "Government / PSU", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy", accountStatus: "active" },
-  { id: "BHP-ENT-020", name: "BHP Group", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding", accountStatus: "active" },
+  { id: "TSL-ENT-001", name: "Tata Steel Limited", scale: "Large", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mumbai", plants: 12, assets: 6842, elpremars: 48, onboarded: "12-01-2024", status: "healthy", accountStatus: "active" },
+  { id: "RIL-ENT-002", name: "Reliance Industries", scale: "Large", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jamnagar", plants: 9, assets: 5921, elpremars: 41, onboarded: "03-03-2024", status: "attention", accountStatus: "active" },
+  { id: "JSW-ENT-003", name: "JSW Group", scale: "Large", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Dolvi", plants: 11, assets: 4876, elpremars: 36, onboarded: "22-04-2024", status: "healthy", accountStatus: "active" },
+  { id: "ADN-ENT-004", name: "Adani Group", scale: "Large", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Mundra", plants: 8, assets: 3994, elpremars: 29, onboarded: "17-06-2024", status: "critical", accountStatus: "active" },
+  { id: "NTP-ENT-005", name: "NTPC", scale: "Large", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy", accountStatus: "active" },
+  { id: "ABC-ENT-006", name: "ABC Industries Ltd.", scale: "Small", sectorType: "Industry", sector: "MSME", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding", accountStatus: "active" },
+  { id: "EMR-ENT-007", name: "Emirates Steel", scale: "Small", sectorType: "Industry", sector: "Mid Cap", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention", accountStatus: "active" },
+  { id: "SBC-ENT-008", name: "SABIC", scale: "Mid", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy", accountStatus: "inactive" },
+  { id: "THY-ENT-009", name: "Thyssenkrupp AG", scale: "Mid", sectorType: "Industry", sector: "Large Cap", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy", accountStatus: "active" },
+  { id: "SGX-ENT-010", name: "Singapore Grid Co.", scale: "Small", sectorType: "Retail", sector: "Commercial Offices", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy", accountStatus: "active" },
+  { id: "HIN-ENT-011", name: "Hindalco Industries", scale: "Mid", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention", accountStatus: "active" },
+  { id: "VED-ENT-012", name: "Vedanta Limited", scale: "Large", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Jharsuguda", plants: 10, assets: 3640, elpremars: 31, onboarded: "28-10-2024", status: "healthy", accountStatus: "active" },
+  { id: "BPC-ENT-013", name: "Bharat Petroleum", scale: "Mid", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Kochi", plants: 6, assets: 2488, elpremars: 21, onboarded: "16-12-2024", status: "critical", accountStatus: "active" },
+  { id: "UTC-ENT-014", name: "UltraTech Cement", scale: "Mid", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Ahmedabad", plants: 9, assets: 2176, elpremars: 19, onboarded: "22-01-2025", status: "healthy", accountStatus: "active" },
+  { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", scale: "Small", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention", accountStatus: "active" },
+  { id: "TAT-ENT-016", name: "Tata Steel Europe", scale: "Mid", sectorType: "Industry", sector: "Large Cap", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention", accountStatus: "active" },
+  { id: "LYB-ENT-017", name: "LyondellBasell", scale: "Mid", sectorType: "Industry", sector: "Large Cap", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy", accountStatus: "active" },
+  { id: "VAL-ENT-018", name: "Vale S.A.", scale: "Mid", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical", accountStatus: "inactive" },
+  { id: "ESK-ENT-019", name: "Eskom Holdings", scale: "Mid", sectorType: "Industry", sector: "Government / PSU", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy", accountStatus: "active" },
+  { id: "BHP-ENT-020", name: "BHP Group", scale: "Small", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding", accountStatus: "active" },
 ]
 
 export const enterpriseRegisterKpis = {
@@ -835,11 +842,42 @@ const sites = enterpriseRecords.flatMap((e) =>
 /** The crew work is assigned to: active accounts only */
 const crew = activeElpremarNames
 
-/** Everything on the books, newest id first — what the Maintenance Activities screen lists */
-export const maintenanceActivities: MaintenanceRow[] = [...maintenanceProgress, ...moreMaintenance(60)]
+/** The raw book. Exported below once the inspections it traces back to exist. */
+const maintenanceBook: UnlinkedMaintenance[] = [...maintenanceProgress, ...moreMaintenance(60)]
 
 /** The whole inspection queue — what the Inspection Activities screen lists */
 export const inspectionActivities: TaskRow[] = [...taskQueue, ...moreInspections(60)]
+
+/**
+ * Trace every job back to an inspection at the same site, so the maintenance list
+ * can always show what it relates to. Spread across that plant's inspections
+ * rather than all pointing at the first one; a site with no inspection of its own
+ * falls back to the queue at large, so no row is ever left without one. Rows that
+ * already name an inspection keep it.
+ */
+function linkInspections(
+  rows: (UnlinkedMaintenance & { inspectionId?: string })[],
+  inspections: TaskRow[]
+): MaintenanceRow[] {
+  const byPlant = new Map<string, TaskRow[]>()
+  for (const t of inspections) {
+    const key = `${t.enterprise}|${t.plant}`
+    const pool = byPlant.get(key)
+    if (pool) pool.push(t)
+    else byPlant.set(key, [t])
+  }
+
+  let n = 0
+  return rows.map((m) => {
+    // The hand-written rows are already paired to the right asset — keep those
+    if (m.inspectionId) return m as MaintenanceRow
+    const pool = byPlant.get(`${m.enterprise}|${m.plant}`) ?? inspections
+    return { ...m, inspectionId: pool[n++ % pool.length].id }
+  })
+}
+
+/** Everything on the books, newest id first — what the Maintenance Activities screen lists */
+export const maintenanceActivities: MaintenanceRow[] = linkInspections(maintenanceBook, inspectionActivities)
 
 const ticketStates: WorkStatus[] = ["open", "open", "in_progress", "in_progress", "closed", "closed"]
 

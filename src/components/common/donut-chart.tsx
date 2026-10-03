@@ -59,7 +59,9 @@ export function DonutChart({
   return (
     <div ref={ref} className={cn(stacked ? "flex flex-col items-center gap-4" : "flex flex-wrap items-center gap-3")}>
       <div className="relative shrink-0" style={{ width: size }}>
-        <ChartContainer config={config} className="aspect-square w-full">
+        {/* Above the centre total, so a tooltip crossing the hole covers it rather than
+            having the figure show through */}
+        <ChartContainer config={config} className="relative z-10 aspect-square w-full">
           {/* Remounting is what replays the sweep — Recharts only animates from zero on mount. */}
           <PieChart key={inView ? `in-view:${dataKey}` : "waiting"}>
             <ChartTooltip content={<ChartTooltipContent nameKey="key" hideLabel />} />

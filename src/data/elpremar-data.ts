@@ -128,9 +128,7 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   const s = seedOf(id)
   const enterprise = enterpriseRecords[s % enterpriseRecords.length]
   const name = person.name
-  // A tenth of the workforce sits unassigned, a fifth is on leave
   const status: ElpremarStatus = elpremarLifecycle(i)
-  // Nobody is posted to a plant before they have been trained
   // A suspended account keeps its posting; it just cannot be given new work
   const unassigned = false
   const posting = postingFor(enterprise, s)

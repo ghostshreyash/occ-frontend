@@ -13,6 +13,7 @@
  */
 import { type AccessRequestInput, type RecoveryRequestInput } from "./requests"
 import type { AuthUser, OtpChallenge, OtpChannel, OtpPurpose, ResetContext } from "./types"
+import { defaultChannelFor } from "./otp-policy"
 
 /** Digits in a code — keep in step with the Cognito verification message. */
 export const OTP_LENGTH = 6
@@ -51,9 +52,36 @@ export const demoUser: AuthUser = {
   id: "OCC-ADM-001",
   name: "Admin",
   initials: "A",
-  role: "OLIVINE Admin",
+  role: "OCC Admin",
   email: "admin@olivineglobal.com",
   mobile: "+919876543210",
+}
+
+/**
+ * One account per OCC role, so signing in with any of these shows the channel
+ * its role is entitled to. Any other address falls back to `demoUser`.
+ * TODO(aws): this whole directory goes away — Cognito returns the real profile.
+ */
+export const demoAccounts: AuthUser[] = [
+  demoUser,
+  { id: "OCC-MGR-002", name: "Ravi Menon", initials: "RM", role: "OCC Manager", email: "ravi.menon@olivineglobal.com", mobile: "+919812345678" },
+  { id: "OCC-TEC-003", name: "Neha Joshi", initials: "NJ", role: "OCC Technician", email: "neha.joshi@olivineglobal.com", mobile: "+919823456710" },
+  { id: "OCC-EMM-004", name: "Sanjay Rao", initials: "SR", role: "OCC EMMSE", email: "sanjay.rao@olivineglobal.com", mobile: "+919834567120" },
+]
+
+const accountFor = (email: string) =>
+  demoAccounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase()) ?? demoUser
+
+/**
+ * The account the live challenge belongs to. Cognito carries this in its session;
+ * here it is held between step 1 and step 2 so the code screen masks the right
+ * destinations and the session ends up as the right person.
+ */
+let pending: AuthUser = demoUser
+
+/** Masked destinations for the account a challenge belongs to */
+export function otpDestinations(user: AuthUser = pending): Partial<Record<OtpChannel, string>> {
+  return { email: maskEmail(user.email), sms: maskPhone(user.mobile), voice: maskPhone(user.mobile) }
 }
 
 const pause = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -72,7 +100,7 @@ function placeholderChallenge(
     sentTo,
     expiresAt: now + OTP_TTL_SECONDS * 1000,
     resendAvailableAt: now + RESEND_COOLDOWN_SECONDS * 1000,
-    availableChannels: ["sms", "voice", "email"],
+    availableChannels: ["email", "sms", "voice"],
     next,
   }
 }
@@ -86,10 +114,17 @@ function placeholderChallenge(
  * TODO(aws): CognitoIdentityProvider.initiateAuth (USER_PASSWORD_AUTH) and return
  * the SMS_MFA / CUSTOM_CHALLENGE session as the challenge id.
  */
-export async function signIn(_email: string, _password: string, next?: string): Promise<OtpChallenge> {
+export async function signIn(email: string, _password: string, next?: string): Promise<OtpChallenge> {
   await pause()
-  return placeholderChallenge("login", "sms", maskPhone(demoUser.mobile), next)
+  pending = accountFor(email)
+  // Desk roles get the code by e-mail; the field-facing OCC roles get it by SMS
+  const channel = defaultChannelFor(pending.role)
+  return placeholderChallenge("login", channel, destinationFor(pending, channel), next)
 }
+
+/** The masked destination a channel delivers to for this account */
+const destinationFor = (user: AuthUser, channel: OtpChannel) =>
+  channel === "email" ? maskEmail(user.email) : maskPhone(user.mobile)
 
 /**
  * TODO(aws): re-issue the code on the same channel (initiateAuth again, or a
@@ -118,7 +153,7 @@ export async function switchOtpChannel(challenge: OtpChallenge, channel: OtpChan
   return {
     ...challenge,
     channel,
-    sentTo: channel === "email" ? maskEmail(demoUser.email) : maskPhone(demoUser.mobile),
+    sentTo: destinationFor(pending, channel),
     expiresAt: now + OTP_TTL_SECONDS * 1000,
     resendAvailableAt: now + RESEND_COOLDOWN_SECONDS * 1000,
   }
@@ -134,7 +169,7 @@ export async function switchOtpChannel(challenge: OtpChallenge, channel: OtpChan
  */
 export async function verifyOtp(_challenge: OtpChallenge, _code: string): Promise<AuthUser> {
   await pause()
-  return demoUser
+  return pending
 }
 
 /* -------------------------------------------------------- password reset -- */
