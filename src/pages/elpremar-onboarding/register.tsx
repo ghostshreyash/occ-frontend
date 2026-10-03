@@ -7,6 +7,7 @@ import {
   FileDown,
   HardHat,
   UserCheck,
+  UserPlus,
   UserMinus,
   MapPin,
   Plus,
@@ -116,8 +117,9 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
         }
       />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <StatCard label="Total ELPREMARs" value={elpremarRegisterKpis.total} delta={elpremarRegisterKpis.delta.total} icon={HardHat} tone="info" variant="plain" />
+        <StatCard label="Onboarded" value={elpremarRegisterKpis.onboarded} icon={UserPlus} tone="info" variant="plain" />
         <StatCard label="Active" value={elpremarRegisterKpis.active} delta={elpremarRegisterKpis.delta.active} icon={UserCheck} tone="healthy" variant="plain" />
         <StatCard label="Inactive" value={elpremarRegisterKpis.inactive} icon={UserMinus} tone="neutral" variant="plain" />
       </div>
@@ -158,7 +160,7 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
             onChange={setStatus}
             allLabel="All Statuses"
             width="w-36"
-            options={["active", "inactive"]}
+            options={["onboarded", "active", "inactive"]}
             renderOption={(v) => elpremarStatusMeta[v as keyof typeof elpremarStatusMeta].label}
           />
 

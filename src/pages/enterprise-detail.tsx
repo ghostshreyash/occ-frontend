@@ -466,9 +466,10 @@ export function EnterpriseDetailPage() {
               {/* The plant's own location - work is dispatched here */}
               <TextField control={plantForm.control} name="pin" label="Postal Code" required onValueChange={fillPlantFromPin} />
               <TextField control={plantForm.control} name="city" label="City" required />
-              <div />
-              <TextField control={plantForm.control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
-              <TextField control={plantForm.control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
+              <div className="grid grid-cols-2 gap-2">
+                <TextField control={plantForm.control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" />
+                <TextField control={plantForm.control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" />
+              </div>
               <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
             </form>
           }

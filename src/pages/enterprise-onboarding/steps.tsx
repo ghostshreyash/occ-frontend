@@ -150,8 +150,10 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
           * fills these in. Adjusting the map pin below overrides them. Stands in
           * for the places API that will do the lookup for real.
           */}
-        <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" description="Filled from the address" />
-        <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" description="Filled from the address" />
+        <div className="grid grid-cols-2 gap-2">
+          <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" />
+          <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" />
+        </div>
 
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">
@@ -244,9 +246,11 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
           */}
         <TextField control={control} name="pin" label="Postal Code" required onValueChange={fillPlantFromPin} />
         <TextField control={control} name="city" label="City" required />
-        <div className="md:col-span-1" />
-        <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
-        <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" description="Filled from the postal code" />
+        {/* The pair shares one cell so the row fills all three columns evenly */}
+        <div className="grid grid-cols-2 gap-2">
+          <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" />
+          <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" />
+        </div>
         <div className="md:col-span-3">
           <FieldLabel className="mb-2">Adjust Plant Location</FieldLabel>
           <LocationPicker

@@ -11,8 +11,8 @@ import type { WorkStatus } from "@/lib/status"
 import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor, stateFor } from "@/data/occ-tables"
 import type { EnterpriseRecord } from "@/data/occ-tables"
 
-/** Whether the account is live. Only trained, certified people are onboarded. */
-export type ElpremarStatus = "active" | "inactive"
+/** Onboarded but not yet working, working, or suspended */
+export type ElpremarStatus = "onboarded" | "active" | "inactive"
 
 export type ElpremarRecord = {
   id: string
@@ -34,7 +34,8 @@ export type ElpremarRecord = {
   status: ElpremarStatus
 }
 
-export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "neutral"; stripe: string; chip: string }> = {
+export const elpremarStatusMeta: Record<ElpremarStatus, { label: string; badge: "success" | "info" | "neutral"; stripe: string; chip: string }> = {
+  onboarded: { label: "Onboarded", badge: "info", stripe: "bg-info", chip: "bg-info-soft text-info-soft-foreground" },
   active: { label: "Active", badge: "success", stripe: "bg-healthy", chip: "bg-healthy-soft text-healthy-soft-foreground" },
   inactive: { label: "Inactive", badge: "neutral", stripe: "bg-neutral", chip: "bg-neutral-soft text-neutral-soft-foreground" },
 }
@@ -176,6 +177,7 @@ export const nextElpremarId = () => {
 
 export const elpremarRegisterKpis = {
   total: elpremarRecords.length,
+  onboarded: elpremarRecords.filter((e) => e.status === "onboarded").length,
   active: elpremarRecords.filter((e) => e.status === "active").length,
   inactive: elpremarRecords.filter((e) => e.status === "inactive").length,
   /** Absolute month-over-month movement; these are counts in the tens */
