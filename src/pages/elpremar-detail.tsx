@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, PhoneField, SelectField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
@@ -36,7 +36,7 @@ import {
   whenLabel,
   type ElpremarProfile,
 } from "@/data/elpremar-data"
-import { elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
+import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { countries, salutations } from "@/data/mock"
 import { optionalEmail, phone, required } from "@/lib/validation"
 
@@ -59,10 +59,14 @@ const basicSchema = z.object({
   dob: z.string().optional(),
   gender: z.string().optional(),
   postalCode: z.string().optional(),
+  district: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
   phoneCode: z.string().optional(),
   phone,
   email: z.email("Enter a valid email address"),
-  address: z.string().optional(),
 })
 type BasicValues = z.infer<typeof basicSchema>
 
@@ -148,6 +152,15 @@ export function ElpremarDetailPage() {
   const meta = elpremarStatusMeta[record.status]
   const upcoming = upcomingFor(record.name)
 
+  // Postal code resolves the rest of the location, the way the places API will
+  const fillFromPostalCode = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    basicForm.setValue("district", area.district)
+    basicForm.setValue("city", area.city)
+    basicForm.setValue("state", area.state)
+  }
+
   // Walks the chosen enterprise's tree, the same way the onboarding step does
   const postedEnterprise = enterpriseRecords.find((e) => e.name === postingForm.watch("enterprise"))
   const postedPlants = postedEnterprise ? profileFor(postedEnterprise).plants : []
@@ -202,11 +215,14 @@ export function ElpremarDetailPage() {
                 { label: "Full Name", value: `${b.salutation} ${b.name}` },
                 { label: "Date of Birth", value: showDate(b.dob) },
                 { label: "Gender", value: b.gender },
-                { label: "Postal Code", value: b.postalCode },
                 { label: "Mobile Number", value: [b.phoneCode, b.phone].filter(Boolean).join(" ") },
                 { label: "Email", value: b.email },
                 { label: "Joined", value: record.joined },
-                { label: "Address", value: b.address },
+                { label: "Postal Code", value: b.postalCode },
+                { label: "District", value: b.district },
+                { label: "City", value: b.city },
+                { label: "State", value: b.state },
+                { label: "Address", value: [b.addressLine1, b.addressLine2].filter(Boolean).join(", ") },
               ]}
             />
           }
@@ -219,10 +235,14 @@ export function ElpremarDetailPage() {
               <TextField control={basicForm.control} name="employeeId" label="Employee / ID Number" required />
               <DateField control={basicForm.control} name="dob" label="Date of Birth" />
               <SelectField control={basicForm.control} name="gender" label="Gender" options={["Male", "Female", "Other"]} />
-              <TextField control={basicForm.control} name="postalCode" label="Postal Code" inputMode="numeric" />
-              <PhoneField control={basicForm.control} codeName="phoneCode" name="phone" label="Mobile Number" required />
+                            <PhoneField control={basicForm.control} codeName="phoneCode" name="phone" label="Mobile Number" required />
               <TextField control={basicForm.control} name="email" label="Email" required type="email" />
-              <TextareaField control={basicForm.control} name="address" label="Address" rows={2} className="md:col-span-3" />
+              <TextField control={basicForm.control} name="postalCode" label="Postal Code" inputMode="numeric" onValueChange={fillFromPostalCode} />
+              <TextField control={basicForm.control} name="district" label="District" />
+              <TextField control={basicForm.control} name="city" label="City" />
+              <TextField control={basicForm.control} name="state" label="State" />
+              <TextField control={basicForm.control} name="addressLine1" label="Flat / Building No." />
+              <TextField control={basicForm.control} name="addressLine2" label="Street / Area" />
             </form>
           }
         />

@@ -8,10 +8,16 @@ export const basicSchema = z.object({
   employeeId: required("Employee / ID number"),
   dob: required("Date of birth"),
   gender: z.enum(["Male", "Female", "Other"], "Select gender"),
+  mobileCode: z.string().optional(),
   mobile: phone,
   email: z.email("Enter a valid email address"),
+  /* Address is captured field-wise - the physical location drives dispatch */
   postalCode: z.string().optional(),
-  address: z.string().optional(),
+  district: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
 })
 
 /**
@@ -21,9 +27,11 @@ export const basicSchema = z.object({
 export const assignmentSchema = z.object({
   enterprise: required("Enterprise"),
   plant: required("Plant"),
-  department: required("Department"),
+  /* Retail enterprises do not share the industrial department structure */
+  department: z.string().optional(),
   subDepartment: z.string().optional(),
-  supervisor: required("Reporting supervisor"),
+  /* A supervisor has nobody above them to record */
+  supervisor: z.string().optional(),
   effectiveFrom: required("Effective from"),
 })
 

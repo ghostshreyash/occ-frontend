@@ -8,7 +8,7 @@
 import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
 import { format } from "date-fns"
 import type { WorkStatus } from "@/lib/status"
-import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor } from "@/data/occ-tables"
+import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor, stateFor } from "@/data/occ-tables"
 import type { EnterpriseRecord } from "@/data/occ-tables"
 
 /** Whether the account is live. Only trained, certified people are onboarded. */
@@ -131,9 +131,14 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
     name,
     // Salutation follows the roster's gender, never the seed
     salutation: person.gender === "Female" ? (s % 7 === 0 ? "Dr." : "Ms.") : s % 9 === 0 ? "Dr." : "Mr.",
-    // Most cover one stream; every third covers two
-    roles: s % 3 === 0 ? [pick(elpremarRoles, s, 2), pick(elpremarRoles, s, 5)].filter((v, n, a) => a.indexOf(v) === n) : [pick(elpremarRoles, s, 2)],
-    designation: s % 4 === 0 ? "Supervisor" : "Operator",
+    /*
+     * Most cover one stream, every third covers two. Taken by position, and the
+     * second offset is chosen to land on a different index - with only three
+     * streams, two offsets that agree modulo 3 would collapse back to one role.
+     */
+    roles: i % 3 === 0 ? [pick(elpremarRoles, s, 2), pick(elpremarRoles, s, 3)] : [pick(elpremarRoles, s, 2)],
+    // Roughly one supervisor to every three operators
+    designation: i % 4 === 0 ? "Supervisor" : "Operator",
     enterprise: unassigned ? "" : enterprise.name,
     plant: unassigned ? "" : posting.plant.name,
     // Where they actually work, which is the plant's city rather than the HQ's
@@ -175,10 +180,14 @@ export type ElpremarProfile = {
     dob: string
     gender: string
     postalCode: string
+    district: string
+    city: string
+    state: string
+    addressLine1: string
+    addressLine2: string
     phoneCode: string
     phone: string
     email: string
-    address: string
   }
   posting: {
     enterprise: string
@@ -216,10 +225,14 @@ export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
       gender: elpremarRoster.find((r) => r.name === e.name)?.gender ?? "Male",
       // Six digits in India, five elsewhere - enough to look right per country
       postalCode: e.country === "India" ? String(110000 + (s % 789999)) : String(10000 + (s % 89999)),
+      district: e.city,
+      city: e.city,
+      state: e.country === "India" ? stateFor[e.city] ?? e.country : e.country,
+      addressLine1: `${1 + (s % 90)}, ${pick(["Industrial Estate", "MIDC Phase II", "Works Colony", "Township"], s, 11)}`,
+      addressLine2: pick(["Sector 7", "Plant Road", "Gate No. 3", "Phase I"], s, 12),
       phoneCode: dialCodeFor(e.country),
       phone: String(9000000000 + (s % 899999999)).slice(0, 10),
       email: `${slug}@olivineglobalsystems.com`,
-      address: `${e.city}, ${e.country}`,
     },
     posting: {
       enterprise: e.enterprise,

@@ -581,7 +581,7 @@ export type EnterpriseProfile = {
   account: { email: string; role: string; lastLogin: string }
 }
 
-const stateFor: Record<string, string> = {
+export const stateFor: Record<string, string> = {
   Mumbai: "Maharashtra", Jamnagar: "Gujarat", Dolvi: "Maharashtra", Mundra: "Gujarat",
   Hyderabad: "Telangana", Hosur: "Tamil Nadu", Renukoot: "Uttar Pradesh", Jharsuguda: "Odisha",
   Kochi: "Kerala", Ahmedabad: "Gujarat", Dubai: "Dubai", Riyadh: "Riyadh Province",

@@ -9,6 +9,7 @@ import {
   Factory,
   FileBadge,
   HardHat,
+  MapPin,
   KeyRound,
   Lock,
   Network,
@@ -28,11 +29,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { PasswordField, PhoneField, SelectField, TextField } from "@/components/form/fields"
 import { Context, Ctx } from "@/components/common/wizard"
 import { Attachments } from "@/components/form/attachments"
+import { today } from "@/lib/validation"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
+import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { enterpriseRecords, profileFor } from "@/data/occ-tables"
 import { nextElpremarId } from "@/data/elpremar-data"
 import {
@@ -117,13 +119,25 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   const form = useForm<BasicValues>({
     resolver: zodResolver(basicSchema),
     defaultValues: draft.basic ?? {
-      fullName: "", employeeId: nextElpremarId(), dob: "", mobile: "", email: "", postalCode: "", address: "",
+      fullName: "", employeeId: nextElpremarId(), dob: "", mobileCode: "+91", mobile: "", email: "",
+      postalCode: "", district: "", city: "", state: "", addressLine1: "", addressLine2: "",
     },
   })
-  const { control } = form
+  const { control, setValue } = form
+
+  // Postal code resolves the rest of the location, the way the places API will
+  const fillFromPostalCode = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    setValue("district", area.district)
+    setValue("city", area.city)
+    setValue("state", area.state)
+  }
+
   return (
     <Card title="Step 1 of 5: Basic Details">
-      <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} className="flex flex-col gap-5 sm:flex-row" noValidate>
+      <form id="elp-basic" onSubmit={form.handleSubmit(onNext)} noValidate>
+        <div className="flex flex-col gap-5 sm:flex-row">
         <Controller
           control={control}
           name="photo"
@@ -168,11 +182,31 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
               </Field>
             )}
           />
-          <TextField control={control} name="postalCode" label="Postal Code" inputMode="numeric" placeholder="e.g. 400001" />
-          <TextField control={control} name="mobile" label="Mobile Number" required type="tel" placeholder="+91 98765 43210" />
+          <PhoneField control={control} codeName="mobileCode" name="mobile" label="Mobile Number" required />
           <TextField control={control} name="email" label="Email ID" required type="email" />
-          <TextareaField control={control} name="address" label="Address" rows={2} maxLength={250} className="md:col-span-2" />
         </div>
+      </div>
+
+      {/* Address field-wise: dispatch depends on the physical location */}
+      <div className="mt-5 rounded-lg ring-1 ring-border p-4">
+        <h4 className="flex items-center gap-2 font-semibold"><MapPin className="size-5 text-primary" /> Address</h4>
+        <p className="mb-3 text-xs text-muted-foreground">Enter the postal code and the district, city and state fill in automatically.</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <TextField
+            control={control}
+            name="postalCode"
+            label="Postal Code"
+            inputMode="numeric"
+            placeholder="e.g. 400001"
+            onValueChange={fillFromPostalCode}
+          />
+          <TextField control={control} name="district" label="District" />
+          <TextField control={control} name="city" label="City" />
+          <TextField control={control} name="state" label="State" />
+          <TextField control={control} name="addressLine1" label="Flat / Building No." className="md:col-span-1" />
+          <TextField control={control} name="addressLine2" label="Street / Area" className="md:col-span-1" />
+        </div>
+      </div>
       </form>
       <Footer formId="elp-basic" onCancel={onCancel} />
     </Card>
@@ -333,7 +367,7 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
   const form = useForm<AssignmentValues>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: draft.assignment ?? {
-      enterprise: "", plant: "", department: "", subDepartment: "", supervisor: "", effectiveFrom: "",
+      enterprise: "", plant: "", department: "", subDepartment: "", supervisor: "", effectiveFrom: today(),
     },
   })
   const { control, watch, setValue } = form
@@ -550,7 +584,10 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
               <Row label="Mobile Number" value={basic?.mobile} />
               <Row label="Email ID" value={basic?.email} />
               <Row label="Postal Code" value={basic?.postalCode} />
-              <Row label="Address" value={basic?.address} />
+              <Row label="District" value={basic?.district} />
+              <Row label="City" value={basic?.city} />
+              <Row label="State" value={basic?.state} />
+              <Row label="Address" value={[basic?.addressLine1, basic?.addressLine2].filter(Boolean).join(", ")} />
             </div>
           </div>
         </ReviewSection>

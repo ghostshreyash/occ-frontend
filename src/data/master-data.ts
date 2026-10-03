@@ -169,6 +169,32 @@ export const activeElpremarNames = elpremarRoster
   .filter((_, i) => elpremarLifecycle(i) === "active")
   .map((e) => e.name)
 
+/**
+ * Postal code to district and city. Stands in for the places API that will do
+ * this lookup for real - the point is that the operator types the code and the
+ * location fills itself in, rather than typing all three.
+ */
+const postalAreas: Record<string, { district: string; city: string; state: string }> = {
+  "400001": { district: "Mumbai City", city: "Mumbai", state: "Maharashtra" },
+  "400703": { district: "Thane", city: "Navi Mumbai", state: "Maharashtra" },
+  "831001": { district: "East Singhbhum", city: "Jamshedpur", state: "Jharkhand" },
+  "361001": { district: "Jamnagar", city: "Jamnagar", state: "Gujarat" },
+  "402107": { district: "Raigad", city: "Dolvi", state: "Maharashtra" },
+  "370421": { district: "Kutch", city: "Mundra", state: "Gujarat" },
+  "500081": { district: "Hyderabad", city: "Hyderabad", state: "Telangana" },
+  "700001": { district: "Kolkata", city: "Kolkata", state: "West Bengal" },
+  "380001": { district: "Ahmedabad", city: "Ahmedabad", state: "Gujarat" },
+  "682001": { district: "Ernakulam", city: "Kochi", state: "Kerala" },
+  "411001": { district: "Pune", city: "Pune", state: "Maharashtra" },
+  "600001": { district: "Chennai", city: "Chennai", state: "Tamil Nadu" },
+}
+
+/** Look up a postal code. Returns undefined when it is not a code we know. */
+export const areaForPostalCode = (code: string) => postalAreas[code.trim()]
+
+/** Codes we can resolve, for placeholder text and test data */
+export const knownPostalCodes = Object.keys(postalAreas)
+
 /* ---------- Assets ---------- */
 
 export const assetCategories = [
