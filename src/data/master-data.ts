@@ -152,25 +152,19 @@ export const elpremarRoster = [
 /** Just the names, for pools that only need to assign work */
 export const elpremarNames = elpremarRoster.map((e) => e.name)
 
-/** The tail of the roster: recently onboarded, then suspended accounts */
-const suspended = 2
-const justOnboarded = 3
+/** How many of the roster are suspended rather than working */
+const suspended = 3
 
 /**
- * Where a roster member sits: onboarded but not yet working, actively working,
- * or suspended. Taken by position rather than hashed, so every bucket is
- * populated across a roster this small, and the non-working ones are at the end
- * of the list - the hand-written work rows name the earlier members, and those
- * people have to be able to hold that work.
+ * Whether a roster member's account is live. Taken by position rather than
+ * hashed, so the bucket is actually populated across a roster this small, and
+ * the inactive ones are at the end of the list - the hand-written work rows
+ * name the earlier members, and those people have to be able to hold that work.
  * Shared so a member's status and the crew work is assigned to cannot drift.
  */
-export const elpremarLifecycle = (i: number) => {
-  if (i >= elpremarRoster.length - suspended) return "inactive"
-  if (i >= elpremarRoster.length - suspended - justOnboarded) return "onboarded"
-  return "active"
-}
+export const elpremarLifecycle = (i: number) => (i >= elpremarRoster.length - suspended ? "inactive" : "active")
 
-/** Who can be given work: those actually working, not the newly onboarded */
+/** Who can be given work: active accounts only */
 export const activeElpremarNames = elpremarRoster
   .filter((_, i) => elpremarLifecycle(i) === "active")
   .map((e) => e.name)

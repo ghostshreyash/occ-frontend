@@ -447,7 +447,7 @@ export type EnterpriseRecord = {
    * Whether the account may be used. Deactivation is how an enterprise is
    * stopped from using the app - records are never deleted, so history stays.
    */
-  accountStatus: "active" | "deactivated"
+  accountStatus: "active" | "inactive"
 }
 
 export const enterpriseRecords: EnterpriseRecord[] = [
@@ -458,7 +458,7 @@ export const enterpriseRecords: EnterpriseRecord[] = [
   { id: "NTP-ENT-005", name: "NTPC", sectorType: "Industry", sector: "Government / PSU", country: "India", city: "Hyderabad", plants: 14, assets: 3118, elpremars: 33, onboarded: "09-08-2024", status: "healthy", accountStatus: "active" },
   { id: "ABC-ENT-006", name: "ABC Industries Ltd.", sectorType: "Industry", sector: "MSME", country: "India", city: "Hosur", plants: 3, assets: 962, elpremars: 8, onboarded: "27-05-2025", status: "onboarding", accountStatus: "active" },
   { id: "EMR-ENT-007", name: "Emirates Steel", sectorType: "Industry", sector: "Mid Cap", country: "United Arab Emirates", city: "Dubai", plants: 4, assets: 1488, elpremars: 12, onboarded: "14-11-2024", status: "attention", accountStatus: "active" },
-  { id: "SBC-ENT-008", name: "SABIC", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy", accountStatus: "deactivated" },
+  { id: "SBC-ENT-008", name: "SABIC", sectorType: "Industry", sector: "Large Cap", country: "Saudi Arabia", city: "Riyadh", plants: 6, assets: 2104, elpremars: 18, onboarded: "02-12-2024", status: "healthy", accountStatus: "inactive" },
   { id: "THY-ENT-009", name: "Thyssenkrupp AG", sectorType: "Industry", sector: "Large Cap", country: "Germany", city: "Frankfurt", plants: 5, assets: 1776, elpremars: 15, onboarded: "19-01-2025", status: "healthy", accountStatus: "active" },
   { id: "SGX-ENT-010", name: "Singapore Grid Co.", sectorType: "Retail", sector: "Commercial Offices", country: "Singapore", city: "Singapore", plants: 2, assets: 806, elpremars: 7, onboarded: "05-02-2025", status: "healthy", accountStatus: "active" },
   { id: "HIN-ENT-011", name: "Hindalco Industries", sectorType: "Industry", sector: "Large Cap", country: "India", city: "Renukoot", plants: 7, assets: 2914, elpremars: 24, onboarded: "11-09-2024", status: "attention", accountStatus: "active" },
@@ -468,7 +468,7 @@ export const enterpriseRecords: EnterpriseRecord[] = [
   { id: "DRL-ENT-015", name: "Dr. Reddy's Labs", sectorType: "Industry", sector: "Mid Cap", country: "India", city: "Hyderabad", plants: 4, assets: 1352, elpremars: 14, onboarded: "07-03-2025", status: "attention", accountStatus: "active" },
   { id: "TAT-ENT-016", name: "Tata Steel Europe", sectorType: "Industry", sector: "Large Cap", country: "Netherlands", city: "IJmuiden", plants: 5, assets: 2042, elpremars: 17, onboarded: "19-09-2024", status: "attention", accountStatus: "active" },
   { id: "LYB-ENT-017", name: "LyondellBasell", sectorType: "Industry", sector: "Large Cap", country: "United States", city: "Houston", plants: 7, assets: 2760, elpremars: 23, onboarded: "04-11-2024", status: "healthy", accountStatus: "active" },
-  { id: "VAL-ENT-018", name: "Vale S.A.", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical", accountStatus: "deactivated" },
+  { id: "VAL-ENT-018", name: "Vale S.A.", sectorType: "Industry", sector: "Large Cap", country: "Brazil", city: "São Paulo", plants: 6, assets: 1988, elpremars: 16, onboarded: "13-02-2025", status: "critical", accountStatus: "inactive" },
   { id: "ESK-ENT-019", name: "Eskom Holdings", sectorType: "Industry", sector: "Government / PSU", country: "South Africa", city: "Johannesburg", plants: 8, assets: 2314, elpremars: 20, onboarded: "26-03-2025", status: "healthy", accountStatus: "active" },
   { id: "BHP-ENT-020", name: "BHP Group", sectorType: "Industry", sector: "Large Cap", country: "Australia", city: "Sydney", plants: 3, assets: 1104, elpremars: 11, onboarded: "09-06-2025", status: "onboarding", accountStatus: "active" },
 ]

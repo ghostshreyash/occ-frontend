@@ -36,7 +36,6 @@ import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
-import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import { countries, indianStates, salutations, timeZones } from "@/data/mock"
 import { areaForPostalCode, departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import { assetHealthFor, coordsForCity, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
@@ -150,7 +149,6 @@ export function EnterpriseDetailPage() {
       })()
     }
 
-
   const saveAccount = accountForm.handleSubmit((values) => {
     setOverrides((o) => ({
       ...o,
@@ -215,7 +213,7 @@ export function EnterpriseDetailPage() {
               variant={account_active ? "success" : "neutral"}
               className="rounded px-1.5 py-0 text-[0.65rem]"
             >
-              {account_active ? "Active" : "Deactivated"}
+              {account_active ? "Active" : "Inactive"}
             </Badge>
             <Badge variant={statusMeta(record.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">
               {statusMeta(record.status).label}
@@ -243,8 +241,6 @@ export function EnterpriseDetailPage() {
         <StatCard label="Alarming" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
         <StatCard label="At Risk" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
       </div>
-
-      <WorkSummaryCard enterprise={e.name} aggregate />
 
       {/* Full onboarding profile, section by section, editable in place */}
       <SectionCard title="Enterprise Profile" hoverable={false} contentClassName="space-y-2.5 px-3 pb-3">
@@ -621,7 +617,6 @@ export function EnterpriseDetailPage() {
           }
         />
       </SectionCard>
-
 
     </div>
   )

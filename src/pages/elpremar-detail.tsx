@@ -26,7 +26,6 @@ import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { ExpiryValue } from "@/components/common/expiry-value"
-import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import { enterpriseRecords, profileFor, slotLabel } from "@/data/occ-tables"
 import {
   elpremarProfileFor,
@@ -193,8 +192,6 @@ export function ElpremarDetailPage() {
           </>
         }
       />
-
-      <WorkSummaryCard elpremar={record.name} />
 
       {/* Full onboarding profile, section by section, editable in place */}
       <SectionCard title="ELPREMAR Profile" hoverable={false} contentClassName="space-y-2.5 px-3 pb-3">
