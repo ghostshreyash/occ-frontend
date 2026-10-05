@@ -267,7 +267,7 @@ export function EvitaDashboardPage() {
               <SectionCard title="" hoverable={false} className="mt-2">
                 <dl className="space-y-2 text-xs">
                   {[
-                    ["Role", me.role],
+                    ["Role", me.roles.join(", ")],
                     ["Posting", me.plant],
                     ["Enterprise", me.enterprise],
                     ["Certified Until", me.certifiedUntil],
