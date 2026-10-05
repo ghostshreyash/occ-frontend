@@ -112,6 +112,13 @@ export const userRoles = [
   "System Admin",
 ] as const
 
+/**
+ * Team designation. A supervisor never works as an operator, and a helper is
+ * recorded as an operator - the two were agreed to be the same thing.
+ * Separate from the role streams below: one person can hold several of those.
+ */
+export const elpremarDesignations = ["Supervisor", "Operator"] as const
+
 export const elpremarRoles = [
   "ELPREMAR – EVITA Field Inspection",
   "ELPREMAR – INSTA CLEAN Cleaning",
@@ -156,37 +163,57 @@ export const elpremarRoster = [
 /** Just the names, for pools that only need to assign work */
 export const elpremarNames = elpremarRoster.map((e) => e.name)
 
-/** How many of the newest roster members have not finished training */
-const inTraining = 3
+/** How many of the roster are suspended rather than working */
+const suspended = 3
 
 /**
- * Where a roster member sits in the training-to-deployment lifecycle, by index.
- * Taken by position rather than hashed, so every bucket is populated across a
- * roster this small, and the untrained are the newest joiners at the end of the
- * list - the hand-written work rows name the earlier members by hand, and those
- * people have to be able to hold the work assigned to them.
+ * Whether a roster member's account is live. Taken by position rather than
+ * hashed, so the bucket is actually populated across a roster this small, and
+ * the inactive ones are at the end of the list - the hand-written work rows
+ * name the earlier members, and those people have to be able to hold that work.
  * Shared so a member's status and the crew work is assigned to cannot drift.
  */
-export const elpremarLifecycle = (i: number) =>
-  i >= elpremarRoster.length - inTraining ? "not_trained" : i % 4 === 0 ? "trained" : "in_field"
+export const elpremarLifecycle = (i: number) => (i >= elpremarRoster.length - suspended ? "inactive" : "active")
 
 /**
- * Whose platform account has been switched off. Purely administrative — someone
- * who has left, is on long leave, or whose registration has lapsed. It is NOT a
- * health or warning state, and it is independent of training: an inactive member
- * can be fully trained, and an untrained one is still an active registration.
- *
- * Taken by index rather than hashed so the split is stable, and chosen from the
- * middle of the roster so nobody named in the hand-written work rows is caught.
+ * Who can be given work. Inactive is purely administrative - someone who has
+ * left, is on long leave, or whose registration has lapsed. It is not a health
+ * or warning state. There is no trained / untrained split: an ELPREMAR is only
+ * onboarded once they are trained and certified.
  */
-const inactiveAccounts = new Set([5, 11, 16])
-
-export const elpremarActive = (i: number) => !inactiveAccounts.has(i)
-
-/** Who can be given work: anyone past training, deployed or on the bench */
-export const deployableElpremarNames = elpremarRoster
-  .filter((_, i) => elpremarLifecycle(i) !== "not_trained")
+export const activeElpremarNames = elpremarRoster
+  .filter((_, i) => elpremarLifecycle(i) === "active")
   .map((e) => e.name)
+
+/**
+ * Postal code to district and city. Stands in for the places API that will do
+ * this lookup for real - the point is that the operator types the code and the
+ * location fills itself in, rather than typing all three.
+ */
+const postalAreas: Record<string, { district: string; city: string; state: string }> = {
+  "400001": { district: "Mumbai City", city: "Mumbai", state: "Maharashtra" },
+  "400703": { district: "Thane", city: "Navi Mumbai", state: "Maharashtra" },
+  "831001": { district: "East Singhbhum", city: "Jamshedpur", state: "Jharkhand" },
+  "361001": { district: "Jamnagar", city: "Jamnagar", state: "Gujarat" },
+  "402107": { district: "Raigad", city: "Dolvi", state: "Maharashtra" },
+  "370421": { district: "Kutch", city: "Mundra", state: "Gujarat" },
+  "500081": { district: "Hyderabad", city: "Hyderabad", state: "Telangana" },
+  "700001": { district: "Kolkata", city: "Kolkata", state: "West Bengal" },
+  "380001": { district: "Ahmedabad", city: "Ahmedabad", state: "Gujarat" },
+  "682001": { district: "Ernakulam", city: "Kochi", state: "Kerala" },
+  "411001": { district: "Pune", city: "Pune", state: "Maharashtra" },
+  "600001": { district: "Chennai", city: "Chennai", state: "Tamil Nadu" },
+}
+
+/** Look up a postal code. Returns undefined when it is not a code we know. */
+export const areaForPostalCode = (code: string) => postalAreas[code.trim()]
+
+/** The postal code for a city, where we know one */
+export const postalCodeForCity = (city: string) =>
+  Object.keys(postalAreas).find((code) => postalAreas[code].city === city)
+
+/** Codes we can resolve, for placeholder text and test data */
+export const knownPostalCodes = Object.keys(postalAreas)
 
 /* ---------- Assets ---------- */
 
@@ -358,8 +385,8 @@ export const dcVoltageRatings = [
 /** Health score bands from the specification */
 export const healthBands = [
   { min: 70, max: 100, label: "Healthy", tone: "healthy" as const },
-  { min: 50, max: 69, label: "Attention Required", tone: "attention" as const },
-  { min: 0, max: 49, label: "Poor Condition", tone: "critical" as const },
+  { min: 50, max: 69, label: "Alarming", tone: "attention" as const },
+  { min: 0, max: 49, label: "At Risk", tone: "critical" as const },
 ]
 
 export const healthBandFor = (score: number) =>

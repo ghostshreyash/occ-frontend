@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router"
+import { toast } from "sonner"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format, isValid, parseISO } from "date-fns"
 import {
   ArrowLeft,
+  Ban,
   Building2,
+  CircleCheck,
   Factory,
   Folder,
   MapPin,
@@ -19,30 +22,23 @@ import {
   TriangleAlert,
 } from "lucide-react"
 
+import { cn } from "cn"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DateField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
-import { WorkSummaryCard } from "@/components/common/work-summary-card"
 import { countries, indianStates, salutations, timeZones } from "@/data/mock"
-import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
-import {
-  assetHealthFor,
-  enterpriseRecords,
-  profileFor,
-  type DepartmentProfile,
-  type EnterpriseProfile,
-  type EnterpriseRecord,
-  type PlantProfile,
-} from "@/data/occ-tables"
+import { areaForPostalCode, departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { assetHealthFor, coordsForCity, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
 import {
@@ -57,24 +53,13 @@ import {
 } from "./enterprise-onboarding/schemas"
 
 /**
- * Account editor. The current password is never loaded, only replaced - leave the
- * new-password fields blank to change the username or role on their own.
+ * Account editor. OCC does not set or reset enterprise passwords - an account is
+ * stopped by deactivating it, not by changing its credentials.
  */
-const accountFormSchema = z
-  .object({
-    email: z.email("Enter a valid email address"),
-    role: required("Role"),
-    newPassword: z.string().optional(),
-    confirmPassword: z.string().optional(),
-  })
-  .refine((v) => !v.newPassword || v.newPassword.length >= 8, {
-    message: "Password must be at least 8 characters",
-    path: ["newPassword"],
-  })
-  .refine((v) => (v.newPassword ?? "") === (v.confirmPassword ?? ""), {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
+const accountFormSchema = z.object({
+  email: z.email("Enter a valid email address"),
+  role: required("Role"),
+})
 type AccountFormValues = z.infer<typeof accountFormSchema>
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
@@ -96,6 +81,7 @@ export function EnterpriseDetailPage() {
   const record = enterpriseRecords.find((e) => e.id === id)
 
   const [editing, setEditing] = useState<string | null>(null)
+  const [accountState, setAccountState] = useState<boolean | null>(null)
   const [overrides, setOverrides] = useState<Partial<EnterpriseProfile>>({})
   /** Which plant, and which of its departments, the drill-down is showing */
   const [plantId, setPlantId] = useState<string>()
@@ -129,7 +115,7 @@ export function EnterpriseDetailPage() {
 
   const accountForm = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    values: profile ? { email: profile.account.email, role: profile.account.role, newPassword: "", confirmPassword: "" } : undefined,
+    values: profile ? { email: profile.account.email, role: profile.account.role } : undefined,
   })
 
   /**
@@ -163,15 +149,11 @@ export function EnterpriseDetailPage() {
       })()
     }
 
-
   const saveAccount = accountForm.handleSubmit((values) => {
-    // The password is write-only: it is never read back, only replaced
     setOverrides((o) => ({
       ...o,
       account: { ...(profile?.account ?? { email: "", role: "", lastLogin: "" }), email: values.email, role: values.role },
     }))
-    accountForm.setValue("newPassword", "")
-    accountForm.setValue("confirmPassword", "")
     setEditing(null)
   })
 
@@ -194,6 +176,31 @@ export function EnterpriseDetailPage() {
   const health = assetHealthFor(record)
   const pct = (n: number) => Math.round((n / record.assets) * 100)
 
+  // Editing a plant's postal code resolves its city and coordinates
+  const fillPlantFromPin = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    plantForm.setValue("city", area.city)
+    const point = coordsForCity(area.city)
+    if (point) {
+      plantForm.setValue("latitude", point.lat)
+      plantForm.setValue("longitude", point.lng)
+    }
+  }
+
+  /*
+   * Deactivation stops the enterprise using the app; the record and its history
+   * stay. Local only for now - replace with PATCH /enterprises/:id later.
+   */
+  const account_active = accountState ?? record.accountStatus === "active"
+  const toggleAccount = () => {
+    const next = !account_active
+    setAccountState(next)
+    toast.success(next ? `${e.name} reactivated` : `${e.name} deactivated`, {
+      description: next ? "They can sign in again." : "They can no longer sign in. Nothing has been deleted.",
+    })
+  }
+
   return (
     <div className="space-y-3">
       <PageHeader
@@ -202,9 +209,23 @@ export function EnterpriseDetailPage() {
         breadcrumbs={[{ label: "Enterprises", to: "/enterprises" }, { label: e.name }]}
         actions={
           <>
+            <Badge
+              variant={account_active ? "success" : "neutral"}
+              className="rounded px-1.5 py-0 text-[0.65rem]"
+            >
+              {account_active ? "Active" : "Inactive"}
+            </Badge>
             <Badge variant={statusMeta(record.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">
               {statusMeta(record.status).label}
             </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn("h-7 text-xs", account_active && "text-critical")}
+              onClick={toggleAccount}
+            >
+              {account_active ? <><Ban className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Reactivate</>}
+            </Button>
             <Button asChild variant="outline" size="sm" className="h-7 text-xs">
               <Link to="/enterprises"><ArrowLeft className="size-3.5" /> Back to Enterprises</Link>
             </Button>
@@ -217,11 +238,9 @@ export function EnterpriseDetailPage() {
         <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
         {/* Asset health split, using the platform's three bands */}
         <StatCard label="Healthy Assets" value={health.healthy} percent={pct(health.healthy)} icon={HeartPulse} tone="healthy" variant="plain" />
-        <StatCard label="Attention Required" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
-        <StatCard label="Poor Condition" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
+        <StatCard label="Alarming" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
+        <StatCard label="At Risk" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
       </div>
-
-      <WorkSummaryCard enterprise={e.name} />
 
       {/* Full onboarding profile, section by section, editable in place */}
       <SectionCard title="Enterprise Profile" hoverable={false} contentClassName="space-y-2.5 px-3 pb-3">
@@ -249,7 +268,7 @@ export function EnterpriseDetailPage() {
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
               <TextField control={enterpriseForm.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
-              <TextField control={enterpriseForm.control} name="shortName" label="Short Name" required />
+              <TextField control={enterpriseForm.control} name="shortName" label="Short Name" />
               <SelectField
                 control={enterpriseForm.control}
                 name="sectorType"
@@ -440,6 +459,13 @@ export function EnterpriseDetailPage() {
               <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
               <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
               <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
+              {/* The plant's own location - work is dispatched here */}
+              <TextField control={plantForm.control} name="pin" label="Postal Code" required onValueChange={fillPlantFromPin} />
+              <TextField control={plantForm.control} name="city" label="City" required />
+              <div className="grid grid-cols-2 gap-2">
+                <TextField control={plantForm.control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" />
+                <TextField control={plantForm.control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" />
+              </div>
               <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
             </form>
           }
@@ -578,20 +604,19 @@ export function EnterpriseDetailPage() {
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
               <TextField control={accountForm.control} name="email" label="Email ID" required type="email" />
               <SelectField control={accountForm.control} name="role" label="Role" required options={userRoles} />
-              <div className="md:col-span-2 rounded-md bg-muted/40 p-2.5">
-                <p className="mb-2 text-[0.7rem] text-muted-foreground">
-                  Leave blank to keep the current password. The existing password is never shown.
-                </p>
-                <div className="grid gap-2.5 md:grid-cols-2">
-                  <PasswordField control={accountForm.control} name="newPassword" label="New Password" placeholder="At least 8 characters" />
-                  <PasswordField control={accountForm.control} name="confirmPassword" label="Confirm New Password" />
-                </div>
-              </div>
+              {/*
+                * No password controls: OCC cannot set or reset an enterprise
+                * password. To stop an account being used, deactivate it.
+                */}
+              <p className="md:col-span-2 rounded-md bg-muted/40 p-2.5 text-[0.7rem] text-muted-foreground">
+                Passwords are managed by the enterprise. They are prompted to set a new one at first
+                sign-in, and can reset it themselves afterwards. To stop this account being used,
+                deactivate the enterprise.
+              </p>
             </form>
           }
         />
       </SectionCard>
-
 
     </div>
   )

@@ -19,7 +19,8 @@ const coordinate = (label: string, limit: number) =>
 
 export const enterpriseSchema = z.object({
   name: required("Enterprise name"),
-  shortName: required("Short name"),
+  /* Optional - two companies under one group may share a prefix anyway */
+  shortName: z.string().optional(),
   /** Industry or Retail - drives which sector list applies */
   sectorType: required("Sector"),
   /** The specific sector, from the list for the chosen sector type */
@@ -44,6 +45,15 @@ export const plantSchema = z.object({
   type: required("Plant type"),
   code: optionalText,
   address: required("Plant address"),
+  /*
+   * The plant's own location, not the head office's. Work is dispatched here,
+   * so these coordinates are the ones that matter.
+   */
+  /* Resolved from the postal code rather than typed */
+  city: optionalText,
+  pin: required("Postal code"),
+  latitude: coordinate("Latitude", 90),
+  longitude: coordinate("Longitude", 180),
   salutation: required("Salutation"),
   head: required("Plant head"),
   email: z.email("Enter a valid email address"),

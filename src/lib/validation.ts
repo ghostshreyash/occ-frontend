@@ -26,3 +26,10 @@ export const username = z
   .trim()
   .min(6, "Username must be at least 6 characters")
   .regex(/^[a-z0-9._]+$/i, "Use letters, numbers, dots or underscores only")
+
+/** Today as yyyy-MM-dd, the value a date input expects */
+export const today = () => {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
