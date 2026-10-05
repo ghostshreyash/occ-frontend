@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router"
 
 import { AppLayout } from "@/layouts/app-layout"
-import { occNavigation } from "@/config/navigation"
+import { allNavigation } from "@/config/navigation"
 import { PublicOnly, RequireAuth } from "@/components/auth/require-auth"
 import { LandingPage } from "@/pages/landing"
 import { LoginPage } from "@/pages/auth/login"
@@ -11,7 +11,8 @@ import { VerifyResetPage } from "@/pages/auth/verify-reset"
 import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { RegisterPage } from "@/pages/auth/register"
 import { AccountRecoveryPage } from "@/pages/auth/account-recovery"
-import { DashboardPage } from "@/pages/dashboard"
+import { BrandHome } from "@/components/auth/brand-home"
+import { EvitaDashboardPage } from "@/pages/evita/dashboard"
 import { AddInspectionActivityPage } from "@/pages/add-inspection-activity"
 import { ElpremarOnboardingPage } from "@/pages/elpremar-onboarding"
 import { ElpremarDetailPage } from "@/pages/elpremar-detail"
@@ -28,7 +29,7 @@ import { ThemePreview } from "@/components/theme-preview"
 import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
 import { EnterpriseDetailPage } from "./pages/enterprise-detail"
 
-const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts", "/maintenance-activities", "/inspection-activities", "/support-tickets"])
+const built = new Set(["/", "/customer-map", "/enterprises", "/elpremars", "/critical-alerts", "/maintenance-activities", "/inspection-activities", "/support-tickets", "/evita"])
 
 /*
  * The hostname decides which sign-in a visitor sees (`src/lib/brand.ts`), so
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
+          { index: true, element: <BrandHome /> },
           // Global and India map views now live inside the OCC dashboard.
           { path: "customer-map", element: <Navigate to="/" replace /> },
           { path: "enterprises", element: <EnterpriseOnboardingPage /> },
@@ -72,11 +73,12 @@ export const router = createBrowserRouter([
           { path: "inspection-activities", element: <InspectionActivitiesPage /> },
           { path: "inspection-activities/add", element: <AddInspectionActivityPage /> },
           { path: "inspection-activity-details/:id", element: <InspectionActivityDetailsPage /> },
+          { path: "evita", element: <EvitaDashboardPage /> },
           { path: "support-tickets", element: <SupportTicketsPage /> },
           { path: "support-tickets/raise", element: <RaiseSupportTicketPage /> },
           { path: "support-ticket-details/:id", element: <SupportTicketDetailsPage /> },
           // Remaining sidebar entries show a placeholder until their mockups exist
-          ...occNavigation
+          ...allNavigation
             .filter((item) => !built.has(item.path))
             .map((item) => ({ path: item.path.slice(1), element: <ComingSoonPage title={item.title} /> })),
           { path: "*", element: <ComingSoonPage title="Page not found" /> },

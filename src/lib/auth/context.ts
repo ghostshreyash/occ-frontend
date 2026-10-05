@@ -6,7 +6,7 @@ export type AuthContextValue = {
   session: AuthSession | null
   user: AuthUser | null
   /** Completes login once an OTP has been verified. */
-  signIn: (user: AuthUser, remember: boolean) => void
+  signIn: (user: AuthUser, remember: boolean, brand?: string) => void
   signOut: () => void
   /** OTP challenge awaiting verification, handed between the auth screens. */
   challenge: OtpChallenge | null
