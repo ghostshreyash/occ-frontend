@@ -14,7 +14,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { OlivineEmblem, OlivineLogo } from "@/components/layout/olivine-logo"
-import { occNavigation, type NavItem } from "@/config/navigation"
+import { navigationFor, type NavItem } from "@/config/navigation"
+import { useBrand } from "@/lib/brand"
 
 const under = (current: string, path: string) =>
   path === "/" ? current === "/" : current === path || current.startsWith(`${path}/`)
@@ -26,6 +27,9 @@ function isActivePath(current: string, item: NavItem) {
 
 export function AppSidebar() {
   const { pathname } = useLocation()
+  // EVITA is a different app with a different job, so it gets its own sections
+  const brand = useBrand()
+  const navigation = navigationFor(brand.key)
 
   return (
     <Sidebar collapsible="icon">
@@ -38,7 +42,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {occNavigation.map((item) => (
+              {navigation.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     asChild

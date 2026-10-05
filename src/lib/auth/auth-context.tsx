@@ -43,8 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [challenge, setChallenge] = useState<OtpChallenge | null>(null)
   const [resetContext, setResetContext] = useState<ResetContext | null>(null)
 
-  const signIn = useCallback((user: AuthUser, remember: boolean) => {
-    const next: AuthSession = { user, issuedAt: Date.now(), remember }
+  const signIn = useCallback((user: AuthUser, remember: boolean, brand?: string) => {
+    const next: AuthSession = { user, issuedAt: Date.now(), remember, brand }
     writeStoredSession(next)
     setSession(next)
     setChallenge(null)

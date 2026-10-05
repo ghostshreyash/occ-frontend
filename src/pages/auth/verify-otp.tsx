@@ -6,6 +6,7 @@ import { AuthBadge, AuthCard, AuthScreen } from "@/components/auth/auth-screen"
 import { BrandStory } from "@/components/auth/brand-story"
 import { OtpForm } from "@/components/auth/otp-form"
 import { useBrand } from "@/lib/brand"
+import { homeFor } from "@/config/navigation"
 import { useAuth } from "@/lib/auth/context"
 import { otpDestinations, verifyOtp } from "@/lib/auth/auth-service"
 
@@ -49,8 +50,8 @@ export function VerifyOtpPage() {
           verifyLabel="Verify & continue"
           onVerify={async (code) => {
             const user = await verifyOtp(challenge, code)
-            signIn(user, remember)
-            navigate(challenge.next ?? "/", { replace: true })
+            signIn(user, remember, brand.key)
+            navigate(challenge.next ?? homeFor(brand.key), { replace: true })
           }}
         />
       </AuthCard>
