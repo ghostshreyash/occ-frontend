@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { elpremarRecords } from "@/data/elpremar-data"
-import { assetCategories } from "@/data/master-data"
+import { assetCategories, roleStream } from "@/data/master-data"
 import { inspectionActivities, maintenanceActivities, priorityTone, slotLabel } from "@/data/occ-tables"
 import { useAuth } from "@/lib/auth/context"
 import { td, th } from "@/lib/data-table"
@@ -251,7 +251,7 @@ export function EvitaDashboardPage() {
                   </div>
                   <div className="min-w-0 text-xs">
                     <div className="text-sm font-semibold">{me.name}</div>
-                    <div className="text-muted-foreground">ELPREMAR | {me.id}</div>
+                    <div className="text-muted-foreground">{me.designation} | {me.id}</div>
                     <div className="text-muted-foreground">{me.department} Department</div>
                     <div className="text-muted-foreground">{me.plant}, {me.enterprise}</div>
                   </div>
@@ -267,7 +267,7 @@ export function EvitaDashboardPage() {
               <SectionCard title="" hoverable={false} className="mt-2">
                 <dl className="space-y-2 text-xs">
                   {[
-                    ["Role", me.roles.join(", ")],
+                    ["Role", me.roles.map(roleStream).join(", ")],
                     ["Posting", me.plant],
                     ["Enterprise", me.enterprise],
                     ["Certified Until", me.certifiedUntil],

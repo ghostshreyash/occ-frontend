@@ -94,7 +94,10 @@ export const workStatus: Record<
  * `workStatus` as-is.
  */
 export const maintenanceStatus: Partial<Record<WorkStatus, (typeof workStatus)[WorkStatus]>> = {
+  /* OCC raises maintenance that is already signed off, so nothing waits on an
+     approver. Restore with the approval actions on the details screen.
   open: { label: "Pending For Approval", badge: "warning" },
+  */
   // Purple, so signed-off work is not mistaken for finished work at a glance
   assigned: { label: "Approved", badge: "highlight" },
 }
@@ -104,7 +107,8 @@ export const maintenanceStatus: Partial<Record<WorkStatus, (typeof workStatus)[W
  * the Status filter offers. Rejected is reachable from the approval dialog and
  * still renders on the row, but it is not offered as a filter.
  */
-export const maintenanceStatuses: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
+// export const maintenanceStatuses: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
+export const maintenanceStatuses: WorkStatus[] = ["assigned", "in_progress", "completed"]
 
 /**
  * An inspection activity is signed off before it starts, so what the shared map

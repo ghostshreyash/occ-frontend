@@ -192,25 +192,27 @@ export function maintenanceDetail(row: MaintenanceRow): MaintenanceDetail {
 /**
  * The maintenance lifecycle as it stands for this activity. Steps with no
  * timestamp have not happened yet, which is how the screen greys them out.
- * Every completed activity is submitted for approval, so that step is only
- * open while the ELPREMAR is still on site.
+ * OCC raises self-approved work, so there is no sign-off step to wait on: the
+ * timeline runs from raised through execution to the updated health report.
  */
 export function maintenanceTimeline(row: MaintenanceRow, detail: MaintenanceDetail): TimelineStep[] {
-  const { execution, evidence, review } = detail
+  const { execution, evidence } = detail // + review, with the approval steps below
   // Everything that has finished goes to OCC; only work still in the field has not
-  const submitted = row.status !== "in_progress"
+  // const submitted = row.status !== "in_progress"
 
   return [
     { step: "Task assigned", at: at(row.scheduled, Math.max(9, row.slot - 1)), note: `${detail.createdBy} → ${row.elpremar}` },
     { step: "Maintenance started", at: execution?.startedAt, note: execution && `${execution.mode} · ${slotLabel(row.slot)}` },
     { step: "Maintenance completed", at: execution?.endedAt, note: execution?.endedAt ? `Performed by ${execution.performedBy}` : undefined },
     { step: "Evidence uploaded", at: evidence.length ? evidence.at(-1)!.meta.includes(":") ? evidence.at(-1)!.meta : execution?.endedAt : undefined, note: evidence.length ? `${evidence.length} items` : undefined },
+    /* Self-approved work never goes for sign-off, so these two steps are out.
     { step: "Submitted for approval", at: submitted ? execution?.endedAt : undefined },
     {
       step: review?.outcome === "rejected" ? "Correction requested" : "Approved",
       at: review?.at,
       note: review && `${review.by} · ${review.outcome === "rejected" ? "sent back" : "approved"}`,
     },
-    { step: "Health report updated", at: review?.outcome === "approved" ? at(row.scheduled, row.slot + 3) : undefined },
+    */
+    { step: "Health report updated", at: execution?.endedAt ? at(row.scheduled, row.slot + 3) : undefined },
   ]
 }

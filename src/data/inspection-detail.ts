@@ -74,29 +74,42 @@ export type InspectionDetail = {
 const supervisors = ["Priya Nair", "Rakesh Menon", "Divya Iyer", "Arun Prakash"]
 
 const instructions: Record<string, string> = {
-  "Thermal Scan":
+  "Thermal Inspection":
     "Scan every accessible joint and termination under load. Record hotspot and reference temperatures and flag any rise above 15 °C over ambient.",
   "Visual Inspection":
     "Inspect the enclosure, busbar chamber and terminations for contamination, corrosion, moisture ingress and physical damage. Photograph anything abnormal.",
+  /* Retired from activityTypes; restore with the option.
+
   "Insulation Resistance Testing":
     "Isolate the feeder and record insulation resistance line-to-earth and line-to-line at 1 kV. Log ambient conditions alongside the readings.",
+  */
+  /* Retired from activityTypes; restore with the option.
+
   "Partial Discharge Testing":
     "Sweep the panel with the PD detector at rated voltage. Record levels at each measurement point and note the location of any activity.",
+  */
+  /* Retired from activityTypes; restore with the option.
+
   "Preventive Assessment":
     "Carry out the standard condition assessment: visual check, thermal scan and electrical readings, and score the asset against the EVITA criteria.",
-  "Fire Prevention System Check":
+  */
+  "Fire Prevention System Inspection":
     "Verify suppression readiness, detector function and cable-entry sealing. Record the state of every device checked.",
+  "Re-inspection":
+    "Re-check the findings raised on the previous visit and confirm the corrective work holds. Re-take the original readings and close out anything now within spec.",
 }
 
 /** Readings that suit each activity, so a thermal scan does not report megger values */
 const sheets: Record<string, Measurement[]> = {
-  "Thermal Scan": [
+  "Thermal Inspection": [
     { parameter: "Hotspot temperature", value: "46.2", unit: "°C", source: "FLIR E8 TIC", status: "Pass" },
     { parameter: "Reference temperature", value: "33.8", unit: "°C", source: "FLIR E8 TIC", status: "Pass" },
     { parameter: "Temperature rise over ambient", value: "12.4", unit: "°C", source: "Derived", status: "Pass" },
     { parameter: "Load current at scan", value: "248", unit: "A", source: "Clamp meter Fluke 376", status: "Pass" },
     { parameter: "Ambient temperature", value: "33.8", unit: "°C", source: "Manual entry", status: "Pass" },
   ],
+  /* Retired from activityTypes; restore with the option.
+
   "Insulation Resistance Testing": [
     { parameter: "Insulation resistance L-E", value: "512", unit: "MΩ", source: "Megger MIT525", status: "Pass" },
     { parameter: "Insulation resistance L-L", value: "486", unit: "MΩ", source: "Megger MIT525", status: "Pass" },
@@ -104,19 +117,29 @@ const sheets: Record<string, Measurement[]> = {
     { parameter: "Earth continuity", value: "0.12", unit: "Ω", source: "DLRO10", status: "Pass" },
     { parameter: "Relative humidity", value: "58", unit: "%", source: "Manual entry", status: "Pass" },
   ],
+  */
+  /* Retired from activityTypes; restore with the option.
+
   "Partial Discharge Testing": [
     { parameter: "PD level — incomer", value: "24", unit: "pC", source: "UltraTEV Plus²", status: "Pass" },
     { parameter: "PD level — busbar chamber", value: "118", unit: "pC", source: "UltraTEV Plus²", status: "Attention" },
     { parameter: "PD level — cable box", value: "31", unit: "pC", source: "UltraTEV Plus²", status: "Pass" },
     { parameter: "Operating voltage", value: "11", unit: "kV", source: "Panel meter", status: "Pass" },
   ],
+  */
   "Visual Inspection": [
     { parameter: "Enclosure integrity", value: "Satisfactory", unit: "—", source: "Manual entry", status: "Pass" },
     { parameter: "Termination tightness", value: "Within spec", unit: "Nm", source: "Torque wrench", status: "Pass" },
     { parameter: "Contamination level", value: "Moderate", unit: "—", source: "Manual entry", status: "Attention" },
     { parameter: "Cable gland sealing", value: "Intact", unit: "—", source: "Manual entry", status: "Pass" },
   ],
-  "Fire Prevention System Check": [
+  "Re-inspection": [
+    { parameter: "Hotspot temperature (re-check)", value: "38.4", unit: "°C", source: "FLIR E8 TIC", status: "Pass" },
+    { parameter: "Temperature rise over ambient", value: "6.1", unit: "°C", source: "Derived", status: "Pass" },
+    { parameter: "Insulation resistance L-E", value: "604", unit: "MΩ", source: "Megger MIT525", status: "Pass" },
+    { parameter: "Termination tightness", value: "Within spec", unit: "Nm", source: "Torque wrench", status: "Pass" },
+  ],
+  "Fire Prevention System Inspection": [
     { parameter: "Detector response time", value: "3.8", unit: "s", source: "Test aerosol", status: "Pass" },
     { parameter: "Suppression cylinder pressure", value: "22.4", unit: "bar", source: "Gauge reading", status: "Pass" },
     { parameter: "Cable entry sealing", value: "Intact", unit: "—", source: "Manual entry", status: "Pass" },
@@ -159,7 +182,7 @@ export function inspectionDetail(row: TaskRow): InspectionDetail {
   const pick = <T,>(pool: readonly T[]) => pool[Math.floor(random() * pool.length)]
 
   const detail: InspectionDetail = {
-    description: instructions[row.activity] ?? instructions["Preventive Assessment"],
+    description: instructions[row.activity] ?? instructions["Visual Inspection"],
     createdBy: `${pick(supervisors)} (OCC)`,
     area: pick(areas),
     assetTag: `TAG-${row.plant.slice(0, 3).toUpperCase()}-${row.id.slice(-4)}`,

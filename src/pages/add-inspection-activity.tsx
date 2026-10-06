@@ -59,8 +59,15 @@ const schema = z.object({
   enterprise: required("Enterprise"),
   plant: required("Plant"),
   area: required("Location / Area"),
-  category: required("Asset category"),
-  activity: required("Activity type"),
+  // A site may not know the category or the exact activity at intake, so neither gates the form
+  category: z.string().optional(),
+  activity: z.string().optional(),
+  // Two digits, so one activity covers 1-99 assets; blank means it was not counted
+  assetCount: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{1,2}$/.test(v), "Enter a number up to 2 digits")
+    .refine((v) => !v || Number(v) >= 1, "Enter at least 1 asset"),
   date: required("Scheduled date"),
   time: required("Start time"),
   duration: z.string().optional(),
@@ -139,7 +146,7 @@ export function AddInspectionActivityPage() {
   const form = useForm<AssignValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      enterprise: enterprises[0], plant: plants[0], area: "", category: "", activity: "",
+      enterprise: enterprises[0], plant: plants[0], area: "", category: "", assetCount: "", activity: "",
       date: "", time: "", duration: "4 Hours", description: "", priority: "Medium",
     },
   })
@@ -216,8 +223,22 @@ export function AddInspectionActivityPage() {
             <SelectField control={control} name="enterprise" label="Enterprise" required options={enterprises} className="md:col-span-3" />
             <SelectField control={control} name="plant" label="Plant" required options={plants} className="md:col-span-3" />
             <SelectField control={control} name="area" label="Location / Area" required options={areas} className="md:col-span-2" />
-            <SelectField control={control} name="category" label="Asset Category" required options={assetCategories} className="md:col-span-2" />
-            <SelectField control={control} name="activity" label="Activity Type" required options={activityTypes} className="md:col-span-2" />
+            <SelectField control={control} name="category" label="Asset Category" options={assetCategories} className="md:col-span-2" />
+            <TextField
+              control={control}
+              name="assetCount"
+              label="No. of Assets"
+              inputMode="numeric"
+              maxLength={2}
+              placeholder="e.g. 12"
+              // Digits only, and never more than two of them, so the cap holds while typing
+              onValueChange={(v) => {
+                const digits = v.replace(/\D/g, "").slice(0, 2)
+                if (digits !== v) setValue("assetCount", digits, { shouldValidate: true })
+              }}
+              className="md:col-span-2"
+            />
+            <SelectField control={control} name="activity" label="Activity Type" options={activityTypes} className="md:col-span-2" />
             <TextField control={control} name="date" label="Scheduled Date" required type="date" className="md:col-span-2" />
             <TextField control={control} name="time" label="Start Time" required type="time" className="md:col-span-2" />
             <SelectField control={control} name="duration" label="Estimated Duration" options={durations} className="md:col-span-2" />

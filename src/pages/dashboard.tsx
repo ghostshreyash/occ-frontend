@@ -107,10 +107,10 @@ export function DashboardPage() {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label={view === "india" ? "Total Enterprises" : "Total Enterprises"} value={kpis.enterprises.value} change={kpis.enterprises.change} icon={Building2} tone="info" />
         <StatCard label="Total Plants" value={kpis.plants.value} change={kpis.plants.change} icon={Factory} tone="success" />
-        <StatCard label="Total Assets (Monitored)" value={kpis.assets.value} change={kpis.assets.change} icon={Server} tone="highlight" />
-        <StatCard label="Healthy Assets (Green)" value={kpis.healthy.value} percent={kpis.healthy.percent} icon={HeartPulse} tone="healthy" />
-        <StatCard label="Alarming (Orange)" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
-        <StatCard label="At Risk (Red)" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
+        <StatCard label="Total Assets" value={kpis.assets.value} change={kpis.assets.change} icon={Server} tone="highlight" />
+        <StatCard label="Healthy Assets" value={kpis.healthy.value} percent={kpis.healthy.percent} icon={HeartPulse} tone="healthy" />
+        <StatCard label="Alarming" value={kpis.attention.value} percent={kpis.attention.percent} icon={TriangleAlert} tone="attention" />
+        <StatCard label="At Risk" value={kpis.critical.value} percent={kpis.critical.percent} icon={ShieldAlert} tone="critical" />
       </div>
 
       {/* Map with Enterprise Distribution alongside it, side by side from tablet up */}
@@ -215,8 +215,15 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Status donuts: Enterprise, Plant, Asset Health — one row from tablet up (same grid as the India page) */}
-      <div className="grid gap-3 md:grid-cols-3">
+      {/*
+        Status donuts: Enterprise, Plant, Asset Health — one row from tablet up
+        (same grid as the India page).
+
+        Raised above the rows that follow it: a card lifts on hover, and that
+        transform makes it a stacking context, so a chart tooltip that overflows
+        the card would otherwise be painted over by the tables below.
+      */}
+      <div className="relative z-20 grid gap-3 md:grid-cols-3">
         <SectionCard
           title={view === "india" ? "Enterprise Classification (India)" : "Enterprise Classification"}
           viewAllTo="/enterprises"

@@ -181,7 +181,8 @@ export const enterprises = ["Tata Steel Limited", "Reliance Industries", "JSW Gr
 export const plants = ["Mumbai Works", "Jamshedpur", "Jamnagar", "Dolvi", "Mundra", "Hosur"]
 export const areas = ["Main Substation (11kV)", "LT Panels - Block A", "DG Set Area", "Production Floor", "Utility Area", "Cable Trench"]
 export const assetCategories = ["LT Panel", "HT Panel", "APFC Panel", "MCC", "PCC", "PDB", "Switchboard", "MCB Panel", "MCCB Panel", "Transformer", "UPS", "VFD/Servo Drives", "PLC", "SCADA/DCS Equipment", "Control Panel", "Distribution Board", "Fire Alarm Panel", "LAN/Network Electrical Equip.", "Others"]
-export const activityTypes = ["Preventive Assessment", "Visual Inspection", "Thermal Scan", "Panel Cleaning (INSTA CLEAN)", "Insulation Resistance Testing", "Partial Discharge Testing", "Fire Prevention System Check"]
+/** The inspection work an ELPREMAR can be sent out on — also what the Activity column shows */
+export const activityTypes = ["Visual Inspection", "Thermal Inspection", "Fire Prevention System Inspection", "Re-inspection"]
 export const durations = ["1 Hour", "2 Hours", "4 Hours", "6 Hours", "8 Hours"]
 export const priorities = ["Low", "Medium", "High", "Critical"] as const
 export const supervisors = ["Ramesh Patil", "Amit Verma", "R. K. Sharma", "S. Krishnan"]
