@@ -1,6 +1,7 @@
 import { useLocation } from "react-router"
 
 import { brands, type Brand, type BrandKey } from "@/config/brands"
+import { useAuth } from "@/lib/auth/context"
 
 /**
  * Which sign-in a visitor sees is decided by the hostname:
@@ -28,9 +29,16 @@ export function resolveBrand(hostname: string, search?: string): Brand {
   return match ?? brands[DEFAULT_BRAND]
 }
 
-/** The brand for the current hostname, re-resolved when `?brand=` changes. */
+/**
+ * The brand for this visitor: the one their session was opened through if they
+ * are signed in, otherwise the hostname (or a `?brand=` preview). Signed in wins
+ * so following a link does not quietly drop a previewed brand.
+ */
 export function useBrand(): Brand {
   const { search } = useLocation()
+  const { session } = useAuth()
+  const signedInBrand = session?.brand
+  if (signedInBrand && signedInBrand in brands) return brands[signedInBrand as BrandKey]
   return resolveBrand(window.location.hostname, search)
 }
 
