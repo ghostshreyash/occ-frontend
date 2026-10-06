@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form"
 import { Calendar as CalendarIcon, Eye, EyeOff, UploadCloud, X} from "lucide-react"
 import { format, isValid, parseISO } from "date-fns"
@@ -333,6 +333,103 @@ export function DateField<T extends FieldValues>({
 }
 
 /** Drag-and-drop style file picker (PNG/JPG logos, photos). Keeps the chosen File in form state. */
+/**
+ * A preview URL that follows the chosen file.
+ *
+ * The URL is minted during render rather than in an effect so the image is there
+ * on the first paint, and the effect exists only to release the previous one —
+ * an object URL leaks until it is revoked.
+ */
+function useImagePreview(file?: File) {
+  const url = useMemo(
+    () => (file && file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined),
+    [file]
+  )
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url) }, [url])
+  return url
+}
+
+/** Inner component so the preview hooks sit outside the Controller render prop */
+function FileDrop({
+  name,
+  label,
+  hint,
+  accept,
+  className,
+  file,
+  onPick,
+}: {
+  name: string
+  label: string
+  hint: string
+  accept: string
+  className?: string
+  file?: File
+  onPick: (file?: File) => void
+}) {
+  const preview = useImagePreview(file)
+
+  return (
+    <Field className={className}>
+      <FieldTitle label={label} htmlFor={name} />
+      <label
+        htmlFor={name}
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
+        )}
+      >
+        {preview ? (
+          /* The logo itself is the point of the box, so it fills it once chosen */
+          <img
+            src={preview}
+            alt={`${label} preview`}
+            className="max-h-20 w-auto max-w-full rounded object-contain"
+          />
+        ) : (
+          <UploadCloud className="size-8 text-primary" />
+        )}
+
+        {file ? (
+          <>
+            <span className="max-w-full truncate font-medium text-foreground">{file.name}</span>
+            <span className="text-xs">Click to replace</span>
+          </>
+        ) : (
+          <>
+            <span>Drag &amp; drop file here</span>
+            <span className="text-xs">or</span>
+            <span className="rounded-md border bg-card px-3 py-1 font-medium text-foreground">Choose File</span>
+          </>
+        )}
+
+        <input
+          id={name}
+          type="file"
+          accept={accept}
+          className="sr-only"
+          onChange={(e) => onPick(e.target.files?.[0])}
+        />
+      </label>
+
+      <div className="flex items-center justify-between gap-2">
+        <FieldDescription className="text-xs">{hint}</FieldDescription>
+        {/* Outside the label, or clicking it would reopen the file picker */}
+        {file ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5 text-xs text-muted-foreground"
+            onClick={() => onPick(undefined)}
+          >
+            <X className="size-3" /> Remove
+          </Button>
+        ) : null}
+      </div>
+    </Field>
+  )
+}
+
 export function FileDropField<T extends FieldValues>({
   control,
   name,
@@ -345,39 +442,17 @@ export function FileDropField<T extends FieldValues>({
     <Controller
       control={control}
       name={name}
-      render={({ field }) => {
-        const file = field.value as File | undefined
-        return (
-          <Field className={className}>
-            <FieldTitle label={label} htmlFor={name} />
-            <label
-              htmlFor={name}
-              className={cn(
-                "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
-              )}
-            >
-              <UploadCloud className="size-8 text-primary" />
-              {file ? (
-                <span className="font-medium text-foreground">{file.name}</span>
-              ) : (
-                <>
-                  <span>Drag &amp; drop file here</span>
-                  <span className="text-xs">or</span>
-                  <span className="rounded-md border bg-card px-3 py-1 font-medium text-foreground">Choose File</span>
-                </>
-              )}
-              <input
-                id={name}
-                type="file"
-                accept={accept}
-                className="sr-only"
-                onChange={(e) => field.onChange(e.target.files?.[0])}
-              />
-            </label>
-            <FieldDescription className="text-xs">{hint}</FieldDescription>
-          </Field>
-        )
-      }}
+      render={({ field }) => (
+        <FileDrop
+          name={name}
+          label={label}
+          hint={hint}
+          accept={accept}
+          className={className}
+          file={field.value as File | undefined}
+          onPick={field.onChange}
+        />
+      )}
     />
   )
 }

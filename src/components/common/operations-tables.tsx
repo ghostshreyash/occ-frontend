@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { maintenanceProgress, priorityTone, slotLabel, supportTickets, taskQueue } from "@/data/occ-tables"
-import { inspectionStatus, maintenanceStatus, workStatus, type WorkStatus } from "@/lib/status"
+// + inspectionStatus, restored with the Inspection tab's Status column
+import { maintenanceStatus, workStatus, type WorkStatus } from "@/lib/status"
 
 /* Compact cells so three dense tables still fit above the fold */
 const th = "h-7 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
@@ -270,7 +271,7 @@ export function OperationsTables({
                 <SortHead label="ELPREMAR" column="elpremar" sort={sorts.maintenance} onSort={sortOn("maintenance")} className="hidden lg:table-cell" />
                 <SortHead label="Scheduled" column="date" sort={sorts.maintenance} onSort={sortOn("maintenance")} className="hidden sm:table-cell" />
                 <SortHead label="Status" column="status" sort={sorts.maintenance} onSort={sortOn("maintenance")} />
-                <TableHead className={cn(th, "text-center")}>Action</TableHead>
+                {/* <TableHead className={cn(th, "text-center")}>Action</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -287,13 +288,13 @@ export function OperationsTables({
                     <span className="block text-[0.65rem] text-muted-foreground">{slotLabel(m.slot)}</span>
                   </TableCell>
                   <TableCell className={td}><StatusBadge status={m.status} as={maintenanceStatus[m.status]} /></TableCell>
-                  <TableCell className={cn(td, "py-0.5 text-center")}>
+                  {/* <TableCell className={cn(td, "py-0.5 text-center")}>
                     <ActionButton
                       onClick={() =>
                         setAssigning({ tab: "maintenance", plant: m.plant, id: m.id, title: m.asset, subtitle: `${m.type} · ${m.plant}, ${m.enterprise}`, elpremar: m.elpremar, date: m.scheduled, slot: m.slot })
                       }
                     />
-                  </TableCell>
+                  </TableCell> */}
                 </TableRow>
               ))}
             </TableBody>
@@ -311,8 +312,8 @@ export function OperationsTables({
                 <SortHead label="Activity" column="activity" sort={sorts.tasks} onSort={sortOn("tasks")} />
                 <SortHead label="ELPREMAR" column="elpremar" sort={sorts.tasks} onSort={sortOn("tasks")} className="hidden lg:table-cell" />
                 <SortHead label="Due" column="date" sort={sorts.tasks} onSort={sortOn("tasks")} className="hidden sm:table-cell" />
-                <SortHead label="Priority" column="priority" sort={sorts.tasks} onSort={sortOn("tasks")} />
-                <SortHead label="Status" column="status" sort={sorts.tasks} onSort={sortOn("tasks")} />
+                {/* <SortHead label="Priority" column="priority" sort={sorts.tasks} onSort={sortOn("tasks")} />
+                <SortHead label="Status" column="status" sort={sorts.tasks} onSort={sortOn("tasks")} /> */}
                 <TableHead className={cn(th, "text-center")}>Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -329,10 +330,10 @@ export function OperationsTables({
                     {t.due}
                     <span className="block text-[0.65rem] text-muted-foreground">{slotLabel(t.slot)}</span>
                   </TableCell>
-                  <TableCell className={td}>
+                  {/* <TableCell className={td}>
                     <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
                   </TableCell>
-                  <TableCell className={td}><StatusBadge status={t.status} as={inspectionStatus[t.status]} /></TableCell>
+                  <TableCell className={td}><StatusBadge status={t.status} as={inspectionStatus[t.status]} /></TableCell> */}
                   <TableCell className={cn(td, "py-0.5 text-center")}>
                     <ActionButton
                       onClick={() =>

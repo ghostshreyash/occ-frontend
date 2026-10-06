@@ -1,109 +1,133 @@
 /**
  * Enterprise business classification for the dashboard donut.
  *
- * The two master fields stay separate — `sector` and `scale` — and are only
- * brought together when the rings are built. Nothing here stores a combined
- * value like "INDUSTRY_LARGE", so either field can be filtered on its own.
+ * Two major sections — Industry and Retail — each broken down by the sector
+ * picked on onboarding. `sectorType` and `sector` stay separate fields; nothing
+ * here stores a combined value, and the rows below are the shape a
+ * `GROUP BY sector_type, sector` returns.
  *
- * These are portfolio-level counts, matching the Total Enterprises tile above
- * the chart. Replace with GET /enterprises/classification (a group-by on the two
- * columns) later; the row shape below is what that endpoint should return.
+ * The ring shows only the two sections, because seventeen slices on a card this
+ * size is unreadable. The breakdown lives beside it and in the hover, which is
+ * where the detail is actually legible.
+ *
+ * Replace with GET /enterprises/classification later.
  */
-import { type EnterpriseScale, type SectorType } from "@/data/master-data"
+import type { SectorType } from "@/data/master-data"
 
-/** One count per (sector, scale) pair — the shape a SQL group-by returns */
-export type ClassificationRow = { sector: SectorType; scale: EnterpriseScale; value: number }
+/** One count per (section, sector) pair */
+export type ClassificationRow = { sectorType: SectorType; sector: string; value: number }
 
 export const enterpriseClassification: ClassificationRow[] = [
-  { sector: "Industry", scale: "Large", value: 31 },
-  { sector: "Industry", scale: "Mid", value: 34 },
-  { sector: "Industry", scale: "Small", value: 19 },
-  { sector: "Retail", scale: "Large", value: 12 },
-  { sector: "Retail", scale: "Mid", value: 19 },
-  { sector: "Retail", scale: "Small", value: 13 },
+  { sectorType: "Industry", sector: "Large Cap", value: 26 },
+  { sectorType: "Industry", sector: "Mid Cap", value: 22 },
+  { sectorType: "Industry", sector: "Small Cap", value: 14 },
+  { sectorType: "Industry", sector: "MSME", value: 11 },
+  { sectorType: "Industry", sector: "Startup", value: 6 },
+  { sectorType: "Industry", sector: "Government / PSU", value: 5 },
+
+  { sectorType: "Retail", sector: "Hospitals & Healthcare", value: 7 },
+  { sectorType: "Retail", sector: "Shopping Malls", value: 6 },
+  { sectorType: "Retail", sector: "Commercial Offices", value: 6 },
+  { sectorType: "Retail", sector: "Retail Stores", value: 5 },
+  { sectorType: "Retail", sector: "Residence", value: 4 },
+  { sectorType: "Retail", sector: "Hotels & Restaurants", value: 4 },
+  { sectorType: "Retail", sector: "Educational Institutions", value: 4 },
+  { sectorType: "Retail", sector: "Warehouses & Logistics", value: 4 },
+  { sectorType: "Retail", sector: "Entertainment Facilities", value: 2 },
+  { sectorType: "Retail", sector: "Transportation Facilities", value: 1 },
+  { sectorType: "Retail", sector: "Religious Facilities", value: 1 },
 ]
 
 export const indiaEnterpriseClassification: ClassificationRow[] = [
-  { sector: "Industry", scale: "Large", value: 12 },
-  { sector: "Industry", scale: "Mid", value: 14 },
-  { sector: "Industry", scale: "Small", value: 8 },
-  { sector: "Retail", scale: "Large", value: 5 },
-  { sector: "Retail", scale: "Mid", value: 8 },
-  { sector: "Retail", scale: "Small", value: 5 },
+  { sectorType: "Industry", sector: "Large Cap", value: 11 },
+  { sectorType: "Industry", sector: "Mid Cap", value: 9 },
+  { sectorType: "Industry", sector: "Small Cap", value: 6 },
+  { sectorType: "Industry", sector: "MSME", value: 4 },
+  { sectorType: "Industry", sector: "Startup", value: 2 },
+  { sectorType: "Industry", sector: "Government / PSU", value: 2 },
+
+  { sectorType: "Retail", sector: "Hospitals & Healthcare", value: 3 },
+  { sectorType: "Retail", sector: "Shopping Malls", value: 3 },
+  { sectorType: "Retail", sector: "Commercial Offices", value: 2 },
+  { sectorType: "Retail", sector: "Retail Stores", value: 2 },
+  { sectorType: "Retail", sector: "Residence", value: 2 },
+  { sectorType: "Retail", sector: "Hotels & Restaurants", value: 2 },
+  { sectorType: "Retail", sector: "Educational Institutions", value: 1 },
+  { sectorType: "Retail", sector: "Warehouses & Logistics", value: 1 },
+  { sectorType: "Retail", sector: "Entertainment Facilities", value: 1 },
+  { sectorType: "Retail", sector: "Transportation Facilities", value: 1 },
+  // Not every sector is represented in every region
+  { sectorType: "Retail", sector: "Religious Facilities", value: 0 },
 ]
 
 /**
- * Business classification, so deliberately not the health palette: a sector is
- * a hue, and the scales within it are the same hue stepped back. Mixing toward
- * transparent rather than white keeps the steps right in both themes.
+ * Business classification, so deliberately not the health palette: a section is
+ * a hue and its sectors step back from it. Mixing toward transparent rather than
+ * white keeps the steps correct in both themes.
  */
-const sectorColor: Record<SectorType, string> = {
+const sectionColor: Record<SectorType, string> = {
   Industry: "var(--info)",
   Retail: "var(--highlight)",
 }
 
-const scaleStrength: Record<EnterpriseScale, number> = { Large: 100, Mid: 66, Small: 38 }
-
 const shade = (base: string, pct: number) =>
   pct >= 100 ? base : `color-mix(in oklch, ${base} ${pct}%, transparent)`
 
-export type ScaleSlice = {
+export type SectorSlice = {
   key: string
-  sector: SectorType
-  scale: EnterpriseScale
+  sector: string
   value: number
   color: string
   /** Share of all enterprises */
   shareOfTotal: number
-  /** Share within this slice's own sector */
-  shareOfSector: number
+  /** Share within this slice's own section */
+  shareOfSection: number
 }
 
-export type SectorGroup = {
-  key: string
-  sector: SectorType
+export type Section = {
+  key: SectorType
+  label: string
   value: number
   color: string
   shareOfTotal: number
-  scales: ScaleSlice[]
+  sectors: SectorSlice[]
 }
 
 export type Classification = {
   total: number
-  /** Inner ring, one entry per sector */
-  sectors: SectorGroup[]
-  /** Outer ring, in sector order so each scale sits under its parent */
-  scales: ScaleSlice[]
+  sections: Section[]
 }
 
-/** Roll the two fields up into the inner and outer rings, keeping the grouping */
+/** Roll the two fields into the ring's sections and the breakdown beneath each */
 export function classify(rows: ClassificationRow[]): Classification {
   const total = rows.reduce((n, r) => n + r.value, 0)
   const order: SectorType[] = ["Industry", "Retail"]
 
-  const sectors = order
-    .map((sector) => {
-      const own = rows.filter((r) => r.sector === sector)
+  const sections = order
+    .map((type) => {
+      // A sector with nobody in it is noise in the list and invisible in the ring
+      const own = rows.filter((r) => r.sectorType === type && r.value > 0).sort((a, b) => b.value - a.value)
       const value = own.reduce((n, r) => n + r.value, 0)
+      const base = sectionColor[type]
+
       return {
-        key: sector,
-        sector,
+        key: type,
+        label: `${type} Sector`,
         value,
-        color: sectorColor[sector],
+        color: base,
         shareOfTotal: total ? (value / total) * 100 : 0,
-        scales: own.map((r) => ({
-          key: `${r.sector}-${r.scale}`,
+        sectors: own.map((r, i) => ({
+          key: `${type}-${r.sector}`,
           sector: r.sector,
-          scale: r.scale,
           value: r.value,
-          color: shade(sectorColor[r.sector], scaleStrength[r.scale]),
+          // Step back across the section's own sectors, largest staying boldest
+          color: shade(base, 100 - Math.min(i * 7, 60)),
           shareOfTotal: total ? (r.value / total) * 100 : 0,
-          shareOfSector: value ? (r.value / value) * 100 : 0,
+          shareOfSection: value ? (r.value / value) * 100 : 0,
         })),
       }
     })
-    .filter((g) => g.value > 0)
+    .filter((s) => s.value > 0)
 
-  // Flattened in the same order, so the outer ring lines up under the inner one
-  return { total, sectors, scales: sectors.flatMap((g) => g.scales) }
+  return { total, sections }
 }
