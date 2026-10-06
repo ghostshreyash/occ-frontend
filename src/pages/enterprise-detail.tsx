@@ -561,7 +561,7 @@ export function EnterpriseDetailPage() {
                       <TableHead className={th}>#</TableHead>
                       <TableHead className={th}>Name</TableHead>
                       <TableHead className={th}>Code</TableHead>
-                      <TableHead className={th}>Function / Area</TableHead>
+                      <TableHead className={th}>Function</TableHead>
                       <TableHead className={`${th} hidden sm:table-cell`}>Description</TableHead>
                     </TableRow>
                   </TableHeader>

@@ -386,7 +386,7 @@ export function ReviewStep({
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">#</TableHead>
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Name</TableHead>
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Code</TableHead>
-                      <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Function / Area</TableHead>
+                      <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Function</TableHead>
                       <TableHead className="hidden h-7 px-2 text-[0.65rem] uppercase sm:table-cell">Description</TableHead>
                       <TableHead className="h-7 w-10 px-2 text-[0.65rem] uppercase">Remove</TableHead>
                     </TableRow>

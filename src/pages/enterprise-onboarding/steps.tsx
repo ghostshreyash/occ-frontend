@@ -394,7 +394,7 @@ export function SubDepartmentAccountStep({
       <div className="grid gap-2.5 md:grid-cols-3">
         <TextField control={sub.control} name="name" label="Sub-department Name" placeholder="e.g. HT Maintenance" />
         <TextField control={sub.control} name="code" label="Sub-department Code" placeholder="e.g. SUB-EL-HT" />
-        <SelectField control={sub.control} name="function" label="Function / Area" options={subDepartmentFunctions} />
+        <SelectField control={sub.control} name="function" label="Function" options={subDepartmentFunctions} />
         <TextField control={sub.control} name="description" label="Description" className="md:col-span-3" />
       </div>
 
@@ -405,7 +405,7 @@ export function SubDepartmentAccountStep({
               <TableHead className="w-10">#</TableHead>
               <TableHead>Sub-department Name</TableHead>
               <TableHead>Code</TableHead>
-              <TableHead>Function / Area</TableHead>
+              <TableHead>Function</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="w-24 text-center">Action</TableHead>
             </TableRow>
