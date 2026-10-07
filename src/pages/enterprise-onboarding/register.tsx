@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import {
   ArrowDown,
   ArrowDownWideNarrow,
@@ -68,6 +68,7 @@ const initials = (name: string) =>
 
 /** Enterprise register: KPIs, the full enterprise table, and the entry point to the wizard */
 export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
+  const navigate = useNavigate()
   const [query, setQuery] = useState("")
   const [sectorType, setSectorType] = useState("all")
   const [scale, setScale] = useState("all")
@@ -238,13 +239,17 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
                 const meta = statusMeta(e.status)
                 const accent = statusAccent[e.status]
                 return (
-                  <TableRow key={e.id}>
+                  <TableRow key={e.id} onClick={() => navigate(`/enterprises/${e.id}`)} className="cursor-pointer">
                     <TableCell className={`${td} relative pl-3`}>
                       {/* Status stripe: colour reinforcing the badge at the end of the row */}
                       <span title={`Status: ${meta.label}`} className={cn("absolute inset-y-0 left-0 w-0.5", accent.stripe)}>
                         <span className="sr-only">Status: {meta.label}</span>
                       </span>
-                      <Link to={`/enterprises/${e.id}`} className="group/name flex items-center gap-2">
+                      <Link
+                        to={`/enterprises/${e.id}`}
+                        onClick={(ev) => ev.stopPropagation()}
+                        className="group/name flex items-center gap-2"
+                      >
                         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded text-[0.55rem] font-bold", accent.chip)}>
                           {initials(e.name)}
                         </span>

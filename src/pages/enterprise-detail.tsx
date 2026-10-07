@@ -427,6 +427,9 @@ export function EnterpriseDetailPage() {
                       { label: "Commissioning Date", value: showDate(plant.commissioningDate) },
                       { label: "Time Zone", value: plant.timeZone },
                       { label: "Plant Address", value: plant.address },
+                      /* The plant's own coordinates - work is dispatched here, not to the head office */
+                      { label: "Latitude", value: plant.latitude },
+                      { label: "Longitude", value: plant.longitude },
                       { label: "Notes", value: plant.notes },
                     ]}
                   />
