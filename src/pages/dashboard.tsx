@@ -161,7 +161,7 @@ export function DashboardPage() {
         {view === "global" ? (
           <SectionCard title={<span>Enterprise Distribution <span className="font-normal text-muted-foreground">(by Region)</span></span>}>
             <DonutChart
-              centerLabel="Customers"
+              centerLabel="Enterprises"
               size={140}
               layout="stacked"
               data={regionSummary.map((r, i) => ({ key: `r${i}`, label: r.region, value: r.customers, color: chartSeries[i % chartSeries.length] }))}
