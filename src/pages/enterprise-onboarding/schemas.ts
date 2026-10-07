@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { optionalEmail, password, phone, required } from "@/lib/validation"
+import { timeZones } from "@/data/mock"
 
 const optionalText = z.string().optional()
 /**
@@ -36,8 +37,6 @@ export const locationSchema = z.object({
   city: required("City"),
   address: required("Address"),
   pin: z.string().trim().regex(/^[A-Za-z0-9 -]{4,10}$/, "Enter a valid postal code"),
-  latitude: coordinate("Latitude", 90),
-  longitude: coordinate("Longitude", 180),
 })
 
 export const plantSchema = z.object({
@@ -66,6 +65,13 @@ export const plantSchema = z.object({
   logo: z.instanceof(File).optional(),
   notes: optionalText,
 })
+
+/*
+ * Onboarding asks for the enterprise and its head office together, in one step.
+ * They are still stored apart, because the location is edited on its own from
+ * the enterprise page.
+ */
+export const enterpriseDetailsSchema = enterpriseSchema.extend(locationSchema.shape)
 
 /** Department is optional: an enterprise can be onboarded without one */
 export const departmentSchema = z.object({
@@ -102,17 +108,56 @@ export const accountSchema = z
   })
 
 export type EnterpriseValues = z.infer<typeof enterpriseSchema>
+export type EnterpriseDetailsValues = z.infer<typeof enterpriseDetailsSchema>
 export type LocationValues = z.infer<typeof locationSchema>
 export type PlantValues = z.infer<typeof plantSchema>
 export type DepartmentValues = z.infer<typeof departmentSchema>
 export type SubDepartmentValues = z.infer<typeof subDepartmentSchema>
 export type AccountValues = z.infer<typeof accountSchema>
 
+/** A department as captured during onboarding, with the sub-departments under it */
+export type DepartmentEntry = DepartmentValues & { subDepartments: SubDepartmentValues[] }
+
+/** A plant as captured during onboarding, with the departments under it */
+export type PlantEntry = PlantValues & { departments: DepartmentEntry[] }
+
+/*
+ * An enterprise has many plants, each with many departments, each with many
+ * sub-departments - the same shape as EnterpriseProfile, so the payload the
+ * wizard builds is the one the API will be handed.
+ */
 export type OnboardingData = {
   enterprise?: EnterpriseValues
   location?: LocationValues
-  plant?: PlantValues
-  department?: DepartmentValues
-  subDepartments: SubDepartmentValues[]
+  plants: PlantEntry[]
   account?: AccountValues
 }
+
+/*
+ * An empty form for each entity. Shared so that adding a plant to an existing
+ * enterprise starts from exactly the same blank form as onboarding one does.
+ */
+export const blankPlant: PlantValues = {
+  name: "", type: "", code: "", address: "", salutation: "Mr.", head: "", email: "", phoneCode: "+91", phone: "",
+  capacity: "", capacityUnit: "", commissioningDate: "", timeZone: timeZones[0], notes: "",
+  city: "", pin: "", latitude: "", longitude: "",
+}
+export const blankDepartment: DepartmentValues = {
+  name: "", code: "", type: "", parent: "", salutation: "Mr.", head: "", email: "", phoneCode: "+91", phone: "",
+  location: "", description: "",
+}
+export const blankSubDepartment: SubDepartmentValues = { name: "", code: "", function: "", description: "" }
+
+/** Splits the combined step back into the two records the rest of the app stores */
+export const splitEnterpriseDetails = (v: EnterpriseDetailsValues) => ({
+  enterprise: {
+    name: v.name,
+    shortName: v.shortName,
+    sectorType: v.sectorType,
+    sector: v.sector,
+    website: v.website,
+    logo: v.logo,
+    description: v.description,
+  },
+  location: { country: v.country, state: v.state, city: v.city, address: v.address, pin: v.pin },
+})

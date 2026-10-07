@@ -1,42 +1,36 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { Building2, ClipboardCheck, Factory, Folder, MapPin, Network } from "lucide-react"
+import { Building2, ClipboardCheck, Factory, Folder, Network } from "lucide-react"
 
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
-import { DepartmentStep, EnterpriseStep, LocationStep, PlantStep, SubDepartmentAccountStep } from "./steps"
+import { DepartmentStep, EnterpriseStep, PlantStep, SubDepartmentAccountStep } from "./steps"
 import { EnterpriseRegister } from "./register"
 import { ReviewStep } from "./review"
-import type { OnboardingData } from "./schemas"
+import type { OnboardingData, PlantEntry } from "./schemas"
 
 const keyInfo = [
   [
     "Each enterprise will have a unique ID in the OLIVINE system.",
-    "You can add multiple plants, departments and sub-departments after creating the enterprise.",
+    "The head office address is for correspondence and regional reporting.",
+    "You can add multiple plants, departments and sub-departments as you go.",
     "Enterprise users will be created in a later step.",
     "Fields marked with * are mandatory.",
   ],
   [
-    "Provide accurate location details for better asset mapping and support.",
-    "You can select the location on the map for precise coordinates.",
-    "Location details will help in regional reporting, compliance and faster service response.",
-    "Fields marked with * are mandatory.",
-  ],
-  [
-    "A location can have multiple plants.",
-    "Each plant will be linked to the selected location and enterprise.",
+    "One plant is added here. Further plants are added from the enterprise page afterwards.",
+    "The plant carries its own location, because work is dispatched to the plant.",
     "Plant details help in organizing assets, departments and maintenance activities.",
-    "You can add multiple plants after completing this step.",
     "Fields marked with * are mandatory.",
   ],
   [
     "A department groups related functions and teams within a plant.",
-    "You can add the head of department and contact details for better coordination.",
+    "Add as many departments as this plant has.",
     "Ensure the department details are accurate for proper asset and maintenance mapping.",
-    "Fields marked with * are mandatory.",
+    "Departments are optional — you can continue without any.",
   ],
   [
-    "You can add multiple sub-departments under the selected department.",
+    "Pick a department, then add as many sub-departments under it as you need.",
     "Create the enterprise administrator username and password to access the EMMS-E portal.",
     "Sub-departments help in granular asset management and maintenance tracking.",
     "Ensure the account details are stored securely and shared only with authorised personnel.",
@@ -59,13 +53,13 @@ export function EnterpriseOnboardingPage() {
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
   const [submitting, setSubmitting] = useState(false)
-  const [data, setData] = useState<OnboardingData>({ subDepartments: [] })
+  const [data, setData] = useState<OnboardingData>({ plants: [] })
 
   const closeWizard = () => {
     setWizardOpen(false)
     setStep(0)
     setFurthest(0)
-    setData({ subDepartments: [] })
+    setData({ plants: [] })
     window.scrollTo({ top: 0 })
   }
 
@@ -73,13 +67,21 @@ export function EnterpriseOnboardingPage() {
     return <EnterpriseRegister onStart={() => { setWizardOpen(true); window.scrollTo({ top: 0 }) }} />
   }
 
+  const plant = data.plants[0]
+  const departmentCount = plant?.departments.length ?? 0
+  const subCount = plant?.departments.reduce((m, d) => m + d.subDepartments.length, 0) ?? 0
+  const count = (n: number, one: string, many = one + "s") => (n === 0 ? undefined : `${n} ${n === 1 ? one : many}`)
   const loc = data.location
   const steps: WizardStep[] = [
-    { title: "Enterprise", description: "Enter enterprise details", icon: Building2, summary: data.enterprise?.name },
-    { title: "Location", description: "Add country, state, city or site location", icon: MapPin, summary: loc ? `${loc.city}, ${loc.state}, ${loc.country}` : undefined },
-    { title: "Plant", description: "Add plant under the enterprise", icon: Factory, summary: data.plant?.name },
-    { title: "Department", description: "Add department under the plant", icon: Network, summary: data.department?.name },
-    { title: step === 4 ? "Sub-department & Account" : "Sub-department", description: "Add sub-department under the department", icon: Folder },
+    {
+      title: "Enterprise",
+      description: "Enterprise details and head office",
+      icon: Building2,
+      summary: data.enterprise?.name ? [data.enterprise.name, loc?.city].filter(Boolean).join(" · ") : undefined,
+    },
+    { title: "Plant", description: "Add the plant under the enterprise", icon: Factory, summary: plant?.name },
+    { title: "Departments", description: "Add departments under the plant", icon: Network, summary: count(departmentCount, "department") },
+    { title: step === 3 ? "Sub-departments & Account" : "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
     { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
 
@@ -92,6 +94,16 @@ export function EnterpriseOnboardingPage() {
     })
     window.scrollTo({ top: 0 })
   }
+  /** Steps that build a list advance themselves, having already written their rows into `data` */
+  const advance = () => {
+    setStep((s) => {
+      const nextStep = s + 1
+      setFurthest((f) => Math.max(f, nextStep))
+      return nextStep
+    })
+    window.scrollTo({ top: 0 })
+  }
+  const setPlants = (plants: PlantEntry[]) => setData((d) => ({ ...d, plants }))
   const back = () => setStep((s) => Math.max(0, s - 1))
   /*
    * Any step already reached can be revisited, forward or back - each step
@@ -115,19 +127,27 @@ export function EnterpriseOnboardingPage() {
       current={step}
       aside={<KeyInfo items={keyInfo[step]} />}
     >
-      {step === 0 && <EnterpriseStep data={data} onNext={next("enterprise")} onCancel={closeWizard} />}
-      {step === 1 && <LocationStep data={data} onNext={next("location")} onBack={back} />}
-      {step === 2 && <PlantStep data={data} onNext={next("plant")} onBack={back} />}
-      {step === 3 && <DepartmentStep data={data} onNext={next("department")} onBack={back} />}
-      {step === 4 && (
+      {step === 0 && (
+        <EnterpriseStep
+          data={data}
+          onCancel={closeWizard}
+          onNext={({ enterprise, location }) => {
+            setData((d) => ({ ...d, enterprise, location }))
+            advance()
+          }}
+        />
+      )}
+      {step === 1 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 2 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 3 && (
         <SubDepartmentAccountStep
           data={data}
           onBack={back}
-          onSubDepartmentsChange={(subDepartments) => setData((d) => ({ ...d, subDepartments }))}
+          onPlantsChange={setPlants}
           onComplete={next("account")}
         />
       )}
-      {step === 5 && (
+      {step === 4 && (
         <ReviewStep
           data={data}
           onBack={back}

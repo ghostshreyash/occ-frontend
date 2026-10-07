@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format, isValid, parseISO } from "date-fns"
 import { Building2, Check, Factory, Folder, MapPin, Network, Pencil, Trash2 } from "lucide-react"
@@ -7,17 +7,13 @@ import { Progress } from "@/components/ui/progress"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DepartmentFields, PlantFields } from "@/components/form/entity-fields"
 import { StepCard } from "@/components/common/wizard-layout"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
-import {
-  countries,
-  indianStates,
-  plantTypes,
-  salutations,
-  timeZones,
-} from "@/data/mock"
-import { departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { SelectableTable } from "@/components/common/selectable-table"
+import { countries, indianStates } from "@/data/mock"
+import { sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -42,8 +38,6 @@ const monogram = (name?: string) =>
     .join("")
     .slice(0, 3)
     .toUpperCase() || "NEW"
-
-const SECTION_COUNT = 6
 
 const formatDate = (iso?: string) => {
   if (!iso) return undefined
@@ -78,52 +72,107 @@ export function ReviewStep({
   onChange,
   onSubmit,
   submitting,
+  title = "Step 5 of 5: Review & Submit",
+  submitLabel = "Submit Onboarding",
+  /** Sections that belong to an enterprise that already exists, so they are read-only here */
+  readOnly = [],
 }: {
   data: OnboardingData
   onBack: () => void
   onChange: (patch: Partial<OnboardingData>) => void
   onSubmit: () => void
   submitting: boolean
+  title?: string
+  submitLabel?: string
+  readOnly?: string[]
 }) {
   const [editing, setEditing] = useState<string | null>(null)
-  const { enterprise: e, location: l, plant: p, department: d, subDepartments: subs, account } = data
+  const [deptIndex, setDeptIndex] = useState(0)
+  const { enterprise: e, location: l, plants, account } = data
+
+  /* One plant is captured per run; the enterprise accumulates them over time */
+  const p = plants[0]
+  const departments = p?.departments ?? []
+  const currentDept = Math.min(deptIndex, Math.max(0, departments.length - 1))
+  const d = departments[currentDept]
+  const subs = d?.subDepartments ?? []
+
+  const subCount = departments.reduce((m, dd) => m + dd.subDepartments.length, 0)
 
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: e })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: l })
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: p })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: d })
 
-  /** Validate a section's form, write it back into the shared data, then leave edit mode */
-  const save =
-    <T extends FieldValues>(form: UseFormReturn<T>, key: keyof OnboardingData) =>
-    () => {
-      void form.handleSubmit((values) => {
-        onChange({ [key]: values } as Partial<OnboardingData>)
+  /** The enterprise card now covers the head office too, so saving it writes both records */
+  const saveEnterpriseDetails = () => {
+    void enterpriseForm.handleSubmit((enterprise) => {
+      void locationForm.handleSubmit((location) => {
+        onChange({ enterprise, location })
         setEditing(null)
       })()
-    }
+    })()
+  }
 
-  const removeSub = (i: number) => onChange({ subDepartments: subs.filter((_, n) => n !== i) })
+  /** Plant and department edits land on the selected row rather than on a single object */
+  const savePlant = () => {
+    void plantForm.handleSubmit((values) => {
+      onChange({ plants: plants.map((pl, i) => (i === 0 ? { ...pl, ...values } : pl)) })
+      setEditing(null)
+    })()
+  }
+  const saveDepartment = () => {
+    void departmentForm.handleSubmit((values) => {
+      onChange({
+        plants: plants.map((pl, i) =>
+          i !== 0
+            ? pl
+            : { ...pl, departments: pl.departments.map((dd, j) => (j === currentDept ? { ...dd, ...values } : dd)) }
+        ),
+      })
+      setEditing(null)
+    })()
+  }
+  const removeSub = (i: number) =>
+    onChange({
+      plants: plants.map((pl, n) =>
+        n !== 0
+          ? pl
+          : {
+              ...pl,
+              departments: pl.departments.map((dd, j) =>
+                j === currentDept ? { ...dd, subDepartments: dd.subDepartments.filter((_, m) => m !== i) } : dd
+              ),
+            }
+      ),
+    })
+
+  /* SelectableTable keys rows by id; onboarding rows are only ever positional */
+  const departmentRows = departments.map((dd, i) => ({ ...dd, id: String(i) }))
 
   const isIndia = locationForm.watch("country") === "India"
 
   /* Which sections carry data, so the header can report readiness honestly */
   const done = {
-    enterprise: Boolean(e?.name),
-    location: Boolean(l?.city),
-    plant: Boolean(p?.name),
-    department: Boolean(d?.name),
-    subs: subs.length > 0,
+    enterprise: Boolean(e?.name) && Boolean(l?.city),
+    plant: plants.length > 0,
+    department: departments.length > 0,
+    subs: subCount > 0,
     account: Boolean(account?.email),
   }
+  /* An enterprise being added to has no new account, so that section is not shown or counted */
+  const hasAccount = account !== undefined
+  const sections = hasAccount ? 5 : 4
   const completeCount = Object.values(done).filter(Boolean).length
   const emptyOptional = [done.department, done.subs].filter((v) => !v).length
+  /** Sections carried over from an existing enterprise cannot be edited here */
+  const editable = (key: string) => !readOnly.includes(key)
 
   return (
     <StepCard
-      title="Step 6 of 6: Review & Submit"
+      title={title}
       formId="step-review"
-      nextLabel="Submit Onboarding"
+      nextLabel={submitLabel}
       nextIcon={<Check />}
       pending={submitting}
       onBack={onBack}
@@ -153,9 +202,9 @@ export function ReviewStep({
             </div>
             <dl className="flex gap-4 text-center">
               {[
-                { label: "Plant", value: p?.name ? 1 : 0 },
-                { label: "Dept", value: d?.name ? 1 : 0 },
-                { label: "Sub-depts", value: subs.length },
+                { label: "Plant", value: plants.length },
+                { label: "Depts", value: departments.length },
+                { label: "Sub-depts", value: subCount },
               ].map((s) => (
                 <div key={s.label}>
                   <dd className="text-base leading-none font-bold tabular-nums">{s.value}</dd>
@@ -168,10 +217,10 @@ export function ReviewStep({
           {/* Readiness: required sections done, optional ones called out rather than hidden */}
           <div className="flex flex-wrap items-center gap-2 border-t border-white/10 bg-white/5 px-3 py-1.5 text-[0.7rem]">
             <span className="font-medium">
-              {completeCount} of {SECTION_COUNT} sections complete
+              {completeCount} of {sections} sections complete
             </span>
             <Progress
-              value={(completeCount / SECTION_COUNT) * 100}
+              value={(completeCount / sections) * 100}
               className="h-1.5 w-28 bg-white/15 [&>[data-slot=progress-indicator]]:bg-healthy"
             />
             <span className="text-brand-navy-foreground/70">
@@ -190,11 +239,12 @@ export function ReviewStep({
           title="Enterprise"
           step={1}
           complete={done.enterprise}
-          summary={[e?.sectorType, e?.sector, e?.shortName].filter(Boolean).join(" · ")}
+          summary={[e?.sectorType, e?.sector, l?.city].filter(Boolean).join(" · ")}
           sectionKey="enterprise"
           editing={editing}
           onEditingChange={setEditing}
-          onSave={save(enterpriseForm, "enterprise")}
+          onSave={saveEnterpriseDetails}
+          readOnlyNote={editable("enterprise") ? undefined : "Set when this enterprise was onboarded — it cannot be changed here."}
           view={
             <ValueGrid
               rows={[
@@ -203,12 +253,18 @@ export function ReviewStep({
                 { label: "Type", value: e?.sectorType },
                 { label: sectorLabelFor(e?.sectorType), value: e?.sector },
                 { label: "Website", value: e?.website },
-                { label: "Description", value: e?.description },
+                { label: "Country", value: l?.country },
+                { label: "State", value: l?.state },
+                { label: "City", value: l?.city },
+                { label: "Postal Code", value: l?.pin },
+                { label: "Address (Head Office)", value: l?.address, wide: true },
+                { label: "Description", value: e?.description, wide: true },
               ]}
             />
           }
           edit={
-            <SectionForm id="edit-enterprise" onSubmit={save(enterpriseForm, "enterprise")}>
+            editable("enterprise") ? (
+            <SectionForm id="edit-enterprise" onSubmit={saveEnterpriseDetails}>
               <TextField control={enterpriseForm.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
               <TextField control={enterpriseForm.control} name="shortName" label="Short Name" required />
               <SelectField
@@ -229,35 +285,8 @@ export function ReviewStep({
               />
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
-            </SectionForm>
-          }
-        />
 
-        <DetailSection
-          icon={MapPin}
-          title="Location"
-          step={2}
-          complete={done.location}
-          summary={[l?.city, l?.state, l?.country].filter(Boolean).join(", ")}
-          sectionKey="location"
-          editing={editing}
-          onEditingChange={setEditing}
-          onSave={save(locationForm, "location")}
-          view={
-            <ValueGrid
-              rows={[
-                { label: "Country", value: l?.country },
-                { label: "State", value: l?.state },
-                { label: "City", value: l?.city },
-                { label: "Postal Code", value: l?.pin },
-                { label: "Latitude", value: l?.latitude },
-                { label: "Longitude", value: l?.longitude },
-                { label: "Address", value: l?.address },
-              ]}
-            />
-          }
-          edit={
-            <SectionForm id="edit-location" onSubmit={save(locationForm, "location")}>
+              <h4 className="mt-1 text-xs font-semibold md:col-span-3">Head Office</h4>
               <SelectField control={locationForm.control} name="country" label="Country" required options={countries} />
               {isIndia ? (
                 <SelectField control={locationForm.control} name="state" label="State" required options={indianStates} />
@@ -267,108 +296,121 @@ export function ReviewStep({
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
               <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
-              <TextField control={locationForm.control} name="latitude" label="Latitude" inputMode="decimal" />
-              <TextField control={locationForm.control} name="longitude" label="Longitude" inputMode="decimal" />
             </SectionForm>
+            ) : undefined
           }
         />
 
         <DetailSection
           icon={Factory}
           title="Plant"
-          step={3}
+          step={2}
           complete={done.plant}
           summary={[p?.name, p?.type].filter(Boolean).join(" · ")}
           sectionKey="plant"
           editing={editing}
           onEditingChange={setEditing}
-          onSave={save(plantForm, "plant")}
+          onSave={savePlant}
           view={
-            <ValueGrid
-              rows={[
-                { label: "Plant Name", value: p?.name },
-                { label: "Plant Type", value: p?.type },
-                { label: "Plant Code", value: p?.code },
-                { label: "Plant Head", value: p ? [p.salutation, p.head].filter(Boolean).join(" ") : undefined },
-                { label: "Email", value: p?.email },
-                { label: "Phone Number", value: [p?.phoneCode, p?.phone].filter(Boolean).join(" ") },
-                { label: "Capacity", value: [p?.capacity, p?.capacityUnit].filter(Boolean).join(" ") },
-                { label: "Commissioning Date", value: formatDate(p?.commissioningDate) },
-                { label: "Time Zone", value: p?.timeZone },
-                { label: "Address", value: p?.address },
-                { label: "Notes", value: p?.notes },
-              ]}
-            />
+            p ? (
+                  <ValueGrid
+                    rows={[
+                      { label: "Plant Name", value: p.name },
+                      { label: "Plant Type", value: p.type },
+                      { label: "Plant Code", value: p.code },
+                      { label: "Plant Head", value: [p.salutation, p.head].filter(Boolean).join(" ") },
+                      { label: "Email", value: p.email },
+                      { label: "Phone Number", value: [p.phoneCode, p.phone].filter(Boolean).join(" ") },
+                      { label: "Capacity", value: [p.capacity, p.capacityUnit].filter(Boolean).join(" ") },
+                      { label: "Commissioning Date", value: formatDate(p.commissioningDate) },
+                      { label: "Time Zone", value: p.timeZone },
+                      { label: "Postal Code", value: p.pin },
+                      { label: "City", value: p.city },
+                      { label: "Latitude", value: p.latitude },
+                      { label: "Longitude", value: p.longitude },
+                      { label: "Address", value: p.address },
+                      { label: "Notes", value: p.notes },
+                    ]}
+                  />
+            ) : (
+              <p className="text-xs text-muted-foreground">No plant added — go back to step 2.</p>
+            )
           }
           edit={
-            <SectionForm id="edit-plant" onSubmit={save(plantForm, "plant")}>
-              <TextField control={plantForm.control} name="name" label="Plant Name" required />
-              <SelectField control={plantForm.control} name="type" label="Plant Type" required options={plantTypes} />
-              <TextField control={plantForm.control} name="code" label="Plant Code" />
-              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-                <SelectField control={plantForm.control} name="salutation" label="Title" required options={salutations} />
-                <TextField control={plantForm.control} name="head" label="Plant Head" required />
-              </div>
-              <TextField control={plantForm.control} name="email" label="Email" required type="email" />
-              <PhoneField control={plantForm.control} codeName="phoneCode" name="phone" label="Phone Number" required />
-              <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
-                <TextField control={plantForm.control} name="capacity" label="Plant Capacity" inputMode="decimal" />
-                <SelectField control={plantForm.control} name="capacityUnit" label="Unit" options={plantCapacityUnitCodes} placeholder="Unit" />
-              </div>
-              <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
-              <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
-              <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
-              <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
-            </SectionForm>
+            p ? (
+              <SectionForm id="edit-plant" onSubmit={savePlant}>
+                <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
+                  Editing <strong>{p.name}</strong>
+                </p>
+                <PlantFields form={plantForm} />
+              </SectionForm>
+            ) : undefined
           }
         />
 
         <DetailSection
           icon={Network}
-          title="Department"
-          step={4}
+          title={`Departments — ${p?.name ?? "no plant added"}`}
+          step={3}
           complete={done.department}
           optional
-          summary={[d?.name, d?.type].filter(Boolean).join(" · ")}
+          summary={d ? `${d.name} selected` : undefined}
           sectionKey="department"
           editing={editing}
           onEditingChange={setEditing}
-          onSave={save(departmentForm, "department")}
+          onSave={saveDepartment}
           view={
-            <ValueGrid
-              rows={[
-                { label: "Department Name", value: d?.name },
-                { label: "Department Code", value: d?.code },
-                { label: "Type", value: d?.type },
-                { label: "Parent Department", value: d?.parent },
-                { label: "Head of Department", value: [d?.salutation, d?.head].filter(Boolean).join(" ") },
-                { label: "Email", value: d?.email },
-                { label: "Phone Number", value: [d?.phoneCode, d?.phone].filter(Boolean).join(" ") },
-                { label: "Description", value: d?.description },
-              ]}
-            />
+            <div className="space-y-2.5">
+              <SelectableTable
+                rows={departmentRows}
+                selectedId={String(currentDept)}
+                onSelect={(id) => setDeptIndex(Number(id))}
+                empty={p ? `No departments under ${p.name} — this section is optional` : "Add the plant first"}
+                columns={[
+                  { key: "name", label: "Department", render: (r) => <span className="font-medium">{r.name}</span> },
+                  { key: "code", label: "Code", render: (r) => <span className="tabular-nums">{r.code}</span> },
+                  { key: "type", label: "Type", hideBelow: "md", render: (r) => r.type },
+                  { key: "head", label: "Head", hideBelow: "lg", render: (r) => `${r.salutation} ${r.head}` },
+                  { key: "subs", label: "Sub-depts", align: "right", render: (r) => <span className="tabular-nums">{r.subDepartments.length}</span> },
+                ]}
+              />
+
+              {d ? (
+                <div className="rounded-md bg-muted/30 p-2.5">
+                  <p className="mb-2 text-[0.62rem] tracking-wide text-muted-foreground uppercase">Selected department</p>
+                  <ValueGrid
+                    rows={[
+                      { label: "Department Name", value: d.name },
+                      { label: "Department Code", value: d.code },
+                      { label: "Type", value: d.type },
+                      { label: "Parent Department", value: d.parent },
+                      { label: "Head of Department", value: [d.salutation, d.head].filter(Boolean).join(" ") },
+                      { label: "Email", value: d.email },
+                      { label: "Phone Number", value: [d.phoneCode, d.phone].filter(Boolean).join(" ") },
+                      { label: "Description", value: d.description },
+                    ]}
+                  />
+                </div>
+              ) : null}
+            </div>
           }
           edit={
-            <SectionForm id="edit-department" onSubmit={save(departmentForm, "department")}>
-              <TextField control={departmentForm.control} name="name" label="Department Name" />
-              <TextField control={departmentForm.control} name="code" label="Department Code" />
-              <SelectField control={departmentForm.control} name="type" label="Department Type" options={departmentTypes} />
-              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-                <SelectField control={departmentForm.control} name="salutation" label="Title" options={salutations} />
-                <TextField control={departmentForm.control} name="head" label="Head of Department" />
-              </div>
-              <TextField control={departmentForm.control} name="email" label="Email" type="email" />
-              <PhoneField control={departmentForm.control} codeName="phoneCode" name="phone" label="Phone Number" />
-              <TextareaField control={departmentForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
-            </SectionForm>
+            d ? (
+              <SectionForm id="edit-department" onSubmit={saveDepartment}>
+                <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
+                  Editing <strong>{d.name}</strong> under <strong>{p?.name}</strong>
+                </p>
+                <DepartmentFields form={departmentForm} />
+              </SectionForm>
+            ) : undefined
           }
         />
 
         {/* Sub-departments are a list, so rows are removed here rather than re-keyed into a form */}
         <DetailSection
           icon={Folder}
-          title="Sub-departments"
-          step={5}
+          title={`Sub-departments — ${d?.name ?? "no department selected"}`}
+          step={4}
           complete={done.subs}
           optional
           summary={subs.length > 0 ? subs.map((s) => s.name).filter(Boolean).join(", ") : undefined}
@@ -377,7 +419,9 @@ export function ReviewStep({
           onEditingChange={setEditing}
           view={
             subs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">None added — this section is optional.</p>
+              <p className="text-xs text-muted-foreground">
+                {d ? "None added under this department — this section is optional." : "Select a department to see its sub-departments."}
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -386,7 +430,7 @@ export function ReviewStep({
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">#</TableHead>
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Name</TableHead>
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Code</TableHead>
-                      <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Function / Area</TableHead>
+                      <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Function</TableHead>
                       <TableHead className="hidden h-7 px-2 text-[0.65rem] uppercase sm:table-cell">Description</TableHead>
                       <TableHead className="h-7 w-10 px-2 text-[0.65rem] uppercase">Remove</TableHead>
                     </TableRow>
@@ -420,10 +464,11 @@ export function ReviewStep({
           }
         />
 
+        {hasAccount ? (
         <DetailSection
           icon={Building2}
           title="Administrator Account"
-          step={6}
+          step={5}
           complete={done.account}
           summary={account?.email}
           sectionKey="account"
@@ -439,6 +484,7 @@ export function ReviewStep({
             />
           }
         />
+        ) : null}
       </div>
     </StepCard>
   )
