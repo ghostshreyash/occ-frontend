@@ -1,10 +1,10 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { Building2, ClipboardCheck, Factory, Folder, MapPin, Network } from "lucide-react"
+import { Building2, ClipboardCheck, Factory, Folder, Network } from "lucide-react"
 
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
-import { DepartmentStep, EnterpriseStep, LocationStep, PlantStep, SubDepartmentAccountStep } from "./steps"
+import { DepartmentStep, EnterpriseStep, PlantStep, SubDepartmentAccountStep } from "./steps"
 import { EnterpriseRegister } from "./register"
 import { ReviewStep } from "./review"
 import type { OnboardingData, PlantEntry } from "./schemas"
@@ -12,14 +12,9 @@ import type { OnboardingData, PlantEntry } from "./schemas"
 const keyInfo = [
   [
     "Each enterprise will have a unique ID in the OLIVINE system.",
-    "You can add multiple plants, departments and sub-departments after creating the enterprise.",
+    "The head office address is for correspondence and regional reporting.",
+    "You can add multiple plants, departments and sub-departments as you go.",
     "Enterprise users will be created in a later step.",
-    "Fields marked with * are mandatory.",
-  ],
-  [
-    "Provide accurate location details for better asset mapping and support.",
-    "You can select the location on the map for precise coordinates.",
-    "Location details will help in regional reporting, compliance and faster service response.",
     "Fields marked with * are mandatory.",
   ],
   [
@@ -73,16 +68,20 @@ export function EnterpriseOnboardingPage() {
     return <EnterpriseRegister onStart={() => { setWizardOpen(true); window.scrollTo({ top: 0 }) }} />
   }
 
-  const loc = data.location
   const departmentCount = data.plants.reduce((n, p) => n + p.departments.length, 0)
   const subCount = data.plants.reduce((n, p) => n + p.departments.reduce((m, d) => m + d.subDepartments.length, 0), 0)
   const count = (n: number, one: string, many = one + "s") => (n === 0 ? undefined : `${n} ${n === 1 ? one : many}`)
+  const loc = data.location
   const steps: WizardStep[] = [
-    { title: "Enterprise", description: "Enter enterprise details", icon: Building2, summary: data.enterprise?.name },
-    { title: "Location", description: "Add country, state, city or site location", icon: MapPin, summary: loc ? `${loc.city}, ${loc.state}, ${loc.country}` : undefined },
+    {
+      title: "Enterprise",
+      description: "Enterprise details and head office",
+      icon: Building2,
+      summary: data.enterprise?.name ? [data.enterprise.name, loc?.city].filter(Boolean).join(" · ") : undefined,
+    },
     { title: "Plants", description: "Add the plants under the enterprise", icon: Factory, summary: count(data.plants.length, "plant") },
     { title: "Departments", description: "Add departments under each plant", icon: Network, summary: count(departmentCount, "department") },
-    { title: step === 4 ? "Sub-departments & Account" : "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
+    { title: step === 3 ? "Sub-departments & Account" : "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
     { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
 
@@ -128,11 +127,19 @@ export function EnterpriseOnboardingPage() {
       current={step}
       aside={<KeyInfo items={keyInfo[step]} />}
     >
-      {step === 0 && <EnterpriseStep data={data} onNext={next("enterprise")} onCancel={closeWizard} />}
-      {step === 1 && <LocationStep data={data} onNext={next("location")} onBack={back} />}
-      {step === 2 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
-      {step === 3 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
-      {step === 4 && (
+      {step === 0 && (
+        <EnterpriseStep
+          data={data}
+          onCancel={closeWizard}
+          onNext={({ enterprise, location }) => {
+            setData((d) => ({ ...d, enterprise, location }))
+            advance()
+          }}
+        />
+      )}
+      {step === 1 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 2 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 3 && (
         <SubDepartmentAccountStep
           data={data}
           onBack={back}
@@ -140,7 +147,7 @@ export function EnterpriseOnboardingPage() {
           onComplete={next("account")}
         />
       )}
-      {step === 5 && (
+      {step === 4 && (
         <ReviewStep
           data={data}
           onBack={back}

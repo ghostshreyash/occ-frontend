@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format, isValid, parseISO } from "date-fns"
 import { Building2, Check, Factory, Folder, MapPin, Network, Pencil, Trash2 } from "lucide-react"
@@ -72,7 +72,7 @@ export function ReviewStep({
   onChange,
   onSubmit,
   submitting,
-  title = "Step 6 of 6: Review & Submit",
+  title = "Step 5 of 5: Review & Submit",
   submitLabel = "Submit Onboarding",
   /** Sections that belong to an enterprise that already exists, so they are read-only here */
   readOnly = [],
@@ -107,15 +107,15 @@ export function ReviewStep({
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: p })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: d })
 
-  /** Validate a section's form, write it back into the shared data, then leave edit mode */
-  const save =
-    <T extends FieldValues>(form: UseFormReturn<T>, key: keyof OnboardingData) =>
-    () => {
-      void form.handleSubmit((values) => {
-        onChange({ [key]: values } as Partial<OnboardingData>)
+  /** The enterprise card now covers the head office too, so saving it writes both records */
+  const saveEnterpriseDetails = () => {
+    void enterpriseForm.handleSubmit((enterprise) => {
+      void locationForm.handleSubmit((location) => {
+        onChange({ enterprise, location })
         setEditing(null)
       })()
-    }
+    })()
+  }
 
   /** Plant and department edits land on the selected row rather than on a single object */
   const savePlant = () => {
@@ -158,8 +158,7 @@ export function ReviewStep({
 
   /* Which sections carry data, so the header can report readiness honestly */
   const done = {
-    enterprise: Boolean(e?.name),
-    location: Boolean(l?.city),
+    enterprise: Boolean(e?.name) && Boolean(l?.city),
     plant: plants.length > 0,
     department: departmentCount > 0,
     subs: subCount > 0,
@@ -167,7 +166,7 @@ export function ReviewStep({
   }
   /* An enterprise being added to has no new account, so that section is not shown or counted */
   const hasAccount = account !== undefined
-  const sections = hasAccount ? 6 : 5
+  const sections = hasAccount ? 5 : 4
   const completeCount = Object.values(done).filter(Boolean).length
   const emptyOptional = [done.department, done.subs].filter((v) => !v).length
   /** Sections carried over from an existing enterprise cannot be edited here */
@@ -244,11 +243,11 @@ export function ReviewStep({
           title="Enterprise"
           step={1}
           complete={done.enterprise}
-          summary={[e?.sectorType, e?.sector, e?.shortName].filter(Boolean).join(" · ")}
+          summary={[e?.sectorType, e?.sector, l?.city].filter(Boolean).join(" · ")}
           sectionKey="enterprise"
           editing={editing}
           onEditingChange={setEditing}
-          onSave={save(enterpriseForm, "enterprise")}
+          onSave={saveEnterpriseDetails}
           readOnlyNote={editable("enterprise") ? undefined : "Set when this enterprise was onboarded — it cannot be changed here."}
           view={
             <ValueGrid
@@ -258,13 +257,18 @@ export function ReviewStep({
                 { label: "Type", value: e?.sectorType },
                 { label: sectorLabelFor(e?.sectorType), value: e?.sector },
                 { label: "Website", value: e?.website },
-                { label: "Description", value: e?.description },
+                { label: "Country", value: l?.country },
+                { label: "State", value: l?.state },
+                { label: "City", value: l?.city },
+                { label: "Postal Code", value: l?.pin },
+                { label: "Address (Head Office)", value: l?.address, wide: true },
+                { label: "Description", value: e?.description, wide: true },
               ]}
             />
           }
           edit={
             editable("enterprise") ? (
-            <SectionForm id="edit-enterprise" onSubmit={save(enterpriseForm, "enterprise")}>
+            <SectionForm id="edit-enterprise" onSubmit={saveEnterpriseDetails}>
               <TextField control={enterpriseForm.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
               <TextField control={enterpriseForm.control} name="shortName" label="Short Name" required />
               <SelectField
@@ -285,36 +289,8 @@ export function ReviewStep({
               />
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
-            </SectionForm>
-            ) : undefined
-          }
-        />
 
-        <DetailSection
-          icon={MapPin}
-          title="Location"
-          step={2}
-          complete={done.location}
-          summary={[l?.city, l?.state, l?.country].filter(Boolean).join(", ")}
-          sectionKey="location"
-          editing={editing}
-          onEditingChange={setEditing}
-          onSave={save(locationForm, "location")}
-          readOnlyNote={editable("location") ? undefined : "The enterprise head office — it cannot be changed here."}
-          view={
-            <ValueGrid
-              rows={[
-                { label: "Country", value: l?.country },
-                { label: "State", value: l?.state },
-                { label: "City", value: l?.city },
-                { label: "Postal Code", value: l?.pin },
-                { label: "Address", value: l?.address },
-              ]}
-            />
-          }
-          edit={
-            editable("location") ? (
-            <SectionForm id="edit-location" onSubmit={save(locationForm, "location")}>
+              <h4 className="mt-1 text-xs font-semibold md:col-span-3">Head Office</h4>
               <SelectField control={locationForm.control} name="country" label="Country" required options={countries} />
               {isIndia ? (
                 <SelectField control={locationForm.control} name="state" label="State" required options={indianStates} />
@@ -332,7 +308,7 @@ export function ReviewStep({
         <DetailSection
           icon={Factory}
           title={`Plants (${plants.length})`}
-          step={3}
+          step={2}
           complete={done.plant}
           summary={p ? `${p.name} selected` : undefined}
           sectionKey="plant"
@@ -400,7 +376,7 @@ export function ReviewStep({
         <DetailSection
           icon={Network}
           title={`Departments — ${p?.name ?? "no plant selected"}`}
-          step={4}
+          step={3}
           complete={done.department}
           optional
           summary={d ? `${d.name} selected` : undefined}
@@ -459,7 +435,7 @@ export function ReviewStep({
         <DetailSection
           icon={Folder}
           title={`Sub-departments — ${d?.name ?? "no department selected"}`}
-          step={5}
+          step={4}
           complete={done.subs}
           optional
           summary={subs.length > 0 ? subs.map((s) => s.name).filter(Boolean).join(", ") : undefined}
@@ -517,7 +493,7 @@ export function ReviewStep({
         <DetailSection
           icon={Building2}
           title="Administrator Account"
-          step={6}
+          step={5}
           complete={done.account}
           summary={account?.email}
           sectionKey="account"

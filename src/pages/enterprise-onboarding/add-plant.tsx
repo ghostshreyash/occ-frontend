@@ -1,9 +1,9 @@
 import { useState } from "react"
-import { Building2, ClipboardCheck, Factory, Folder, MapPin, Network } from "lucide-react"
+import { Building2, ClipboardCheck, Factory, Folder, Network } from "lucide-react"
 
 import { WizardPage, KeyInfo, StepCard } from "@/components/common/wizard-layout"
-import { Context, Ctx, type WizardStep } from "@/components/common/wizard"
-import { ValueGrid } from "@/components/common/detail-section"
+import type { WizardStep } from "@/components/common/wizard"
+import { ValueGrid, type DetailRow } from "@/components/common/detail-section"
 import { sectorLabelFor } from "@/data/master-data"
 import type { EnterpriseProfile } from "@/data/occ-tables"
 import { DepartmentStep, PlantStep, SubDepartmentAccountStep } from "./steps"
@@ -14,12 +14,8 @@ const keyInfo = [
   [
     "These are the enterprise details captured when it was onboarded.",
     "They cannot be changed from here — use Edit on the enterprise page instead.",
+    "The head office is for correspondence; a plant carries its own address and coordinates.",
     "Continue to add one or more plants under this enterprise.",
-  ],
-  [
-    "This is the enterprise head office, used for correspondence.",
-    "A plant carries its own address and coordinates, because work is dispatched to the plant.",
-    "You will set the plant location in the next step.",
   ],
   [
     "Add as many plants as you need — each one is created under this enterprise.",
@@ -60,9 +56,9 @@ export function AddPlantWizard({
   onCancel: () => void
   onSubmit: (plants: PlantEntry[]) => Promise<void> | void
 }) {
-  const [step, setStep] = useState(2)
-  /* Steps 1 and 2 are answered already, so the first editable step is reachable from the start */
-  const [furthest, setFurthest] = useState(2)
+  const [step, setStep] = useState(1)
+  /* Step 1 is answered already, so the first step that asks anything is reachable from the start */
+  const [furthest, setFurthest] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [data, setData] = useState<OnboardingData>({
     enterprise: {
@@ -84,8 +80,7 @@ export function AddPlantWizard({
   const count = (n: number, one: string) => (n === 0 ? undefined : `${n} ${n === 1 ? one : one + "s"}`)
 
   const steps: WizardStep[] = [
-    { title: "Enterprise", description: "Already onboarded", icon: Building2, summary: e.name },
-    { title: "Location", description: "Head office on record", icon: MapPin, summary: `${l.city}, ${l.state}, ${l.country}` },
+    { title: "Enterprise", description: "Already onboarded", icon: Building2, summary: `${e.name} · ${l.city}` },
     { title: "Plants", description: "Add the new plants", icon: Factory, summary: count(data.plants.length, "plant") },
     { title: "Departments", description: "Add departments under each plant", icon: Network, summary: count(departmentCount, "department") },
     { title: "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
@@ -109,17 +104,10 @@ export function AddPlantWizard({
   }
   const setPlants = (plants: PlantEntry[]) => setData((d) => ({ ...d, plants }))
 
-  /* The two answered steps read rather than ask, so they share one card */
-  const settled = (
-    title: string,
-    nextLabel: string,
-    note: string,
-    context: React.ReactNode,
-    rows: { label: string; value?: string }[]
-  ) => (
-    <StepCard title={title} formId="step-settled" nextLabel={nextLabel} onBack={step === 0 ? undefined : back} onCancel={step === 0 ? onCancel : undefined}>
+  /* The answered step reads rather than asks */
+  const settled = (title: string, nextLabel: string, note: string, rows: DetailRow[]) => (
+    <StepCard title={title} formId="step-settled" nextLabel={nextLabel} onCancel={onCancel}>
       <form id="step-settled" onSubmit={(ev) => { ev.preventDefault(); advance() }} />
-      {context}
       <p className="mb-2.5 text-xs text-muted-foreground">{note}</p>
       <ValueGrid rows={rows} />
     </StepCard>
@@ -139,50 +127,36 @@ export function AddPlantWizard({
     >
       {step === 0 &&
         settled(
-          "Step 1 of 6: Enterprise",
-          "Next: Location",
-          "Captured when this enterprise was onboarded. Change it from the enterprise page, not here.",
-          null,
+          "Step 1 of 5: Enterprise Details",
+          "Next: Plant",
+          "Captured when this enterprise was onboarded. Change it from the enterprise page, not here. Each plant you add carries its own address and coordinates.",
           [
             { label: "Enterprise Name", value: e.name },
             { label: "Short Name", value: e.shortName },
             { label: "Type", value: e.sectorType },
             { label: sectorLabelFor(e.sectorType), value: e.sector },
             { label: "Website", value: e.website },
-            { label: "Description", value: e.description },
-          ]
-        )}
-
-      {step === 1 &&
-        settled(
-          "Step 2 of 6: Location Details",
-          "Next: Plant",
-          "The enterprise head office, for correspondence. Each plant you add below carries its own address and coordinates.",
-          <Context>
-            <Ctx icon={Building2} label="Enterprise" value={e.name} />
-            <Ctx icon={Factory} label="Industry Sector" value={e.sector} />
-          </Context>,
-          [
             { label: "Country", value: l.country },
             { label: "State", value: l.state },
             { label: "City", value: l.city },
             { label: "Postal Code", value: l.pin },
-            { label: "Address", value: l.address },
+            { label: "Address (Head Office)", value: l.address, wide: true },
+            { label: "Description", value: e.description, wide: true },
           ]
         )}
 
-      {step === 2 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
-      {step === 3 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
-      {step === 4 && (
+      {step === 1 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 2 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 3 && (
         <SubDepartmentAccountStep data={data} onBack={back} onPlantsChange={setPlants} onComplete={advance} withAccount={false} />
       )}
-      {step === 5 && (
+      {step === 4 && (
         <ReviewStep
           data={data}
           onBack={back}
           onChange={(patch) => setData((d) => ({ ...d, ...patch }))}
           submitting={submitting}
-          title="Step 6 of 6: Review & Add"
+          title="Step 5 of 5: Review & Add"
           submitLabel={data.plants.length === 1 ? "Add Plant" : `Add ${data.plants.length} Plants`}
           readOnly={["enterprise", "location"]}
           onSubmit={async () => {

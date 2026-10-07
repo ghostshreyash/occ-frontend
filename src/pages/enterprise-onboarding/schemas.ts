@@ -66,6 +66,13 @@ export const plantSchema = z.object({
   notes: optionalText,
 })
 
+/*
+ * Onboarding asks for the enterprise and its head office together, in one step.
+ * They are still stored apart, because the location is edited on its own from
+ * the enterprise page.
+ */
+export const enterpriseDetailsSchema = enterpriseSchema.extend(locationSchema.shape)
+
 /** Department is optional: an enterprise can be onboarded without one */
 export const departmentSchema = z.object({
   name: optionalText,
@@ -101,6 +108,7 @@ export const accountSchema = z
   })
 
 export type EnterpriseValues = z.infer<typeof enterpriseSchema>
+export type EnterpriseDetailsValues = z.infer<typeof enterpriseDetailsSchema>
 export type LocationValues = z.infer<typeof locationSchema>
 export type PlantValues = z.infer<typeof plantSchema>
 export type DepartmentValues = z.infer<typeof departmentSchema>
@@ -139,3 +147,17 @@ export const blankDepartment: DepartmentValues = {
   location: "", description: "",
 }
 export const blankSubDepartment: SubDepartmentValues = { name: "", code: "", function: "", description: "" }
+
+/** Splits the combined step back into the two records the rest of the app stores */
+export const splitEnterpriseDetails = (v: EnterpriseDetailsValues) => ({
+  enterprise: {
+    name: v.name,
+    shortName: v.shortName,
+    sectorType: v.sectorType,
+    sector: v.sector,
+    website: v.website,
+    logo: v.logo,
+    description: v.description,
+  },
+  location: { country: v.country, state: v.state, city: v.city, address: v.address, pin: v.pin },
+})

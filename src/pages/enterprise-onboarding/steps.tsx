@@ -22,13 +22,14 @@ import {
   blankPlant,
   blankSubDepartment,
   departmentSchema,
-  enterpriseSchema,
-  locationSchema,
+  enterpriseDetailsSchema,
   plantSchema,
+  splitEnterpriseDetails,
   subDepartmentSchema,
   type AccountValues,
   type DepartmentEntry,
   type DepartmentValues,
+  type EnterpriseDetailsValues,
   type EnterpriseValues,
   type LocationValues,
   type OnboardingData,
@@ -36,12 +37,6 @@ import {
   type PlantValues,
   type SubDepartmentValues,
 } from "./schemas"
-
-type StepProps<T> = {
-  data: OnboardingData
-  onNext: (values: T) => void
-  onBack?: () => void
-}
 
 /** A list-building step owns its own list and advances on its own terms */
 type ListStepProps = {
@@ -178,22 +173,55 @@ function PlantPicker({
 
 /* ---------------- Step 1 ---------------- */
 
-export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseValues> & { onCancel: () => void }) {
-  const form = useForm<EnterpriseValues>({
-    resolver: zodResolver(enterpriseSchema),
-    defaultValues: data.enterprise ?? { name: "", shortName: "", sectorType: "", sector: "", website: "", description: "" },
+/**
+ * The enterprise and the head office it is registered at, captured together -
+ * they describe one organisation, so splitting them over two steps only added a
+ * click. They are stored apart, because the location is edited on its own later.
+ */
+export function EnterpriseStep({
+  data,
+  onNext,
+  onCancel,
+}: {
+  data: OnboardingData
+  onNext: (values: { enterprise: EnterpriseValues; location: LocationValues }) => void
+  onCancel: () => void
+}) {
+  const form = useForm<EnterpriseDetailsValues>({
+    resolver: zodResolver(enterpriseDetailsSchema),
+    defaultValues: {
+      name: "", shortName: "", sectorType: "", sector: "", website: "", description: "",
+      country: "India", state: "", city: "", address: "", pin: "",
+      ...data.enterprise,
+      ...data.location,
+    },
   })
   const { control, watch, setValue } = form
   const sectorType = watch("sectorType")
+  const isIndia = watch("country") === "India"
+
+  // The postal code resolves city and state in one go
+  const fillFromPin = (code: string) => {
+    const area = areaForPostalCode(code)
+    if (!area) return
+    setValue("city", area.city)
+    setValue("state", area.state)
+  }
+
   return (
     <StepCard
-      title="Step 1 of 6: Enterprise Name"
+      title="Step 1 of 5: Enterprise Details"
       formId="step-enterprise"
-      nextLabel="Next: Location"
+      nextLabel="Next: Plant"
       onCancel={onCancel}
     >
-      <form id="step-enterprise" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-2" noValidate>
-        <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" />
+      <form
+        id="step-enterprise"
+        onSubmit={form.handleSubmit((values) => onNext(splitEnterpriseDetails(values)))}
+        className="grid gap-2.5 md:grid-cols-3"
+        noValidate
+      >
+        <TextField control={control} name="name" label="Enterprise Name" required placeholder="Enter enterprise name (e.g. Tata Steel Limited)" className="md:col-span-2" />
         <TextField control={control} name="shortName" label="Short Name / Abbreviation" placeholder="Enter short name (e.g. TATA)" />
 
         {/* Type drives the sector list; changing it clears a now-invalid sector */}
@@ -215,47 +243,15 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
           placeholder={sectorType ? "Select sector" : "Select a type first"}
           disabled={!sectorType}
         />
+        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
 
         <TextareaField control={control} name="description" label="Description" rows={2} placeholder="Enter a brief description about the enterprise..." className="md:col-span-2" />
-
         <FileDropField control={control} name="logo" label="Company Logo" />
-        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
-      </form>
-    </StepCard>
-  )
-}
 
-/* ---------------- Step 2 ---------------- */
+        <h4 className="mt-2 flex items-center gap-1.5 text-sm font-semibold md:col-span-3">
+          <MapPin className="size-4 text-primary" /> Head Office
+        </h4>
 
-export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>) {
-  const form = useForm<LocationValues>({
-    resolver: zodResolver(locationSchema),
-    defaultValues: data.location ?? { country: "India", state: "", city: "", address: "", pin: "" },
-  })
-  const { control, watch, setValue } = form
-  const isIndia = watch("country") === "India"
-
-  // The postal code resolves city and state in one go
-  const fillFromPin = (code: string) => {
-    const area = areaForPostalCode(code)
-    if (!area) return
-    setValue("city", area.city)
-    setValue("state", area.state)
-  }
-
-  return (
-    <StepCard
-      title="Step 2 of 6: Location Details"
-      formId="step-location"
-      nextLabel="Next: Plant"
-      onBack={onBack}
-    >
-      <Context>
-        <Ctx icon={Building2} label="Enterprise Name" value={data.enterprise?.name} />
-        <Ctx icon={Building2} label="Type" value={data.enterprise?.sectorType} />
-        <Ctx icon={Factory} label="Industry Sector" value={data.enterprise?.sector} />
-      </Context>
-      <form id="step-location" onSubmit={form.handleSubmit(onNext)} className="grid gap-2.5 md:grid-cols-3" noValidate>
         <SelectField control={control} name="country" label="Country" required options={countries} />
         {isIndia ? (
           <SelectField control={control} name="state" label="State" required options={indianStates} placeholder="Select state" />
@@ -269,7 +265,7 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
         {/*
           * No coordinates here: the head office address is for correspondence.
           * Work is dispatched to a plant, so the pin on the map is set per plant
-          * in step 3.
+          * in the next step.
           */}
         <TextField control={control} name="pin" label="Postal Code (PIN)" required onValueChange={fillFromPin} />
       </form>
@@ -277,9 +273,9 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
   )
 }
 
-/* ---------------- Step 3 ---------------- */
+/* ---------------- Step 2 ---------------- */
 
-/** Step 3: an enterprise has as many plants as it has sites. At least one is required. */
+/** An enterprise has as many plants as it has sites. At least one is required. */
 export function PlantStep({ data, onPlantsChange, onNext, onBack }: ListStepProps) {
   const [editing, setEditing] = useState<number | null>(null)
   const [listError, setListError] = useState("")
@@ -307,7 +303,7 @@ export function PlantStep({ data, onPlantsChange, onNext, onBack }: ListStepProp
   const loc = data.location
   return (
     <StepCard
-      title="Step 3 of 6: Plant Details"
+      title="Step 2 of 5: Plant Details"
       formId="step-plants"
       nextLabel="Next: Department"
       onBack={onBack}
@@ -376,9 +372,9 @@ export function PlantStep({ data, onPlantsChange, onNext, onBack }: ListStepProp
   )
 }
 
-/* ---------------- Step 4 ---------------- */
+/* ---------------- Step 3 ---------------- */
 
-/** Step 4: departments, as many as each plant needs. Optional. */
+/** Departments, as many as each plant needs. Optional. */
 export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListStepProps) {
   const [plantIndex, setPlantIndex] = useState(0)
   const [editing, setEditing] = useState<number | null>(null)
@@ -419,7 +415,7 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
   const loc = data.location
   return (
     <StepCard
-      title="Step 4 of 6: Department Details"
+      title="Step 3 of 5: Department Details"
       formId="step-departments"
       nextLabel="Next: Sub-department"
       onBack={onBack}
@@ -498,7 +494,7 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
   )
 }
 
-/* ---------------- Step 5 ---------------- */
+/* ---------------- Step 4 ---------------- */
 
 export function SubDepartmentAccountStep({
   data,
@@ -565,7 +561,7 @@ export function SubDepartmentAccountStep({
   const loc = data.location
   return (
     <StepCard
-      title={withAccount ? "Step 5 of 6: Sub-department Details & Account Creation" : "Step 5 of 6: Sub-department Details"}
+      title={withAccount ? "Step 4 of 5: Sub-department Details & Account Creation" : "Step 4 of 5: Sub-department Details"}
       formId={withAccount ? "step-account" : "step-subdepartments"}
       nextLabel="Next: Review"
       onBack={onBack}
