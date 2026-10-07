@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form"
 import { Calendar as CalendarIcon, Eye, EyeOff, FileText, Trash2, UploadCloud, X} from "lucide-react"
 import { format, isValid, parseISO } from "date-fns"
@@ -343,16 +343,22 @@ const fileSize = (bytes: number) =>
  * URL is released when the file changes or the field unmounts.
  */
 function ChosenFile({ file, inputId, onClear }: { file: File; inputId: string; onClear: () => void }) {
+  const isImage = file.type.startsWith("image/")
+  const img = useRef<HTMLImageElement>(null)
+
   /*
-   * Derived from the file rather than held in state: setting state from an
-   * effect here would cost a second render on every pick. The effect only
-   * releases the URL, when the file changes or the field goes away.
+   * The URL is created, assigned and released inside one effect. Holding it in
+   * state instead would re-render on every pick, and holding it in a memo broke
+   * under StrictMode - the double-invoked effect revoked a URL that nothing
+   * then recreated, leaving a dead src behind.
    */
-  const preview = useMemo(
-    () => (file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined),
-    [file]
-  )
-  useEffect(() => (preview ? () => URL.revokeObjectURL(preview) : undefined), [preview])
+  useEffect(() => {
+    const node = img.current
+    if (!node || !isImage) return
+    const url = URL.createObjectURL(file)
+    node.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [file, isImage])
 
   return (
     <div className="flex items-center gap-2.5 rounded-lg border border-input bg-muted/40 p-2">
@@ -367,8 +373,8 @@ function ChosenFile({ file, inputId, onClear }: { file: File; inputId: string; o
           backgroundColor: "var(--card)",
         }}
       >
-        {preview ? (
-          <img src={preview} alt={`Preview of ${file.name}`} className="size-full object-contain" />
+        {isImage ? (
+          <img ref={img} alt={`Preview of ${file.name}`} className="size-full object-contain" />
         ) : (
           <FileText className="size-5 text-muted-foreground" />
         )}
