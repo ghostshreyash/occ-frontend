@@ -18,9 +18,8 @@ const keyInfo = [
     "Continue to add one or more plants under this enterprise.",
   ],
   [
-    "Add as many plants as you need — each one is created under this enterprise.",
-    "Each plant carries its own location, because work is dispatched to the plant.",
-    "At least one plant is required to continue.",
+    "One plant is added per run — come back to add another.",
+    "The plant carries its own location, because work is dispatched to the plant.",
     "Fields marked with * are mandatory.",
   ],
   [
@@ -75,14 +74,15 @@ export function AddPlantWizard({
 
   const e = profile.enterprise
   const l = profile.location
-  const departmentCount = data.plants.reduce((n, p) => n + p.departments.length, 0)
-  const subCount = data.plants.reduce((n, p) => n + p.departments.reduce((m, d) => m + d.subDepartments.length, 0), 0)
+  const plant = data.plants[0]
+  const departmentCount = plant?.departments.length ?? 0
+  const subCount = plant?.departments.reduce((m, d) => m + d.subDepartments.length, 0) ?? 0
   const count = (n: number, one: string) => (n === 0 ? undefined : `${n} ${n === 1 ? one : one + "s"}`)
 
   const steps: WizardStep[] = [
     { title: "Enterprise", description: "Already onboarded", icon: Building2, summary: `${e.name} · ${l.city}` },
-    { title: "Plants", description: "Add the new plants", icon: Factory, summary: count(data.plants.length, "plant") },
-    { title: "Departments", description: "Add departments under each plant", icon: Network, summary: count(departmentCount, "department") },
+    { title: "Plant", description: "Add the new plant", icon: Factory, summary: plant?.name },
+    { title: "Departments", description: "Add departments under the plant", icon: Network, summary: count(departmentCount, "department") },
     { title: "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
     { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
@@ -157,7 +157,7 @@ export function AddPlantWizard({
           onChange={(patch) => setData((d) => ({ ...d, ...patch }))}
           submitting={submitting}
           title="Step 5 of 5: Review & Add"
-          submitLabel={data.plants.length === 1 ? "Add Plant" : `Add ${data.plants.length} Plants`}
+          submitLabel="Add Plant"
           readOnly={["enterprise", "location"]}
           onSubmit={async () => {
             setSubmitting(true)

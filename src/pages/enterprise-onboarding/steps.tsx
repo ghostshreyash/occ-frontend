@@ -128,49 +128,6 @@ function EntryList<T>({
   )
 }
 
-/** Chooses which plant the rows below belong to, with a count so the picker says what is where */
-function PlantPicker({
-  id,
-  label,
-  plants,
-  value,
-  onChange,
-  count,
-  className,
-}: {
-  id: string
-  label: string
-  plants: PlantEntry[]
-  value: number
-  onChange: (index: number) => void
-  count: (plant: PlantEntry) => string
-  className?: string
-}) {
-  return (
-    <div className={className}>
-      <Label htmlFor={id} className="mb-1.5 block text-xs font-medium">{label}</Label>
-      <Select
-        value={plants.length > 0 ? String(value) : undefined}
-        onValueChange={(v) => onChange(Number(v))}
-        disabled={plants.length === 0}
-      >
-        <SelectTrigger id={id} className="w-full">
-          <Factory className="size-3.5 text-muted-foreground" />
-          <SelectValue placeholder="No plants added yet" />
-        </SelectTrigger>
-        <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false}>
-          {plants.map((p, i) => (
-            <SelectItem key={i} value={String(i)}>
-              {p.name || `Plant ${i + 1}`}
-              <span className="ml-2 text-muted-foreground">{count(p)}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
-
 /* ---------------- Step 1 ---------------- */
 
 /**
@@ -275,99 +232,39 @@ export function EnterpriseStep({
 
 /* ---------------- Step 2 ---------------- */
 
-/** An enterprise has as many plants as it has sites. At least one is required. */
+/**
+ * One plant per run. An enterprise can hold many, but they are added one at a
+ * time - here when it is onboarded, and from the enterprise page afterwards.
+ * Departments are the level that takes a list.
+ */
 export function PlantStep({ data, onPlantsChange, onNext, onBack }: ListStepProps) {
-  const [editing, setEditing] = useState<number | null>(null)
-  const [listError, setListError] = useState("")
-  const form = useForm<PlantValues>({ resolver: zodResolver(plantSchema), defaultValues: blankPlant })
-
-  const savePlant = form.handleSubmit((values) => {
-    const plants = [...data.plants]
-    // Amending a plant keeps the departments already added under it
-    if (editing !== null) plants[editing] = { ...values, departments: plants[editing].departments }
-    else plants.push({ ...values, departments: [] })
-    onPlantsChange(plants)
-    setEditing(null)
-    setListError("")
-    form.reset(blankPlant)
-  })
-
-  const removePlant = (i: number) => {
-    onPlantsChange(data.plants.filter((_, n) => n !== i))
-    if (editing === i) {
-      setEditing(null)
-      form.reset(blankPlant)
-    }
-  }
+  const existing = data.plants[0]
+  const form = useForm<PlantValues>({ resolver: zodResolver(plantSchema), defaultValues: existing ?? blankPlant })
 
   const loc = data.location
   return (
     <StepCard
       title="Step 2 of 5: Plant Details"
-      formId="step-plants"
+      formId="step-plant"
       nextLabel="Next: Department"
       onBack={onBack}
     >
       <Context>
         <Ctx icon={Building2} label="Enterprise" value={data.enterprise?.name} />
         <Ctx icon={MapPin} label="Location" value={loc ? `${loc.city}, ${loc.state}, ${loc.country}` : ""} />
-        <Ctx icon={Factory} label="Plants added" value={String(data.plants.length)} />
       </Context>
-
-      {/* The footer's Next submits this, so advancing can be refused while the list is empty */}
       <form
-        id="step-plants"
-        onSubmit={(ev) => {
-          ev.preventDefault()
-          if (data.plants.length === 0) {
-            setListError("Add at least one plant before continuing.")
-            return
-          }
-          setListError("")
+        id="step-plant"
+        /* Re-entering the step keeps the departments already added under this plant */
+        onSubmit={form.handleSubmit((values) => {
+          onPlantsChange([{ ...values, departments: existing?.departments ?? [] }])
           onNext()
-        }}
-      />
-
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h4 className="font-semibold">{editing !== null ? `Editing plant ${editing + 1}` : "New plant"}</h4>
-          <p className="text-xs text-muted-foreground">
-            Fill in the plant, then add it. Repeat for every plant under this enterprise.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {editing !== null ? (
-            <Button type="button" variant="outline" onClick={() => { setEditing(null); form.reset(blankPlant) }}>
-              Cancel edit
-            </Button>
-          ) : null}
-          <Button type="button" onClick={savePlant}>
-            <Plus /> {editing !== null ? "Update Plant" : "Add Plant"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-2.5 md:grid-cols-3">
+        })}
+        className="grid gap-2.5 md:grid-cols-3"
+        noValidate
+      >
         <PlantFields form={form} />
-      </div>
-
-      <EntryList
-        items={data.plants}
-        editingIndex={editing}
-        onEdit={(i) => { setEditing(i); form.reset(data.plants[i]) }}
-        onRemove={removePlant}
-        empty="No plants added yet."
-        rowLabel={(p, i) => p.name || `plant ${i + 1}`}
-        columns={[
-          { label: "Plant Name", value: (p) => p.name },
-          { label: "Type", value: (p) => p.type },
-          { label: "Code", value: (p) => p.code, hideBelow: "sm" },
-          { label: "City", value: (p) => p.city },
-          { label: "Plant Head", value: (p) => [p.salutation, p.head].filter(Boolean).join(" "), hideBelow: "md" },
-          { label: "Depts", value: (p) => String(p.departments.length) },
-        ]}
-      />
-      {listError ? <p className="mt-2 text-sm text-critical">{listError}</p> : null}
+      </form>
     </StepCard>
   )
 }
@@ -376,18 +273,15 @@ export function PlantStep({ data, onPlantsChange, onNext, onBack }: ListStepProp
 
 /** Departments, as many as each plant needs. Optional. */
 export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListStepProps) {
-  const [plantIndex, setPlantIndex] = useState(0)
   const [editing, setEditing] = useState<number | null>(null)
   const [listError, setListError] = useState("")
   const form = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), defaultValues: blankDepartment })
 
-  /* A plant may have been removed in step 3 while a later index was selected */
-  const current = Math.min(plantIndex, Math.max(0, data.plants.length - 1))
-  const plant = data.plants[current]
+  const plant = data.plants[0]
   const departments = plant?.departments ?? []
 
   const writeDepartments = (next: DepartmentEntry[]) =>
-    onPlantsChange(data.plants.map((p, i) => (i === current ? { ...p, departments: next } : p)))
+    onPlantsChange(data.plants.map((p, i) => (i === 0 ? { ...p, departments: next } : p)))
 
   const saveDepartment = form.handleSubmit((values) => {
     // Every field is optional, so an entirely blank row would mean nothing
@@ -428,24 +322,9 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
 
       <form id="step-departments" onSubmit={(ev) => { ev.preventDefault(); onNext() }} />
 
-      <PlantPicker
-        id="dept-plant"
-        label="Add departments to"
-        plants={data.plants}
-        value={current}
-        className="sm:max-w-80"
-        onChange={(i) => {
-          setPlantIndex(i)
-          setEditing(null)
-          setListError("")
-          form.reset(blankDepartment)
-        }}
-        count={(p) => `${p.departments.length} dept${p.departments.length === 1 ? "" : "s"}`}
-      />
-
       {plant ? (
         <>
-          <div className="mt-3 mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h4 className="font-semibold">
                 {editing !== null ? `Editing department ${editing + 1}` : "New department"} — {plant.name}
@@ -488,7 +367,7 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
           {listError ? <p className="mt-2 text-sm text-critical">{listError}</p> : null}
         </>
       ) : (
-        <p className="mt-3 text-sm text-muted-foreground">Add a plant in the previous step first.</p>
+        <p className="text-sm text-muted-foreground">Add the plant in the previous step first.</p>
       )}
     </StepCard>
   )
@@ -510,7 +389,6 @@ export function SubDepartmentAccountStep({
   /** An enterprise being added to already has its administrator account, so that half is dropped */
   withAccount?: boolean
 }) {
-  const [plantIndex, setPlantIndex] = useState(0)
   const [deptIndex, setDeptIndex] = useState(0)
   const [editing, setEditing] = useState<number | null>(null)
   const [listError, setListError] = useState("")
@@ -524,10 +402,9 @@ export function SubDepartmentAccountStep({
   const confirmValue = account.watch("confirmPassword")
   const emailState = account.getFieldState("email", account.formState)
 
-  /* Either selection can be left pointing past the end by an edit in an earlier step */
-  const currentPlant = Math.min(plantIndex, Math.max(0, data.plants.length - 1))
-  const plant = data.plants[currentPlant]
+  const plant = data.plants[0]
   const departments = plant?.departments ?? []
+  /* The selection can be left pointing past the end by a removal in an earlier step */
   const currentDept = Math.min(deptIndex, Math.max(0, departments.length - 1))
   const dept = departments[currentDept]
   const subs = dept?.subDepartments ?? []
@@ -535,7 +412,7 @@ export function SubDepartmentAccountStep({
   const writeSubs = (next: SubDepartmentValues[]) =>
     onPlantsChange(
       data.plants.map((p, i) =>
-        i !== currentPlant
+        i !== 0
           ? p
           : { ...p, departments: p.departments.map((d, j) => (j === currentDept ? { ...d, subDepartments: next } : d)) }
       )
@@ -580,47 +457,32 @@ export function SubDepartmentAccountStep({
         Optional — pick a department, then add one or more sub-departments under it.
       </p>
 
-      <div className="grid gap-2.5 sm:grid-cols-2 sm:max-w-2xl">
-        <PlantPicker
-          id="sub-plant"
-          label="Plant"
-          plants={data.plants}
-          value={currentPlant}
-          onChange={(i) => {
-            setPlantIndex(i)
-            setDeptIndex(0)
+      <div className="sm:max-w-80">
+        <Label htmlFor="sub-dept" className="mb-1.5 block text-xs font-medium">Department</Label>
+        <Select
+          value={departments.length > 0 ? String(currentDept) : undefined}
+          onValueChange={(v) => {
+            setDeptIndex(Number(v))
             setEditing(null)
             sub.reset(blankSubDepartment)
           }}
-          count={(p) => `${p.departments.length} dept${p.departments.length === 1 ? "" : "s"}`}
-        />
-        <div>
-          <Label htmlFor="sub-dept" className="mb-1.5 block text-xs font-medium">Department</Label>
-          <Select
-            value={departments.length > 0 ? String(currentDept) : undefined}
-            onValueChange={(v) => {
-              setDeptIndex(Number(v))
-              setEditing(null)
-              sub.reset(blankSubDepartment)
-            }}
-            disabled={departments.length === 0}
-          >
-            <SelectTrigger id="sub-dept" className="w-full">
-              <Network className="size-3.5 text-muted-foreground" />
-              <SelectValue placeholder={plant ? "No departments under this plant" : "Add a plant first"} />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false}>
-              {departments.map((d, i) => (
-                <SelectItem key={i} value={String(i)}>
-                  {d.name || `Department ${i + 1}`}
-                  <span className="ml-2 text-muted-foreground">
-                    {d.subDepartments.length} sub-dept{d.subDepartments.length === 1 ? "" : "s"}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          disabled={departments.length === 0}
+        >
+          <SelectTrigger id="sub-dept" className="w-full">
+            <Network className="size-3.5 text-muted-foreground" />
+            <SelectValue placeholder={plant ? "No departments under this plant" : "Add a plant first"} />
+          </SelectTrigger>
+          <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false}>
+            {departments.map((d, i) => (
+              <SelectItem key={i} value={String(i)}>
+                {d.name || `Department ${i + 1}`}
+                <span className="ml-2 text-muted-foreground">
+                  {d.subDepartments.length} sub-dept{d.subDepartments.length === 1 ? "" : "s"}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {dept ? (

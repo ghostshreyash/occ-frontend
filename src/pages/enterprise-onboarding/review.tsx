@@ -87,20 +87,17 @@ export function ReviewStep({
   readOnly?: string[]
 }) {
   const [editing, setEditing] = useState<string | null>(null)
-  const [plantIndex, setPlantIndex] = useState(0)
   const [deptIndex, setDeptIndex] = useState(0)
   const { enterprise: e, location: l, plants, account } = data
 
-  /* Removing a row in an earlier step can leave a selection pointing past the end */
-  const currentPlant = Math.min(plantIndex, Math.max(0, plants.length - 1))
-  const p = plants[currentPlant]
+  /* One plant is captured per run; the enterprise accumulates them over time */
+  const p = plants[0]
   const departments = p?.departments ?? []
   const currentDept = Math.min(deptIndex, Math.max(0, departments.length - 1))
   const d = departments[currentDept]
   const subs = d?.subDepartments ?? []
 
-  const departmentCount = plants.reduce((n, pl) => n + pl.departments.length, 0)
-  const subCount = plants.reduce((n, pl) => n + pl.departments.reduce((m, dd) => m + dd.subDepartments.length, 0), 0)
+  const subCount = departments.reduce((m, dd) => m + dd.subDepartments.length, 0)
 
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: e })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: l })
@@ -120,7 +117,7 @@ export function ReviewStep({
   /** Plant and department edits land on the selected row rather than on a single object */
   const savePlant = () => {
     void plantForm.handleSubmit((values) => {
-      onChange({ plants: plants.map((pl, i) => (i === currentPlant ? { ...pl, ...values } : pl)) })
+      onChange({ plants: plants.map((pl, i) => (i === 0 ? { ...pl, ...values } : pl)) })
       setEditing(null)
     })()
   }
@@ -128,7 +125,7 @@ export function ReviewStep({
     void departmentForm.handleSubmit((values) => {
       onChange({
         plants: plants.map((pl, i) =>
-          i !== currentPlant
+          i !== 0
             ? pl
             : { ...pl, departments: pl.departments.map((dd, j) => (j === currentDept ? { ...dd, ...values } : dd)) }
         ),
@@ -139,7 +136,7 @@ export function ReviewStep({
   const removeSub = (i: number) =>
     onChange({
       plants: plants.map((pl, n) =>
-        n !== currentPlant
+        n !== 0
           ? pl
           : {
               ...pl,
@@ -151,7 +148,6 @@ export function ReviewStep({
     })
 
   /* SelectableTable keys rows by id; onboarding rows are only ever positional */
-  const plantRows = plants.map((pl, i) => ({ ...pl, id: String(i) }))
   const departmentRows = departments.map((dd, i) => ({ ...dd, id: String(i) }))
 
   const isIndia = locationForm.watch("country") === "India"
@@ -160,7 +156,7 @@ export function ReviewStep({
   const done = {
     enterprise: Boolean(e?.name) && Boolean(l?.city),
     plant: plants.length > 0,
-    department: departmentCount > 0,
+    department: departments.length > 0,
     subs: subCount > 0,
     account: Boolean(account?.email),
   }
@@ -206,8 +202,8 @@ export function ReviewStep({
             </div>
             <dl className="flex gap-4 text-center">
               {[
-                { label: plants.length === 1 ? "Plant" : "Plants", value: plants.length },
-                { label: "Depts", value: departmentCount },
+                { label: "Plant", value: plants.length },
+                { label: "Depts", value: departments.length },
                 { label: "Sub-depts", value: subCount },
               ].map((s) => (
                 <div key={s.label}>
@@ -307,37 +303,16 @@ export function ReviewStep({
 
         <DetailSection
           icon={Factory}
-          title={`Plants (${plants.length})`}
+          title="Plant"
           step={2}
           complete={done.plant}
-          summary={p ? `${p.name} selected` : undefined}
+          summary={[p?.name, p?.type].filter(Boolean).join(" · ")}
           sectionKey="plant"
           editing={editing}
           onEditingChange={setEditing}
           onSave={savePlant}
           view={
-            <div className="space-y-2.5">
-              <SelectableTable
-                rows={plantRows}
-                selectedId={String(currentPlant)}
-                onSelect={(id) => {
-                  setPlantIndex(Number(id))
-                  setDeptIndex(0)
-                }}
-                empty="No plants added — go back to step 3 to add one"
-                columns={[
-                  { key: "name", label: "Plant", render: (r) => <span className="font-medium">{r.name}</span> },
-                  { key: "code", label: "Code", render: (r) => <span className="tabular-nums">{r.code}</span> },
-                  { key: "type", label: "Type", render: (r) => r.type },
-                  { key: "city", label: "City", hideBelow: "md", render: (r) => r.city },
-                  { key: "head", label: "Plant Head", hideBelow: "lg", render: (r) => `${r.salutation} ${r.head}` },
-                  { key: "dept", label: "Depts", align: "right", render: (r) => <span className="tabular-nums">{r.departments.length}</span> },
-                ]}
-              />
-
-              {p ? (
-                <div className="rounded-md bg-muted/30 p-2.5">
-                  <p className="mb-2 text-[0.62rem] tracking-wide text-muted-foreground uppercase">Selected plant</p>
+            p ? (
                   <ValueGrid
                     rows={[
                       { label: "Plant Name", value: p.name },
@@ -357,9 +332,9 @@ export function ReviewStep({
                       { label: "Notes", value: p.notes },
                     ]}
                   />
-                </div>
-              ) : null}
-            </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No plant added — go back to step 2.</p>
+            )
           }
           edit={
             p ? (
@@ -375,7 +350,7 @@ export function ReviewStep({
 
         <DetailSection
           icon={Network}
-          title={`Departments — ${p?.name ?? "no plant selected"}`}
+          title={`Departments — ${p?.name ?? "no plant added"}`}
           step={3}
           complete={done.department}
           optional
@@ -390,7 +365,7 @@ export function ReviewStep({
                 rows={departmentRows}
                 selectedId={String(currentDept)}
                 onSelect={(id) => setDeptIndex(Number(id))}
-                empty={p ? `No departments under ${p.name} — this section is optional` : "Select a plant first"}
+                empty={p ? `No departments under ${p.name} — this section is optional` : "Add the plant first"}
                 columns={[
                   { key: "name", label: "Department", render: (r) => <span className="font-medium">{r.name}</span> },
                   { key: "code", label: "Code", render: (r) => <span className="tabular-nums">{r.code}</span> },

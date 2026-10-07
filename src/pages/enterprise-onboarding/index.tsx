@@ -18,15 +18,14 @@ const keyInfo = [
     "Fields marked with * are mandatory.",
   ],
   [
-    "An enterprise can have as many plants as it has sites — add each one in turn.",
-    "Each plant carries its own location, because work is dispatched to the plant.",
+    "One plant is added here. Further plants are added from the enterprise page afterwards.",
+    "The plant carries its own location, because work is dispatched to the plant.",
     "Plant details help in organizing assets, departments and maintenance activities.",
-    "At least one plant is required to continue.",
     "Fields marked with * are mandatory.",
   ],
   [
     "A department groups related functions and teams within a plant.",
-    "Pick a plant, then add as many departments as it has.",
+    "Add as many departments as this plant has.",
     "Ensure the department details are accurate for proper asset and maintenance mapping.",
     "Departments are optional — you can continue without any.",
   ],
@@ -68,8 +67,9 @@ export function EnterpriseOnboardingPage() {
     return <EnterpriseRegister onStart={() => { setWizardOpen(true); window.scrollTo({ top: 0 }) }} />
   }
 
-  const departmentCount = data.plants.reduce((n, p) => n + p.departments.length, 0)
-  const subCount = data.plants.reduce((n, p) => n + p.departments.reduce((m, d) => m + d.subDepartments.length, 0), 0)
+  const plant = data.plants[0]
+  const departmentCount = plant?.departments.length ?? 0
+  const subCount = plant?.departments.reduce((m, d) => m + d.subDepartments.length, 0) ?? 0
   const count = (n: number, one: string, many = one + "s") => (n === 0 ? undefined : `${n} ${n === 1 ? one : many}`)
   const loc = data.location
   const steps: WizardStep[] = [
@@ -79,8 +79,8 @@ export function EnterpriseOnboardingPage() {
       icon: Building2,
       summary: data.enterprise?.name ? [data.enterprise.name, loc?.city].filter(Boolean).join(" · ") : undefined,
     },
-    { title: "Plants", description: "Add the plants under the enterprise", icon: Factory, summary: count(data.plants.length, "plant") },
-    { title: "Departments", description: "Add departments under each plant", icon: Network, summary: count(departmentCount, "department") },
+    { title: "Plant", description: "Add the plant under the enterprise", icon: Factory, summary: plant?.name },
+    { title: "Departments", description: "Add departments under the plant", icon: Network, summary: count(departmentCount, "department") },
     { title: step === 3 ? "Sub-departments & Account" : "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
     { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
