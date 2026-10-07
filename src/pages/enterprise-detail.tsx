@@ -305,8 +305,6 @@ export function EnterpriseDetailPage() {
                 { label: "State", value: l.state },
                 { label: "City", value: l.city },
                 { label: "Postal Code", value: l.pin },
-                { label: "Latitude", value: l.latitude },
-                { label: "Longitude", value: l.longitude },
                 { label: "Address", value: l.address },
               ]}
             />
@@ -322,8 +320,6 @@ export function EnterpriseDetailPage() {
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
               <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
-              <TextField control={locationForm.control} name="latitude" label="Latitude" inputMode="decimal" />
-              <TextField control={locationForm.control} name="longitude" label="Longitude" inputMode="decimal" />
             </form>
           }
         />

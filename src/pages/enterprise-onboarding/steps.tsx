@@ -4,10 +4,9 @@ import { Context, Ctx } from "@/components/common/wizard"
 import { areaForPostalCode } from "@/data/master-data"
 import { coordsForCity } from "@/data/occ-tables"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Building2, CheckCircle2, Factory, MapPin, Network, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Building2, CheckCircle2, Factory, MapPin, Network, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FieldLabel } from "@/components/ui/field"
 import { DateField, FileDropField, PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
@@ -100,24 +99,17 @@ export function EnterpriseStep({ data, onNext, onCancel }: StepProps<EnterpriseV
 export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>) {
   const form = useForm<LocationValues>({
     resolver: zodResolver(locationSchema),
-    defaultValues: data.location ?? { country: "India", state: "", city: "", address: "", pin: "", latitude: "", longitude: "" },
+    defaultValues: data.location ?? { country: "India", state: "", city: "", address: "", pin: "" },
   })
   const { control, watch, setValue } = form
   const isIndia = watch("country") === "India"
-  const lat = parseFloat(watch("latitude") ?? "")
-  const lng = parseFloat(watch("longitude") ?? "")
 
-  // The postal code resolves city, state and coordinates in one go
+  // The postal code resolves city and state in one go
   const fillFromPin = (code: string) => {
     const area = areaForPostalCode(code)
     if (!area) return
     setValue("city", area.city)
     setValue("state", area.state)
-    const point = coordsForCity(area.city)
-    if (point) {
-      setValue("latitude", point.lat)
-      setValue("longitude", point.lng)
-    }
   }
 
   return (
@@ -143,37 +135,12 @@ export function LocationStep({ data, onNext, onBack }: StepProps<LocationValues>
 
         {/* Postal code sits in line with the address it belongs to */}
         <TextareaField control={control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required onValueChange={fillFromPin} />
-
         {/*
-          * Derived, not typed: entering the postal code resolves the address and
-          * fills these in. Adjusting the map pin below overrides them. Stands in
-          * for the places API that will do the lookup for real.
+          * No coordinates here: the head office address is for correspondence.
+          * Work is dispatched to a plant, so the pin on the map is set per plant
+          * in step 3.
           */}
-        <div className="grid grid-cols-2 gap-2">
-          <TextField control={control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" />
-          <TextField control={control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" />
-        </div>
-
-        <div className="md:col-span-3">
-          <FieldLabel className="mb-2">
-            Select Location on Map
-          </FieldLabel>
-          <div className="relative">
-            <div className="absolute top-3 left-3 z-10 flex w-72 max-w-[70%] items-center rounded-md bg-card shadow">
-              <Input placeholder="Search location (e.g. Mumbai, Maharashtra)" className="border-0 bg-transparent" />
-              <Search className="mr-2 size-4 text-muted-foreground" />
-            </div>
-            <LocationPicker
-              lat={Number.isNaN(lat) ? undefined : lat}
-              lng={Number.isNaN(lng) ? undefined : lng}
-              onChange={({ lat, lng }) => {
-                setValue("latitude", String(lat))
-                setValue("longitude", String(lng))
-              }}
-            />
-          </div>
-        </div>
+        <TextField control={control} name="pin" label="Postal Code (PIN)" required onValueChange={fillFromPin} />
       </form>
     </StepCard>
   )
@@ -212,13 +179,7 @@ export function PlantStep({ data, onNext, onBack }: StepProps<PlantValues>) {
       nextLabel="Next: Department"
       onBack={onBack}
     >
-      <Context
-        action={
-          <Button type="button" size="xs" variant="outline" className="bg-card text-primary" onClick={onBack}>
-            <MapPin /> Change Location
-          </Button>
-        }
-      >
+      <Context>
         <Ctx icon={Building2} label="Enterprise" value={data.enterprise?.name} />
         <Ctx icon={MapPin} label="Location" value={loc ? `${loc.city}, ${loc.state}, ${loc.country}` : ""} />
       </Context>
