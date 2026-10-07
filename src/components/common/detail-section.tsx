@@ -52,6 +52,7 @@ export function DetailSection({
   onEditingChange,
   onSave,
   saveLabel = "Save",
+  action,
   readOnlyNote,
   view,
   edit,
@@ -71,6 +72,8 @@ export function DetailSection({
   onSave?: () => void
   /** Footer label; list editors save as they go, so they say "Done" */
   saveLabel?: string
+  /** Extra header control, e.g. "Add Plant". Stands down while the section is being edited. */
+  action?: React.ReactNode
   /** Says why a section carries no Edit control, rather than leaving its absence unexplained */
   readOnlyNote?: string
   view: React.ReactNode
@@ -129,6 +132,8 @@ export function DetailSection({
             Optional
           </span>
         ) : null}
+
+        {!isEditing && action ? action : null}
 
         {edit ? (
           isEditing ? (
