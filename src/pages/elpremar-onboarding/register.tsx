@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import {
   ArrowDown,
   ArrowDownWideNarrow,
@@ -45,7 +45,6 @@ const SORTS = {
   oldest: { label: "Longest serving", compare: (a: ElpremarRecord, b: ElpremarRecord) => asTime(a.joined) - asTime(b.joined) },
   name: { label: "Name A-Z", compare: (a: ElpremarRecord, b: ElpremarRecord) => a.name.localeCompare(b.name) },
   experience: { label: "Most experience", compare: (a: ElpremarRecord, b: ElpremarRecord) => b.experience - a.experience },
-  expiring: { label: "Certificate expiring", compare: (a: ElpremarRecord, b: ElpremarRecord) => asTime(a.certifiedUntil) - asTime(b.certifiedUntil) },
 } as const
 type SortKey = keyof typeof SORTS
 
@@ -54,6 +53,7 @@ const initials = (name: string) =>
 
 /** ELPREMAR register: KPIs, the certified workforce table, and the entry point to onboarding */
 export function ElpremarRegister({ onStart }: { onStart: () => void }) {
+  const navigate = useNavigate()
   const [query, setQuery] = useState("")
   const [role, setRole] = useState("all")
   const [status, setStatus] = useState("all")
@@ -211,13 +211,17 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
               {pageRows.map((e) => {
                 const meta = elpremarStatusMeta[e.status]
                 return (
-                  <TableRow key={e.id}>
+                  <TableRow key={e.id} onClick={() => navigate(`/elpremars/${e.id}`)} className="cursor-pointer">
                     <TableCell className={`${td} relative pl-3`}>
                       {/* Status stripe: colour reinforcing the badge at the end of the row */}
                       <span title={`Status: ${meta.label}`} className={cn("absolute inset-y-0 left-0 w-0.5", meta.stripe)}>
                         <span className="sr-only">Status: {meta.label}</span>
                       </span>
-                      <Link to={`/elpremars/${e.id}`} className="group/name flex items-center gap-2">
+                      <Link
+                        to={`/elpremars/${e.id}`}
+                        onClick={(ev) => ev.stopPropagation()}
+                        className="group/name flex items-center gap-2"
+                      >
                         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full text-[0.55rem] font-bold", meta.chip)}>
                           {initials(e.name)}
                         </span>

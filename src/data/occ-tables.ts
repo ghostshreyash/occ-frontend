@@ -597,7 +597,7 @@ export type PlantProfile = {
  */
 export type EnterpriseProfile = {
   enterprise: { name: string; shortName: string; sectorType: string; sector: string; website: string; description: string }
-  location: { country: string; state: string; city: string; pin: string; latitude: string; longitude: string; address: string }
+  location: { country: string; state: string; city: string; pin: string; address: string }
   plants: PlantProfile[]
   account: { email: string; role: string; lastLogin: string }
 }
@@ -714,7 +714,6 @@ const timeZonesByCountry: Record<string, string> = {
 export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
   const seed = seedOf(e.id)
   const slug = e.name.toLowerCase().replace(/[^a-z]/g, "").slice(0, 10)
-  const [lat, lng] = coordsFor[e.city] ?? ["0.0000", "0.0000"]
   const plantTypePool = e.sectorType === "Retail" ? retailPlantTypes : industryPlantTypes
   const short = e.id.slice(0, 3)
   const mail = (name: string) => name.toLowerCase().replace(/ /g, ".") + "@" + slug + ".com"
@@ -791,8 +790,6 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       state: stateFor[e.city] ?? e.country,
       city: e.city,
       pin: String(100000 + (seed % 800000)),
-      latitude: lat,
-      longitude: lng,
       address: e.name + ", " + pick(plantSuffixes, seed, 1) + ", " + e.city + ", " + e.country,
     },
     plants,

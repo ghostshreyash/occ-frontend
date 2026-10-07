@@ -250,8 +250,6 @@ export function ReviewStep({
                 { label: "State", value: l?.state },
                 { label: "City", value: l?.city },
                 { label: "Postal Code", value: l?.pin },
-                { label: "Latitude", value: l?.latitude },
-                { label: "Longitude", value: l?.longitude },
                 { label: "Address", value: l?.address },
               ]}
             />
@@ -267,8 +265,6 @@ export function ReviewStep({
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
               <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
-              <TextField control={locationForm.control} name="latitude" label="Latitude" inputMode="decimal" />
-              <TextField control={locationForm.control} name="longitude" label="Longitude" inputMode="decimal" />
             </SectionForm>
           }
         />
@@ -386,7 +382,7 @@ export function ReviewStep({
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">#</TableHead>
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Name</TableHead>
                       <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Code</TableHead>
-                      <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Function / Area</TableHead>
+                      <TableHead className="h-7 px-2 text-[0.65rem] uppercase">Function</TableHead>
                       <TableHead className="hidden h-7 px-2 text-[0.65rem] uppercase sm:table-cell">Description</TableHead>
                       <TableHead className="h-7 w-10 px-2 text-[0.65rem] uppercase">Remove</TableHead>
                     </TableRow>
