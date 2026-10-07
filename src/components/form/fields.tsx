@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form"
-import { Calendar as CalendarIcon, Eye, EyeOff, UploadCloud, X} from "lucide-react"
+import { Calendar as CalendarIcon, Eye, EyeOff, FileText, Trash2, UploadCloud, X} from "lucide-react"
 import { format, isValid, parseISO } from "date-fns"
 import { cn } from "cn"
 
@@ -333,6 +333,67 @@ export function DateField<T extends FieldValues>({
 }
 
 /** Drag-and-drop style file picker (PNG/JPG logos, photos). Keeps the chosen File in form state. */
+/** Readable file size, so "2 MB max" can be checked against what was chosen */
+const fileSize = (bytes: number) =>
+  bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+
+/**
+ * The chosen file. An image is shown as a thumbnail - a logo is picked by eye,
+ * and a filename alone does not confirm the right one was selected. The object
+ * URL is released when the file changes or the field unmounts.
+ */
+function ChosenFile({ file, inputId, onClear }: { file: File; inputId: string; onClear: () => void }) {
+  /*
+   * Derived from the file rather than held in state: setting state from an
+   * effect here would cost a second render on every pick. The effect only
+   * releases the URL, when the file changes or the field goes away.
+   */
+  const preview = useMemo(
+    () => (file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined),
+    [file]
+  )
+  useEffect(() => (preview ? () => URL.revokeObjectURL(preview) : undefined), [preview])
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-input bg-muted/40 p-2">
+      {/* Chequerboard behind the thumbnail, so a transparent PNG reads as transparent rather than white */}
+      <span
+        className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md ring-1 ring-border"
+        style={{
+          backgroundImage:
+            "linear-gradient(45deg,var(--muted) 25%,transparent 25%),linear-gradient(-45deg,var(--muted) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--muted) 75%),linear-gradient(-45deg,transparent 75%,var(--muted) 75%)",
+          backgroundSize: "10px 10px",
+          backgroundPosition: "0 0,0 5px,5px -5px,-5px 0",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        {preview ? (
+          <img src={preview} alt={`Preview of ${file.name}`} className="size-full object-contain" />
+        ) : (
+          <FileText className="size-5 text-muted-foreground" />
+        )}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground" title={file.name}>{file.name}</p>
+        <p className="text-xs text-muted-foreground tabular-nums">{fileSize(file.size)}</p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <label
+          htmlFor={inputId}
+          className="cursor-pointer rounded-md border bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          Replace
+        </label>
+        <Button type="button" variant="ghost" size="icon-sm" className="text-critical" aria-label={`Remove ${file.name}`} onClick={onClear}>
+          <Trash2 />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function FileDropField<T extends FieldValues>({
   control,
   name,
@@ -350,30 +411,38 @@ export function FileDropField<T extends FieldValues>({
         return (
           <Field className={className}>
             <FieldTitle label={label} htmlFor={name} />
-            <label
-              htmlFor={name}
-              className={cn(
-                "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
-              )}
-            >
-              <UploadCloud className="size-8 text-primary" />
-              {file ? (
-                <span className="font-medium text-foreground">{file.name}</span>
-              ) : (
-                <>
-                  <span>Drag &amp; drop file here</span>
-                  <span className="text-xs">or</span>
-                  <span className="rounded-md border bg-card px-3 py-1 font-medium text-foreground">Choose File</span>
-                </>
-              )}
-              <input
-                id={name}
-                type="file"
-                accept={accept}
-                className="sr-only"
-                onChange={(e) => field.onChange(e.target.files?.[0])}
-              />
-            </label>
+
+            {/*
+              * The input sits outside the drop zone so that Replace and Remove
+              * can live beside the preview without one triggering the other.
+              * Clearing its value after every pick lets the same file be chosen
+              * again after a Remove.
+              */}
+            <input
+              id={name}
+              type="file"
+              accept={accept}
+              className="sr-only"
+              onChange={(e) => {
+                field.onChange(e.target.files?.[0])
+                e.target.value = ""
+              }}
+            />
+
+            {file ? (
+              <ChosenFile file={file} inputId={name} onClear={() => field.onChange(undefined)} />
+            ) : (
+              <label
+                htmlFor={name}
+                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
+              >
+                <UploadCloud className="size-8 text-primary" />
+                <span>Drag &amp; drop file here</span>
+                <span className="text-xs">or</span>
+                <span className="rounded-md border bg-card px-3 py-1 font-medium text-foreground">Choose File</span>
+              </label>
+            )}
+
             <FieldDescription className="text-xs">{hint}</FieldDescription>
           </Field>
         )
