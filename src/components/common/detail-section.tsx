@@ -52,6 +52,7 @@ export function DetailSection({
   onEditingChange,
   onSave,
   saveLabel = "Save",
+  action,
   view,
   edit,
 }: {
@@ -70,6 +71,8 @@ export function DetailSection({
   onSave?: () => void
   /** Footer label; list editors save as they go, so they say "Done" */
   saveLabel?: string
+  /** Extra header control, e.g. "Add Plant". Stands down while the section is being edited. */
+  action?: React.ReactNode
   view: React.ReactNode
   edit?: React.ReactNode
 }) {
@@ -120,6 +123,8 @@ export function DetailSection({
             Optional
           </span>
         ) : null}
+
+        {!isEditing && action ? action : null}
 
         {edit ? (
           isEditing ? (

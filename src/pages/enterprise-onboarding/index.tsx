@@ -7,7 +7,7 @@ import type { WizardStep } from "@/components/common/wizard"
 import { DepartmentStep, EnterpriseStep, LocationStep, PlantStep, SubDepartmentAccountStep } from "./steps"
 import { EnterpriseRegister } from "./register"
 import { ReviewStep } from "./review"
-import type { OnboardingData } from "./schemas"
+import type { OnboardingData, PlantEntry } from "./schemas"
 
 const keyInfo = [
   [
@@ -23,20 +23,20 @@ const keyInfo = [
     "Fields marked with * are mandatory.",
   ],
   [
-    "A location can have multiple plants.",
-    "Each plant will be linked to the selected location and enterprise.",
+    "An enterprise can have as many plants as it has sites — add each one in turn.",
+    "Each plant carries its own location, because work is dispatched to the plant.",
     "Plant details help in organizing assets, departments and maintenance activities.",
-    "You can add multiple plants after completing this step.",
+    "At least one plant is required to continue.",
     "Fields marked with * are mandatory.",
   ],
   [
     "A department groups related functions and teams within a plant.",
-    "You can add the head of department and contact details for better coordination.",
+    "Pick a plant, then add as many departments as it has.",
     "Ensure the department details are accurate for proper asset and maintenance mapping.",
-    "Fields marked with * are mandatory.",
+    "Departments are optional — you can continue without any.",
   ],
   [
-    "You can add multiple sub-departments under the selected department.",
+    "Pick a department, then add as many sub-departments under it as you need.",
     "Create the enterprise administrator username and password to access the EMMS-E portal.",
     "Sub-departments help in granular asset management and maintenance tracking.",
     "Ensure the account details are stored securely and shared only with authorised personnel.",
@@ -59,13 +59,13 @@ export function EnterpriseOnboardingPage() {
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
   const [submitting, setSubmitting] = useState(false)
-  const [data, setData] = useState<OnboardingData>({ subDepartments: [] })
+  const [data, setData] = useState<OnboardingData>({ plants: [] })
 
   const closeWizard = () => {
     setWizardOpen(false)
     setStep(0)
     setFurthest(0)
-    setData({ subDepartments: [] })
+    setData({ plants: [] })
     window.scrollTo({ top: 0 })
   }
 
@@ -74,12 +74,15 @@ export function EnterpriseOnboardingPage() {
   }
 
   const loc = data.location
+  const departmentCount = data.plants.reduce((n, p) => n + p.departments.length, 0)
+  const subCount = data.plants.reduce((n, p) => n + p.departments.reduce((m, d) => m + d.subDepartments.length, 0), 0)
+  const count = (n: number, one: string, many = one + "s") => (n === 0 ? undefined : `${n} ${n === 1 ? one : many}`)
   const steps: WizardStep[] = [
     { title: "Enterprise", description: "Enter enterprise details", icon: Building2, summary: data.enterprise?.name },
     { title: "Location", description: "Add country, state, city or site location", icon: MapPin, summary: loc ? `${loc.city}, ${loc.state}, ${loc.country}` : undefined },
-    { title: "Plant", description: "Add plant under the enterprise", icon: Factory, summary: data.plant?.name },
-    { title: "Department", description: "Add department under the plant", icon: Network, summary: data.department?.name },
-    { title: step === 4 ? "Sub-department & Account" : "Sub-department", description: "Add sub-department under the department", icon: Folder },
+    { title: "Plants", description: "Add the plants under the enterprise", icon: Factory, summary: count(data.plants.length, "plant") },
+    { title: "Departments", description: "Add departments under each plant", icon: Network, summary: count(departmentCount, "department") },
+    { title: step === 4 ? "Sub-departments & Account" : "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
     { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
 
@@ -92,6 +95,16 @@ export function EnterpriseOnboardingPage() {
     })
     window.scrollTo({ top: 0 })
   }
+  /** Steps that build a list advance themselves, having already written their rows into `data` */
+  const advance = () => {
+    setStep((s) => {
+      const nextStep = s + 1
+      setFurthest((f) => Math.max(f, nextStep))
+      return nextStep
+    })
+    window.scrollTo({ top: 0 })
+  }
+  const setPlants = (plants: PlantEntry[]) => setData((d) => ({ ...d, plants }))
   const back = () => setStep((s) => Math.max(0, s - 1))
   /*
    * Any step already reached can be revisited, forward or back - each step
@@ -117,13 +130,13 @@ export function EnterpriseOnboardingPage() {
     >
       {step === 0 && <EnterpriseStep data={data} onNext={next("enterprise")} onCancel={closeWizard} />}
       {step === 1 && <LocationStep data={data} onNext={next("location")} onBack={back} />}
-      {step === 2 && <PlantStep data={data} onNext={next("plant")} onBack={back} />}
-      {step === 3 && <DepartmentStep data={data} onNext={next("department")} onBack={back} />}
+      {step === 2 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
+      {step === 3 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
       {step === 4 && (
         <SubDepartmentAccountStep
           data={data}
           onBack={back}
-          onSubDepartmentsChange={(subDepartments) => setData((d) => ({ ...d, subDepartments }))}
+          onPlantsChange={setPlants}
           onComplete={next("account")}
         />
       )}

@@ -14,6 +14,7 @@ import {
   Folder,
   MapPin,
   Network,
+  Plus,
   Search,
   HeartPulse,
   Server,
@@ -30,26 +31,33 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DateField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DepartmentFields, PlantFields, SubDepartmentFields } from "@/components/form/entity-fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
+import { Context, Ctx } from "@/components/common/wizard"
 import { SelectableTable } from "@/components/common/selectable-table"
-import { countries, indianStates, salutations, timeZones } from "@/data/mock"
-import { areaForPostalCode, departmentTypes, plantCapacityUnitCodes, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
-import { assetHealthFor, coordsForCity, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
+import { countries, indianStates } from "@/data/mock"
+import { areaForPostalCode, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { assetHealthFor, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
 import {
+  blankDepartment,
+  blankPlant,
+  blankSubDepartment,
   departmentSchema,
   enterpriseSchema,
   locationSchema,
   plantSchema,
+  subDepartmentSchema,
   type DepartmentValues,
   type EnterpriseValues,
   type LocationValues,
   type PlantValues,
+  type SubDepartmentValues,
 } from "./enterprise-onboarding/schemas"
 
 /**
@@ -75,6 +83,96 @@ const showDate = (iso?: string) => {
   return isValid(d) ? format(d, "dd MMM yyyy") : iso
 }
 
+/*
+ * Onboarding captures a form; the profile stores a record. These fill in what a
+ * record needs and the form does not carry - an id, the state the postal code
+ * resolves to, and an empty list of children.
+ */
+const toPlantProfile = (values: PlantValues, id: string, fallbackState: string): PlantProfile => ({
+  id,
+  name: values.name,
+  type: values.type,
+  code: values.code ?? "",
+  city: values.city ?? "",
+  state: areaForPostalCode(values.pin)?.state ?? fallbackState,
+  pin: values.pin,
+  latitude: values.latitude ?? "",
+  longitude: values.longitude ?? "",
+  salutation: values.salutation,
+  head: values.head,
+  email: values.email,
+  phoneCode: values.phoneCode ?? "",
+  phone: values.phone,
+  capacity: values.capacity ?? "",
+  capacityUnit: values.capacityUnit ?? "",
+  commissioningDate: values.commissioningDate ?? "",
+  timeZone: values.timeZone ?? "",
+  address: values.address,
+  notes: values.notes ?? "",
+  departments: [],
+})
+
+const toDepartmentProfile = (values: DepartmentValues, id: string): DepartmentProfile => ({
+  id,
+  name: values.name ?? "",
+  code: values.code ?? "",
+  type: values.type ?? "",
+  parent: values.parent ?? "",
+  salutation: values.salutation ?? "",
+  head: values.head ?? "",
+  email: values.email ?? "",
+  phoneCode: values.phoneCode ?? "",
+  phone: values.phone ?? "",
+  description: values.description ?? "",
+  subDepartments: [],
+})
+
+/**
+ * The panel an "Add" button opens. Same shape for a plant, a department or a
+ * sub-department: what is already settled sits in the strip at the top, the
+ * form below is the onboarding one, and nothing is written until Add is pressed.
+ */
+function AddPanel({
+  title,
+  description,
+  context,
+  addLabel,
+  onAdd,
+  onCancel,
+  children,
+}: {
+  title: string
+  description: string
+  context: React.ReactNode
+  addLabel: string
+  onAdd: () => void
+  onCancel: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-md bg-card p-2.5 ring-1 ring-primary/40">
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h5 className="text-xs font-semibold">{title}</h5>
+          <p className="text-[0.7rem] text-muted-foreground">{description}</p>
+        </div>
+        <div className="flex gap-1.5">
+          <Button type="button" variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={onCancel}>
+            <X className="size-3" /> Cancel
+          </Button>
+          <Button type="button" size="sm" className="h-6 text-[0.7rem]" onClick={onAdd}>
+            <Plus className="size-3" /> {addLabel}
+          </Button>
+        </div>
+      </div>
+      {context}
+      <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+        {children}
+      </form>
+    </div>
+  )
+}
+
 /** Enterprise detail: the full onboarding profile, editable, plus its work history */
 export function EnterpriseDetailPage() {
   const { id } = useParams()
@@ -88,6 +186,8 @@ export function EnterpriseDetailPage() {
   const [deptId, setDeptId] = useState<string>()
   const [plantQuery, setPlantQuery] = useState("")
   const [plantCity, setPlantCity] = useState("all")
+  /** Which section is currently adding a row. Separate from `editing` - one adds, the other amends. */
+  const [adding, setAdding] = useState<"plant" | "department" | "subs" | null>(null)
 
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
@@ -112,6 +212,15 @@ export function EnterpriseDetailPage() {
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: profile?.location })
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: plant })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: dept })
+
+  /*
+   * Adding uses the same forms as onboarding does. The enterprise and its head
+   * office are already settled, so they are shown above the form as fixed
+   * context rather than offered as fields.
+   */
+  const newPlantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), defaultValues: blankPlant })
+  const newDepartmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), defaultValues: blankDepartment })
+  const newSubForm = useForm<SubDepartmentValues>({ resolver: zodResolver(subDepartmentSchema), defaultValues: blankSubDepartment })
 
   const accountForm = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
@@ -149,6 +258,70 @@ export function EnterpriseDetailPage() {
       })()
     }
 
+  /** Appends to the live list, which is the overridden one once anything has been changed */
+  const writePlants = (next: PlantProfile[]) => setOverrides((o) => ({ ...o, plants: next }))
+
+  /** An id that no existing row holds, so a removal earlier cannot cause a clash */
+  const freeId = (prefix: string, taken: string[]) => {
+    let n = taken.length + 1
+    while (taken.includes(prefix + n)) n += 1
+    return prefix + n
+  }
+
+  const cancelAdd = () => {
+    setAdding(null)
+    newPlantForm.reset(blankPlant)
+    newDepartmentForm.reset(blankDepartment)
+    newSubForm.reset(blankSubDepartment)
+  }
+
+  const addPlant = newPlantForm.handleSubmit((values) => {
+    // TODO: POST /enterprises/:id/plants once the API exists
+    const created = toPlantProfile(
+      values,
+      freeId(`${record?.id.slice(0, 3) ?? "ENT"}-P`, plants.map((pl) => pl.id)),
+      profile?.location.state ?? ""
+    )
+    writePlants([...plants, created])
+    setPlantId(created.id)
+    setDeptId(undefined)
+    cancelAdd()
+    toast.success(`${created.name} added`, { description: `It now sits under ${profile?.enterprise.name}.` })
+  })
+
+  const addDepartment = newDepartmentForm.handleSubmit((values) => {
+    if (!plant) return
+    const created = toDepartmentProfile(values, freeId(`${plant.id}-D`, plant.departments.map((d) => d.id)))
+    writePlants(plants.map((pl) => (pl.id === plant.id ? { ...pl, departments: [...pl.departments, created] } : pl)))
+    setDeptId(created.id)
+    cancelAdd()
+    toast.success(`${created.name} added`, { description: `It now sits under ${plant.name}.` })
+  })
+
+  const addSubDepartment = newSubForm.handleSubmit((values) => {
+    if (!plant || !dept) return
+    const created = {
+      name: values.name ?? "",
+      code: values.code ?? "",
+      function: values.function ?? "",
+      description: values.description,
+    }
+    writePlants(
+      plants.map((pl) =>
+        pl.id !== plant.id
+          ? pl
+          : {
+              ...pl,
+              departments: pl.departments.map((d) =>
+                d.id === dept.id ? { ...d, subDepartments: [...d.subDepartments, created] } : d
+              ),
+            }
+      )
+    )
+    cancelAdd()
+    toast.success(`${created.name} added`, { description: `It now sits under ${dept.name}.` })
+  })
+
   const saveAccount = accountForm.handleSubmit((values) => {
     setOverrides((o) => ({
       ...o,
@@ -175,18 +348,6 @@ export function EnterpriseDetailPage() {
   const editingCountryIsIndia = locationForm.watch("country") === "India"
   const health = assetHealthFor(record)
   const pct = (n: number) => Math.round((n / record.assets) * 100)
-
-  // Editing a plant's postal code resolves its city and coordinates
-  const fillPlantFromPin = (code: string) => {
-    const area = areaForPostalCode(code)
-    if (!area) return
-    plantForm.setValue("city", area.city)
-    const point = coordsForCity(area.city)
-    if (point) {
-      plantForm.setValue("latitude", point.lat)
-      plantForm.setValue("longitude", point.lng)
-    }
-  }
 
   /*
    * Deactivation stops the enterprise using the app; the record and its history
@@ -335,8 +496,42 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(plantForm, "plant")}
+          action={
+            adding === "plant" ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
+                disabled={editing !== null || adding !== null}
+                onClick={() => setAdding("plant")}
+              >
+                <Plus className="size-3" /> Add Plant
+              </Button>
+            )
+          }
           view={
             <div className="space-y-2.5">
+              {adding === "plant" ? (
+                <AddPanel
+                  title={`Add a plant to ${e.name}`}
+                  description="The same form as onboarding. The enterprise and its head office are already settled, so they are fixed here."
+                  addLabel="Add Plant"
+                  onAdd={addPlant}
+                  onCancel={cancelAdd}
+                  context={
+                    <Context>
+                      <Ctx icon={Building2} label="Enterprise" value={e.name} />
+                      <Ctx icon={Factory} label="Type" value={e.sectorType} />
+                      <Ctx icon={Factory} label="Sector" value={e.sector} />
+                      <Ctx icon={MapPin} label="Head Office" value={`${l.city}, ${l.state}, ${l.country}`} />
+                    </Context>
+                  }
+                >
+                  <PlantFields form={newPlantForm} />
+                </AddPanel>
+              ) : null}
+
               {/* Search and location filter, so a 12-plant enterprise stays navigable */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative min-w-0 flex-1 sm:max-w-56">
@@ -442,30 +637,7 @@ export function EnterpriseDetailPage() {
               <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
                 Editing <strong>{plant?.name}</strong>
               </p>
-              <TextField control={plantForm.control} name="name" label="Plant Name" required />
-              <TextField control={plantForm.control} name="type" label="Plant Type" required />
-              <TextField control={plantForm.control} name="code" label="Plant Code" />
-              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-                <SelectField control={plantForm.control} name="salutation" label="Title" required options={salutations} />
-                <TextField control={plantForm.control} name="head" label="Plant Head" required />
-              </div>
-              <TextField control={plantForm.control} name="email" label="Email" required type="email" />
-              <PhoneField control={plantForm.control} codeName="phoneCode" name="phone" label="Phone Number" required />
-              <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
-                <TextField control={plantForm.control} name="capacity" label="Plant Capacity" inputMode="decimal" />
-                <SelectField control={plantForm.control} name="capacityUnit" label="Unit" options={plantCapacityUnitCodes} placeholder="Unit" />
-              </div>
-              <DateField control={plantForm.control} name="commissioningDate" label="Commissioning Date" />
-              <SelectField control={plantForm.control} name="timeZone" label="Time Zone" options={timeZones} />
-              <TextareaField control={plantForm.control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
-              {/* The plant's own location - work is dispatched here */}
-              <TextField control={plantForm.control} name="pin" label="Postal Code" required onValueChange={fillPlantFromPin} />
-              <TextField control={plantForm.control} name="city" label="City" required />
-              <div className="grid grid-cols-2 gap-2">
-                <TextField control={plantForm.control} name="latitude" label="Latitude" readOnly inputClassName="bg-muted/60" />
-                <TextField control={plantForm.control} name="longitude" label="Longitude" readOnly inputClassName="bg-muted/60" />
-              </div>
-              <TextareaField control={plantForm.control} name="notes" label="Notes" rows={2} className="md:col-span-3" />
+              <PlantFields form={plantForm} />
             </form>
           }
         />
@@ -482,8 +654,41 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(departmentForm, "department")}
+          action={
+            adding === "department" || !plant ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
+                disabled={editing !== null || adding !== null}
+                onClick={() => setAdding("department")}
+              >
+                <Plus className="size-3" /> Add Department
+              </Button>
+            )
+          }
           view={
             <div className="space-y-2.5">
+              {adding === "department" && plant ? (
+                <AddPanel
+                  title={`Add a department to ${plant.name}`}
+                  description="A plant can have as many departments as it needs."
+                  addLabel="Add Department"
+                  onAdd={addDepartment}
+                  onCancel={cancelAdd}
+                  context={
+                    <Context>
+                      <Ctx icon={Building2} label="Enterprise" value={e.name} />
+                      <Ctx icon={Factory} label="Plant" value={plant.name} />
+                      <Ctx icon={MapPin} label="Location" value={`${plant.city}, ${plant.state}`} />
+                    </Context>
+                  }
+                >
+                  <DepartmentFields form={newDepartmentForm} />
+                </AddPanel>
+              ) : null}
+
               <SelectableTable
                 rows={departments}
                 selectedId={deptId}
@@ -522,16 +727,7 @@ export function EnterpriseDetailPage() {
               <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
                 Editing <strong>{dept?.name}</strong> under <strong>{plant?.name}</strong>
               </p>
-              <TextField control={departmentForm.control} name="name" label="Department Name" />
-              <TextField control={departmentForm.control} name="code" label="Department Code" />
-              <SelectField control={departmentForm.control} name="type" label="Department Type" options={departmentTypes} />
-              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-                <SelectField control={departmentForm.control} name="salutation" label="Title" options={salutations} />
-                <TextField control={departmentForm.control} name="head" label="Head of Department" />
-              </div>
-              <TextField control={departmentForm.control} name="email" label="Email" type="email" />
-              <PhoneField control={departmentForm.control} codeName="phoneCode" name="phone" label="Phone Number" />
-              <TextareaField control={departmentForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
+              <DepartmentFields form={departmentForm} />
             </form>
           }
         />
@@ -547,13 +743,46 @@ export function EnterpriseDetailPage() {
           sectionKey="subs"
           editing={editing}
           onEditingChange={setEditing}
+          action={
+            adding === "subs" || !dept ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
+                disabled={editing !== null || adding !== null}
+                onClick={() => setAdding("subs")}
+              >
+                <Plus className="size-3" /> Add Sub-department
+              </Button>
+            )
+          }
           view={
-            subs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                {dept ? "No sub-departments under this department." : "Select a department to see its sub-departments."}
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
+            <div className="space-y-2.5">
+              {adding === "subs" && dept ? (
+                <AddPanel
+                  title={`Add a sub-department to ${dept.name}`}
+                  description="Sub-departments give granular asset and maintenance tracking."
+                  addLabel="Add Sub-department"
+                  onAdd={addSubDepartment}
+                  onCancel={cancelAdd}
+                  context={
+                    <Context>
+                      <Ctx icon={Factory} label="Plant" value={plant?.name} />
+                      <Ctx icon={Network} label="Department" value={dept.name} />
+                    </Context>
+                  }
+                >
+                  <SubDepartmentFields form={newSubForm} />
+                </AddPanel>
+              ) : null}
+
+              {subs.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {dept ? "No sub-departments under this department." : "Select a department to see its sub-departments."}
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -566,7 +795,7 @@ export function EnterpriseDetailPage() {
                   </TableHeader>
                   <TableBody>
                     {subs.map((s, i) => (
-                      <TableRow key={s.code}>
+                      <TableRow key={`${s.code}-${i}`}>
                         <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
                         <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
                         <TableCell className={`${td} tabular-nums`}>{s.code}</TableCell>
@@ -576,8 +805,9 @@ export function EnterpriseDetailPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-            )
+                </div>
+              )}
+            </div>
           }
         />
 
