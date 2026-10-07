@@ -14,6 +14,7 @@ export function WizardPage({
   furthest,
   aside,
   onExit,
+  exitLabel = "Back to Enterprises",
   onStepSelect,
   children,
 }: {
@@ -28,6 +29,8 @@ export function WizardPage({
   aside?: React.ReactNode
   /** Leaves the wizard without completing it */
   onExit?: () => void
+  /** Where leaving returns to */
+  exitLabel?: string
   /** Jump back to an already-completed step to change an earlier answer */
   onStepSelect?: (i: number) => void
   children: React.ReactNode
@@ -41,7 +44,7 @@ export function WizardPage({
         actions={
           onExit ? (
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onExit}>
-              <ArrowLeft className="size-3.5" /> Back to Enterprises
+              <ArrowLeft className="size-3.5" /> {exitLabel}
             </Button>
           ) : null
         }
