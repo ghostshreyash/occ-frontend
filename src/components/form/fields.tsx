@@ -438,14 +438,20 @@ export function FileDropField<T extends FieldValues>({
             {file ? (
               <ChosenFile file={file} inputId={name} onClear={() => field.onChange(undefined)} />
             ) : (
+              /*
+               * Laid out like the chosen-file row, so the field is the same
+               * height either way and the form does not jump when a file is
+               * picked.
+               */
               <label
                 htmlFor={name}
-                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-input bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-accent"
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-dashed border-input bg-muted/40 p-2 transition-colors hover:border-primary hover:bg-accent"
               >
-                <UploadCloud className="size-8 text-primary" />
-                <span>Drag &amp; drop file here</span>
-                <span className="text-xs">or</span>
-                <span className="rounded-md border bg-card px-3 py-1 font-medium text-foreground">Choose File</span>
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-md bg-card ring-1 ring-border">
+                  <UploadCloud className="size-6 text-primary" />
+                </span>
+                <span className="min-w-0 flex-1 text-sm text-muted-foreground">Drag &amp; drop file here, or</span>
+                <span className="shrink-0 rounded-md border bg-card px-2 py-1 text-xs font-medium text-foreground">Choose File</span>
               </label>
             )}
 
