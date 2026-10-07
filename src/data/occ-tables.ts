@@ -92,14 +92,14 @@ type UnlinkedMaintenance = Omit<MaintenanceRow, "inspectionId">
 
 export const maintenanceProgress: MaintenanceRow[] = [
   { id: "MT-2291", asset: "LT Panel - Block A", plant: "Mumbai Unit 2", enterprise: "Tata Steel Limited", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(-2), slot: 9, inspectionId: "TSK-8841", status: "completed" },
-  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar Substation", enterprise: "Reliance Industries", country: "India", type: "Condition-Based", elpremar: "Amit Sharma", scheduled: day(0), slot: 10, inspectionId: "TSK-8840", status: "open" },
+  { id: "MT-2290", asset: "Transformer - T1", plant: "Jamnagar Substation", enterprise: "Reliance Industries", country: "India", type: "Condition-Based", elpremar: "Amit Sharma", scheduled: day(0), slot: 10, inspectionId: "TSK-8840", status: "assigned" },
   { id: "MT-2289", asset: "MCC - Unit 2", plant: "Dolvi Substation", enterprise: "JSW Group", country: "India", type: "Preventive", elpremar: "Ramesh Patil", scheduled: day(0), slot: 9, inspectionId: "TSK-8839", status: "in_progress" },
-  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra Warehouse", enterprise: "Adani Group", country: "India", type: "Fire Preventive", elpremar: "Anil Singh", scheduled: day(2), slot: 11, inspectionId: "TSK-8838", status: "open" },
+  { id: "MT-2288", asset: "PCC - Main", plant: "Mundra Warehouse", enterprise: "Adani Group", country: "India", type: "Fire Preventive", elpremar: "Anil Singh", scheduled: day(2), slot: 11, inspectionId: "TSK-8838", status: "assigned" },
   // Deliberately shares Suresh Kumar's 10:00 slot with TSK-8837, so the dialog has a clash to show
   { id: "MT-2287", asset: "HT Panel - Incomer 1", plant: "Hyderabad Main Plant", enterprise: "NTPC", country: "India", type: "Preventive", elpremar: "Suresh Kumar", scheduled: day(3), slot: 10, inspectionId: "TSK-8837", status: "assigned" },
-  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai Main Plant", enterprise: "Emirates Steel", country: "United Arab Emirates", type: "Preventive", elpremar: "Khalid Rahman", scheduled: day(1), slot: 11, inspectionId: "TSK-8836", status: "open" },
+  { id: "MT-2286", asset: "APFC Panel - 1", plant: "Dubai Main Plant", enterprise: "Emirates Steel", country: "United Arab Emirates", type: "Preventive", elpremar: "Khalid Rahman", scheduled: day(1), slot: 11, inspectionId: "TSK-8836", status: "assigned" },
   { id: "MT-2285", asset: "UPS - 03", plant: "Frankfurt Utility Block", enterprise: "Thyssenkrupp AG", country: "Germany", type: "Fire Preventive", elpremar: "Lukas Weber", scheduled: day(4), slot: 10, inspectionId: "TSK-8835", status: "assigned" },
-  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston Main Plant", enterprise: "LyondellBasell", country: "United States", type: "Condition-Based", elpremar: "Maria Lopez", scheduled: day(1), slot: 15, inspectionId: "TSK-8834", status: "open" },
+  { id: "MT-2284", asset: "Switchboard - SB2", plant: "Houston Main Plant", enterprise: "LyondellBasell", country: "United States", type: "Condition-Based", elpremar: "Maria Lopez", scheduled: day(1), slot: 15, inspectionId: "TSK-8834", status: "assigned" },
 ]
 
 /**
@@ -110,7 +110,9 @@ export const maintenanceProgress: MaintenanceRow[] = [
  */
 
 const units = ["Block A", "Block B", "Unit 1", "Unit 2", "Unit 3", "Main", "Incomer 1", "Incomer 2", "T1", "T2", "SB1", "SB2", "03", "04"]
-const workStates: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
+// Self-approved on creation, so no job waits in "open" for an approver
+// const workStates: WorkStatus[] = ["open", "assigned", "in_progress", "completed"]
+const workStates: WorkStatus[] = ["assigned", "in_progress", "completed"]
 
 function moreMaintenance(count: number): UnlinkedMaintenance[] {
   let seed = 20250528
@@ -174,14 +176,14 @@ export type TaskRow = {
 }
 
 export const taskQueue: TaskRow[] = [
-  { id: "TSK-8841", elpremar: "Suresh Kumar", enterprise: "Tata Steel Limited", plant: "Mumbai Unit 2", asset: "LT Panel - Block A", country: "India", activity: "Thermal Scan", due: day(0), slot: 11, priority: "High", status: "in_progress" },
-  { id: "TSK-8840", elpremar: "Amit Sharma", enterprise: "Reliance Industries", plant: "Jamnagar Substation", asset: "Transformer - T1", country: "India", activity: "Partial Discharge Testing", due: day(2), slot: 11, priority: "Critical", status: "pending" },
+  { id: "TSK-8841", elpremar: "Suresh Kumar", enterprise: "Tata Steel Limited", plant: "Mumbai Unit 2", asset: "LT Panel - Block A", country: "India", activity: "Thermal Inspection", due: day(0), slot: 11, priority: "High", status: "in_progress" },
+  { id: "TSK-8840", elpremar: "Amit Sharma", enterprise: "Reliance Industries", plant: "Jamnagar Substation", asset: "Transformer - T1", country: "India", activity: "Re-inspection", due: day(2), slot: 11, priority: "Critical", status: "pending" },
   { id: "TSK-8839", elpremar: "Ramesh Patil", enterprise: "JSW Group", plant: "Dolvi Substation", asset: "MCC - Unit 2", country: "India", activity: "Visual Inspection", due: day(3), slot: 11, priority: "Medium", status: "pending" },
-  { id: "TSK-8838", elpremar: "Anil Singh", enterprise: "Adani Group", plant: "Mundra Warehouse", asset: "PCC - Main", country: "India", activity: "Preventive Assessment", due: day(-3), slot: 10, priority: "Low", status: "completed" },
-  { id: "TSK-8837", elpremar: "Suresh Kumar", enterprise: "NTPC", plant: "Hyderabad Main Plant", asset: "HT Panel - Incomer 1", country: "India", activity: "Insulation Resistance Testing", due: day(3), slot: 10, priority: "Medium", status: "pending" },
-  { id: "TSK-8836", elpremar: "Khalid Rahman", enterprise: "Emirates Steel", plant: "Dubai Main Plant", asset: "APFC Panel - 1", country: "United Arab Emirates", activity: "Preventive Assessment", due: day(2), slot: 9, priority: "High", status: "pending" },
-  { id: "TSK-8835", elpremar: "Lukas Weber", enterprise: "Thyssenkrupp AG", plant: "Frankfurt Utility Block", asset: "Fire Alarm Panel - FA1", country: "Germany", activity: "Fire Prevention System Check", due: day(4), slot: 14, priority: "Medium", status: "pending" },
-  { id: "TSK-8834", elpremar: "Maria Lopez", enterprise: "LyondellBasell", plant: "Houston Main Plant", asset: "Switchboard - SB2", country: "United States", activity: "Thermal Scan", due: day(5), slot: 9, priority: "Low", status: "pending" },
+  { id: "TSK-8838", elpremar: "Anil Singh", enterprise: "Adani Group", plant: "Mundra Warehouse", asset: "PCC - Main", country: "India", activity: "Visual Inspection", due: day(-3), slot: 10, priority: "Low", status: "completed" },
+  { id: "TSK-8837", elpremar: "Suresh Kumar", enterprise: "NTPC", plant: "Hyderabad Main Plant", asset: "HT Panel - Incomer 1", country: "India", activity: "Re-inspection", due: day(3), slot: 10, priority: "Medium", status: "pending" },
+  { id: "TSK-8836", elpremar: "Khalid Rahman", enterprise: "Emirates Steel", plant: "Dubai Main Plant", asset: "APFC Panel - 1", country: "United Arab Emirates", activity: "Visual Inspection", due: day(2), slot: 9, priority: "High", status: "pending" },
+  { id: "TSK-8835", elpremar: "Lukas Weber", enterprise: "Thyssenkrupp AG", plant: "Frankfurt Utility Block", asset: "Fire Alarm Panel - FA1", country: "Germany", activity: "Fire Prevention System Inspection", due: day(4), slot: 14, priority: "Medium", status: "pending" },
+  { id: "TSK-8834", elpremar: "Maria Lopez", enterprise: "LyondellBasell", plant: "Houston Main Plant", asset: "Switchboard - SB2", country: "United States", activity: "Thermal Inspection", due: day(5), slot: 9, priority: "Low", status: "pending" },
 ]
 
 /**
@@ -189,7 +191,8 @@ export const taskQueue: TaskRow[] = [
  * shows the whole queue. Same seeded approach as the maintenance book, and it
  * checks the maintenance bookings too so nobody is sent to two jobs at once.
  */
-const inspectionWork = activityTypes.filter((a) => a !== "Panel Cleaning (INSTA CLEAN)")
+// Every activity type is inspection work now, so the queue draws from the whole list
+const inspectionWork = activityTypes
 
 function moreInspections(count: number): TaskRow[] {
   let seed = 20250529

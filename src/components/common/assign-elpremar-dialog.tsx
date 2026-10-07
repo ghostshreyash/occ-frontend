@@ -434,7 +434,7 @@ export function WorkSchedule({
   // Finished work keeps its assignment, so the panel is then a view of the booking
   const canReassign = target.reassignable !== false
   const chosen = selected && date && slot !== undefined
-  // An inspection activity has no approval step, so its Approve stays out of reach
+  // Work raised already signed off has no approval step, so Approve stays out of reach
   const canApprove = !!chosen && !clash && target.approvable !== false
   const commit = () => chosen && onAssign({ elpremar: selected, date, slot, approved: target.approvable !== false })
 
@@ -553,10 +553,14 @@ export function WorkSchedule({
             <Button variant="secondary" size="sm" className={control} onClick={startReassign}>Reassign</Button>
           )
         ) : null}
-        {target.approvable === false && !canReassign ? null : target.approvable === false && reassigning ? (
-          <Button size="sm" className={control} disabled={!chosen || !!clash} onClick={commit}>
-            <CheckCheck className="size-3.5" /> {fresh ? "Assign" : "Reassign"}
-          </Button>
+        {target.approvable === false ? (
+          // Work with no approval step only ever commits an assignment, so until the
+          // admin chooses to reassign there is nothing for the primary button to do
+          reassigning ? (
+            <Button size="sm" className={control} disabled={!chosen || !!clash} onClick={commit}>
+              <CheckCheck className="size-3.5" /> {fresh ? "Assign" : "Reassign"}
+            </Button>
+          ) : null
         ) : (
           <Button size="sm" className={control} disabled={!canApprove} onClick={commit}>
             <CheckCheck className="size-3.5" /> Approve

@@ -21,17 +21,28 @@ export type TicketCapabilities = {
 }
 
 /**
- * The OCC desk and platform roles — these see and run the whole queue.
+ * Platform roles that run the whole queue alongside the OCC.
+ *
+ * Every OCC role is a desk role — see `isDesk`. The support desk is the one area
+ * all three OCC logins share in full: Admin, Manager and Technician each see and
+ * work every ticket, whatever their rights elsewhere in the console.
+ *
+ * Matching on the "OCC " prefix rather than listing the roles is deliberate: a
+ * role left out of a list does not get an access error, it silently falls to the
+ * "only what I raised" branch below, which for OCC staff is an empty queue.
+ *
  * Assignment is out of scope for Phase 1, so there is no assign capability.
  */
-const deskRoles = new Set(["OLIVINE Admin", "OCC Admin", "OCC Support", "System Admin"])
+const platformRoles = new Set(["OLIVINE Admin", "System Admin"])
 
-/** Closure is a step beyond working a ticket, so support staff stop short of it */
-const closerRoles = new Set(["OLIVINE Admin", "OCC Admin", "System Admin"])
+const isDesk = (role: string) => role.startsWith("OCC ") || platformRoles.has(role)
+
+/** Closure is a step beyond working a ticket; the OCC desk and platform roles have it */
+const closerRoles = new Set(["OCC Admin", "OCC Manager", "OCC Technician", "OLIVINE Admin", "System Admin"])
 
 export function capabilitiesFor(user: AuthUser | null): TicketCapabilities {
   const role = user?.role ?? ""
-  const desk = deskRoles.has(role)
+  const desk = isDesk(role)
 
   return {
     viewAll: desk,

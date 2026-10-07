@@ -2,8 +2,9 @@ import { useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import type { DateRange } from "react-day-picker"
 import { isAfter, isBefore, parse, startOfDay } from "date-fns"
-import { toast } from "sonner"
-import { CheckCheck, FileText, Plus, Search, Sheet, X } from "lucide-react"
+// Restore alongside the Action column below:
+// import { toast } from "sonner"
+import { FileText, Plus, Search, Sheet, X } from "lucide-react" // + CheckCheck
 import { cn } from "cn"
 
 import { DateRangeFilter, SortHead, TablePager } from "@/components/common/data-table"
@@ -13,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useMaintenanceRows, updateMaintenance } from "@/data/maintenance-store"
+import { useMaintenanceRows } from "@/data/maintenance-store" // + updateMaintenance
 import { maintenanceActivities, slotLabel, type MaintenanceRow } from "@/data/occ-tables"
 import { control, nextSort, sortRows, td, th, type Sort } from "@/lib/data-table"
 import { exportCsv, exportPdf, type ExportColumn } from "@/lib/table-export"
@@ -96,11 +97,13 @@ export function MaintenanceActivitiesPage() {
   const start = (current - 1) * pageSize
   const shown = sorted.slice(start, start + pageSize)
 
-  /** Sign a single activity off from its row, without leaving the list */
+  /* Sign a single activity off from its row, without leaving the list.
+     Commented out with the Action column it belongs to.
   const approveRow = (r: MaintenanceRow) => {
     updateMaintenance(r.id, { status: "assigned" })
     toast.success(`${r.asset} approved`, { description: `${r.id} · ${r.elpremar}` })
   }
+  */
 
   const filtersOn = !!query || status !== "all" || enterprise !== "all" || !!range?.from
   const clearFilters = () => {
@@ -178,7 +181,7 @@ export function MaintenanceActivitiesPage() {
                 <SortHead label="ELPREMAR" column="elpremar" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Scheduled" column="scheduled" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Status" column="status" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
-                <TableHead className={cn(th, "text-center")}>Action</TableHead>
+                {/* <TableHead className={cn(th, "text-center")}>Action</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -210,7 +213,7 @@ export function MaintenanceActivitiesPage() {
                   <TableCell className={td}>
                     <Badge variant={look(r.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">{look(r.status).label}</Badge>
                   </TableCell>
-                  <TableCell className={cn(td, "py-0.5 text-center")} onClick={(e) => e.stopPropagation()}>
+                  {/* <TableCell className={cn(td, "py-0.5 text-center")} onClick={(e) => e.stopPropagation()}>
                     {r.status === "open" ? (
                       <Button size="sm" className="h-6 px-2 text-[0.7rem]" onClick={() => approveRow(r)}>
                         <CheckCheck className="size-3" /> Approve
@@ -218,12 +221,12 @@ export function MaintenanceActivitiesPage() {
                     ) : (
                       <span className="text-muted-foreground/60">—</span>
                     )}
-                  </TableCell>
+                  </TableCell> */}
                 </TableRow>
               ))}
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="py-8 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
                     No maintenance activities match the filters.
                   </TableCell>
                 </TableRow>

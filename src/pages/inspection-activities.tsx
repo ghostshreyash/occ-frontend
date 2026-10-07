@@ -7,16 +7,18 @@ import { cn } from "cn"
 
 import { DateRangeFilter, SortHead, TablePager } from "@/components/common/data-table"
 import { PageHeader } from "@/components/common/page-header"
-import { Badge } from "@/components/ui/badge"
+// Restore alongside the Priority / Status columns below:
+// import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// Restore alongside the Status filter in the toolbar below:
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useInspectionRows } from "@/data/inspection-store"
-import { priorityTone, slotLabel, type TaskRow } from "@/data/occ-tables"
+import { slotLabel, type TaskRow } from "@/data/occ-tables" // + priorityTone
 import { control, nextSort, sortRows, td, th, type Sort } from "@/lib/data-table"
 import { exportCsv, exportPdf, type ExportColumn } from "@/lib/table-export"
-import { inspectionStatus, inspectionStatuses, workStatus, type WorkStatus } from "@/lib/status"
+import { inspectionStatus, workStatus, type WorkStatus } from "@/lib/status" // + inspectionStatuses
 
 const look = (s: WorkStatus) => inspectionStatus[s] ?? workStatus[s]
 
@@ -133,13 +135,13 @@ export function InspectionActivitiesPage() {
           </div>
           <div className="mx-auto flex flex-wrap items-center gap-2">
             <DateRangeFilter label="Due" range={range} onApply={(r) => { setRange(r); setPage(1) }} />
-            <Select value={status} onValueChange={(v) => { setStatus(v as typeof status); setPage(1) }}>
+            {/* <Select value={status} onValueChange={(v) => { setStatus(v as typeof status); setPage(1) }}>
               <SelectTrigger size="sm" className={cn(control, "w-40 bg-card")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 {inspectionStatuses.map((k) => <SelectItem key={k} value={k}>{look(k).label}</SelectItem>)}
               </SelectContent>
-            </Select>
+            </Select> */}
           </div>
           <Button variant="outline" size="sm" className={cn(control, "bg-card")} disabled={!filtersOn} onClick={clearFilters}>
             <X className="size-3.5" /> Clear Filters
@@ -158,8 +160,8 @@ export function InspectionActivitiesPage() {
                 <SortHead label="Activity" column="activity" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="ELPREMAR" column="elpremar" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Due" column="due" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
-                <SortHead label="Priority" column="priority" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
-                <SortHead label="Status" column="status" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
+                {/* <SortHead label="Priority" column="priority" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
+                <SortHead label="Status" column="status" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} /> */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -176,17 +178,17 @@ export function InspectionActivitiesPage() {
                     {r.due}
                     <span className="block text-[0.65rem] text-muted-foreground">{slotLabel(r.slot)}</span>
                   </TableCell>
-                  <TableCell className={td}>
+                  {/* <TableCell className={td}>
                     <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[r.priority])}>{r.priority}</span>
                   </TableCell>
                   <TableCell className={td}>
                     <Badge variant={look(r.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">{look(r.status).label}</Badge>
-                  </TableCell>
+                  </TableCell> */}
                 </TableRow>
               ))}
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
                     No inspection activities match the filters.
                   </TableCell>
                 </TableRow>

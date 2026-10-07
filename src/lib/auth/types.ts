@@ -24,6 +24,13 @@ export type AuthUser = {
 export type AuthSession = {
   user: AuthUser
   issuedAt: number
+  /**
+   * The front door this session was opened through. In production the hostname
+   * decides the brand, but a `?brand=` preview is lost as soon as the first
+   * link is followed — holding it on the session keeps the EVITA app looking
+   * and navigating like EVITA for the whole session.
+   */
+  brand?: string
   /** "Remember Me" keeps the session in localStorage instead of sessionStorage. */
   remember: boolean
 }

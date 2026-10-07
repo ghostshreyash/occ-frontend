@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Detail, EvidenceGallery, Timeline } from "@/components/common/detail-view"
 import { maintenanceTimeline, type Execution } from "@/data/maintenance-detail"
-import { findMaintenance, reviewMaintenance, updateMaintenance, useMaintenanceDetails, useMaintenanceRows } from "@/data/maintenance-store"
+import { findMaintenance, updateMaintenance, useMaintenanceDetails, useMaintenanceRows } from "@/data/maintenance-store" // + reviewMaintenance
 import { allSupportTickets, criticalityTone, inspectionActivities, priorityTone, slotLabel } from "@/data/occ-tables"
 import { control } from "@/lib/data-table"
 import { maintenanceStatus, workStatus, type WorkStatus } from "@/lib/status"
@@ -34,13 +34,13 @@ const look = (s: WorkStatus) => maintenanceStatus[s] ?? workStatus[s]
 function narrative(status: WorkStatus, elpremar: string, plant: string, execution?: Execution) {
   switch (status) {
     case "in_progress":
-      return `In progress by ${execution?.performedBy ?? elpremar} at ${plant}${execution ? `, started ${execution.startedAt}` : ""}. It comes to OCC for approval once the completed work is submitted.`
+      return `In progress by ${execution?.performedBy ?? elpremar} at ${plant}${execution ? `, started ${execution.startedAt}` : ""}. It closes out once the completed work is submitted.`
     case "open":
-      return `Submitted for approval${execution?.endedAt ? ` on ${execution.endedAt}` : ""}. Approve the work, or send it back to ${elpremar} for correction.`
+      return `Raised and on the books for ${elpremar}${execution?.endedAt ? `, submitted on ${execution.endedAt}` : ""}.`
     case "rejected":
       return `Sent back to ${elpremar} for correction. It returns to OCC once the evidence is re-submitted.`
     case "completed":
-      return `Completed by ${execution?.performedBy ?? elpremar}${execution?.endedAt ? ` on ${execution.endedAt}` : ""}, approved and closed out. The asset health report has been updated.`
+      return `Completed by ${execution?.performedBy ?? elpremar}${execution?.endedAt ? ` on ${execution.endedAt}` : ""} and closed out. The asset health report has been updated.`
     default:
       return `Approved and on the books for ${elpremar}. The asset health report has been updated.`
   }
@@ -84,9 +84,9 @@ export function MaintenanceActivityDetailsPage() {
   }
 
   const status = look(activity.status)
-  const { execution, review } = detail
+  const { execution } = detail // + review, with the approval block below
   const timeline = maintenanceTimeline(activity, detail)
-  const pendingApproval = activity.status === "open"
+  // const pendingApproval = activity.status === "open"
 
   const saveReassignment = ({ elpremar, date, slot, approved }: AssignResult) => {
     updateMaintenance(activity.id, {
@@ -101,12 +101,14 @@ export function MaintenanceActivityDetailsPage() {
     setReassigning(null)
   }
 
+  /* Restore with the Approve action below.
   const submitReview = (outcome: "approved" | "rejected", remarks: string) => {
     reviewMaintenance(activity.id, outcome, "Admin (OCC)", remarks)
     toast.success(outcome === "approved" ? `${activity.asset} approved` : `Correction requested on ${activity.id}`, {
       description: remarks || undefined,
     })
   }
+  */
 
   return (
     <div>
@@ -254,7 +256,8 @@ export function MaintenanceActivityDetailsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Approval" icon={<CheckCheck className="size-4 text-primary" />} hoverable={false}>
+          <SectionCard title="Booking" icon={<CheckCheck className="size-4 text-primary" />} hoverable={false}>
+            {/* Self-approved work carries no review, so the outcome block is out.
             {review ? (
               <div className="space-y-2.5">
                 <Detail label="Outcome">
@@ -265,22 +268,18 @@ export function MaintenanceActivityDetailsPage() {
                 <Detail label="Reviewed By">{review.by}</Detail>
                 <Detail label="Reviewed At"><span className="tabular-nums">{review.at}</span></Detail>
                 <Detail label="Approval Remarks"><span className="text-muted-foreground">{review.remarks}</span></Detail>
-                <p className="border-t pt-2.5 text-[0.7rem] text-muted-foreground">
-                  {narrative(activity.status, activity.elpremar, activity.plant, execution)}
-                </p>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {narrative(activity.status, activity.elpremar, activity.plant, execution)}
-              </p>
-            )}
+            ) : null} */}
+            <p className="text-xs text-muted-foreground">
+              {narrative(activity.status, activity.elpremar, activity.plant, execution)}
+            </p>
 
             <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
               <Button
                 variant="outline"
                 size="sm"
                 className={cn(control, "flex-1 bg-card")}
-                title="View the booking, reassign it or approve it"
+                title="View the booking or reassign it"
                 onClick={() =>
                   setReassigning({
                     id: activity.id,
@@ -290,20 +289,22 @@ export function MaintenanceActivityDetailsPage() {
                     elpremar: activity.elpremar,
                     date: activity.scheduled,
                     slot: activity.slot,
+                    // Nothing to approve: OCC raises this work already signed off
+                    approvable: false,
                   })
                 }
               >
                 <Eye className="size-3.5" /> View
               </Button>
-              {pendingApproval ? (
+              {/* {pendingApproval ? (
                 <Button size="sm" className={cn(control, "flex-1")} onClick={() => submitReview("approved", "")}>
                   <CheckCheck className="size-3.5" /> Approve
                 </Button>
-              ) : null}
+              ) : null} */}
             </div>
           </SectionCard>
 
-          <SectionCard title="Activity & Approval Timeline" hoverable={false}>
+          <SectionCard title="Activity Timeline" hoverable={false}>
             <Timeline steps={timeline} />
           </SectionCard>
         </div>
