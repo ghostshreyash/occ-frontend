@@ -44,9 +44,9 @@ import { areaForPostalCode, sectorLabelFor, sectorTypes, sectorsFor, userRoles }
 import { assetHealthFor, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
+import { AddPlantWizard } from "./enterprise-onboarding/add-plant"
 import {
   blankDepartment,
-  blankPlant,
   blankSubDepartment,
   departmentSchema,
   enterpriseSchema,
@@ -56,6 +56,7 @@ import {
   type DepartmentValues,
   type EnterpriseValues,
   type LocationValues,
+  type PlantEntry,
   type PlantValues,
   type SubDepartmentValues,
 } from "./enterprise-onboarding/schemas"
@@ -187,7 +188,9 @@ export function EnterpriseDetailPage() {
   const [plantQuery, setPlantQuery] = useState("")
   const [plantCity, setPlantCity] = useState("all")
   /** Which section is currently adding a row. Separate from `editing` - one adds, the other amends. */
-  const [adding, setAdding] = useState<"plant" | "department" | "subs" | null>(null)
+  const [adding, setAdding] = useState<"department" | "subs" | null>(null)
+  /** Adding a plant opens the onboarding wizard over the whole page */
+  const [addingPlant, setAddingPlant] = useState(false)
 
   const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
   const profile = base ? { ...base, ...overrides } : undefined
@@ -214,11 +217,9 @@ export function EnterpriseDetailPage() {
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: dept })
 
   /*
-   * Adding uses the same forms as onboarding does. The enterprise and its head
-   * office are already settled, so they are shown above the form as fixed
-   * context rather than offered as fields.
+   * Adding a department or a sub-department uses the same forms as onboarding
+   * does, with what is already settled shown above them as fixed context.
    */
-  const newPlantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), defaultValues: blankPlant })
   const newDepartmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), defaultValues: blankDepartment })
   const newSubForm = useForm<SubDepartmentValues>({ resolver: zodResolver(subDepartmentSchema), defaultValues: blankSubDepartment })
 
@@ -270,24 +271,48 @@ export function EnterpriseDetailPage() {
 
   const cancelAdd = () => {
     setAdding(null)
-    newPlantForm.reset(blankPlant)
     newDepartmentForm.reset(blankDepartment)
     newSubForm.reset(blankSubDepartment)
   }
 
-  const addPlant = newPlantForm.handleSubmit((values) => {
+  /**
+   * The wizard hands back plants with their departments and sub-departments
+   * already nested, so one pass turns the whole tree into records.
+   */
+  const addPlants = (entries: PlantEntry[]) => {
     // TODO: POST /enterprises/:id/plants once the API exists
-    const created = toPlantProfile(
-      values,
-      freeId(`${record?.id.slice(0, 3) ?? "ENT"}-P`, plants.map((pl) => pl.id)),
-      profile?.location.state ?? ""
-    )
-    writePlants([...plants, created])
-    setPlantId(created.id)
+    const taken = plants.map((pl) => pl.id)
+    const created = entries.map((entry) => {
+      const plantId = freeId(`${record?.id.slice(0, 3) ?? "ENT"}-P`, taken)
+      taken.push(plantId)
+      const deptIds: string[] = []
+      return {
+        ...toPlantProfile(entry, plantId, profile?.location.state ?? ""),
+        departments: entry.departments.map((d) => {
+          const deptId = freeId(`${plantId}-D`, deptIds)
+          deptIds.push(deptId)
+          return {
+            ...toDepartmentProfile(d, deptId),
+            subDepartments: d.subDepartments.map((sd) => ({
+              name: sd.name ?? "",
+              code: sd.code ?? "",
+              function: sd.function ?? "",
+              description: sd.description,
+            })),
+          }
+        }),
+      }
+    })
+    writePlants([...plants, ...created])
+    setPlantId(created[0]?.id)
     setDeptId(undefined)
-    cancelAdd()
-    toast.success(`${created.name} added`, { description: `It now sits under ${profile?.enterprise.name}.` })
-  })
+    setAddingPlant(false)
+    window.scrollTo({ top: 0 })
+    toast.success(
+      created.length === 1 ? `${created[0].name} added` : `${created.length} plants added`,
+      { description: `They now sit under ${profile?.enterprise.name}.` }
+    )
+  }
 
   const addDepartment = newDepartmentForm.handleSubmit((values) => {
     if (!plant) return
@@ -362,6 +387,10 @@ export function EnterpriseDetailPage() {
     })
   }
 
+  if (addingPlant) {
+    return <AddPlantWizard profile={profile} onCancel={() => setAddingPlant(false)} onSubmit={addPlants} />
+  }
+
   return (
     <div className="space-y-3">
       <PageHeader
@@ -379,6 +408,9 @@ export function EnterpriseDetailPage() {
             <Badge variant={statusMeta(record.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">
               {statusMeta(record.status).label}
             </Badge>
+            <Button size="sm" className="h-7 text-xs" onClick={() => setAddingPlant(true)}>
+              <Plus className="size-3.5" /> Add Plant
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -496,42 +528,8 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(plantForm, "plant")}
-          action={
-            adding === "plant" ? null : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
-                disabled={editing !== null || adding !== null}
-                onClick={() => setAdding("plant")}
-              >
-                <Plus className="size-3" /> Add Plant
-              </Button>
-            )
-          }
           view={
             <div className="space-y-2.5">
-              {adding === "plant" ? (
-                <AddPanel
-                  title={`Add a plant to ${e.name}`}
-                  description="The same form as onboarding. The enterprise and its head office are already settled, so they are fixed here."
-                  addLabel="Add Plant"
-                  onAdd={addPlant}
-                  onCancel={cancelAdd}
-                  context={
-                    <Context>
-                      <Ctx icon={Building2} label="Enterprise" value={e.name} />
-                      <Ctx icon={Factory} label="Type" value={e.sectorType} />
-                      <Ctx icon={Factory} label="Sector" value={e.sector} />
-                      <Ctx icon={MapPin} label="Head Office" value={`${l.city}, ${l.state}, ${l.country}`} />
-                    </Context>
-                  }
-                >
-                  <PlantFields form={newPlantForm} />
-                </AddPanel>
-              ) : null}
-
               {/* Search and location filter, so a 12-plant enterprise stays navigable */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative min-w-0 flex-1 sm:max-w-56">

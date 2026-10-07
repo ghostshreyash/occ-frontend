@@ -505,11 +505,14 @@ export function SubDepartmentAccountStep({
   onBack,
   onPlantsChange,
   onComplete,
+  withAccount = true,
 }: {
   data: OnboardingData
   onBack: () => void
   onPlantsChange: (plants: PlantEntry[]) => void
-  onComplete: (account: AccountValues) => void
+  onComplete: (account?: AccountValues) => void
+  /** An enterprise being added to already has its administrator account, so that half is dropped */
+  withAccount?: boolean
 }) {
   const [plantIndex, setPlantIndex] = useState(0)
   const [deptIndex, setDeptIndex] = useState(0)
@@ -562,8 +565,8 @@ export function SubDepartmentAccountStep({
   const loc = data.location
   return (
     <StepCard
-      title="Step 5 of 6: Sub-department Details & Account Creation"
-      formId="step-account"
+      title={withAccount ? "Step 5 of 6: Sub-department Details & Account Creation" : "Step 5 of 6: Sub-department Details"}
+      formId={withAccount ? "step-account" : "step-subdepartments"}
       nextLabel="Next: Review"
       onBack={onBack}
     >
@@ -574,7 +577,9 @@ export function SubDepartmentAccountStep({
         <Ctx icon={Network} label="Department" value={dept?.name} />
       </Context>
 
-      <h4 className="font-semibold">1. Sub-department Details</h4>
+      {withAccount ? null : <form id="step-subdepartments" onSubmit={(ev) => { ev.preventDefault(); onComplete() }} />}
+
+      <h4 className="font-semibold">{withAccount ? "1. Sub-department Details" : "Sub-department Details"}</h4>
       <p className="mb-3 text-xs text-muted-foreground">
         Optional — pick a department, then add one or more sub-departments under it.
       </p>
@@ -675,6 +680,8 @@ export function SubDepartmentAccountStep({
         </p>
       )}
 
+      {withAccount ? (
+        <>
       <h4 className="mt-6 font-semibold">2. Enterprise Account Creation</h4>
       <p className="mb-3 text-xs text-muted-foreground">
         Create a login account for the enterprise administrator. This will be used to access the EMMS-E portal.
@@ -705,6 +712,8 @@ export function SubDepartmentAccountStep({
           ) : null}
         </div>
       </form>
+        </>
+      ) : null}
     </StepCard>
   )
 }

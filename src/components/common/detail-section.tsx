@@ -53,6 +53,7 @@ export function DetailSection({
   onSave,
   saveLabel = "Save",
   action,
+  readOnlyNote,
   view,
   edit,
 }: {
@@ -73,6 +74,8 @@ export function DetailSection({
   saveLabel?: string
   /** Extra header control, e.g. "Add Plant". Stands down while the section is being edited. */
   action?: React.ReactNode
+  /** Says why a section carries no Edit control, rather than leaving its absence unexplained */
+  readOnlyNote?: string
   view: React.ReactNode
   edit?: React.ReactNode
 }) {
@@ -117,6 +120,12 @@ export function DetailSection({
         ) : (
           <span className="flex-1" />
         )}
+
+        {!isEditing && readOnlyNote ? (
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] font-medium text-muted-foreground" title={readOnlyNote}>
+            Already set
+          </span>
+        ) : null}
 
         {!isEditing && optional && !complete ? (
           <span className="rounded-full bg-neutral-soft px-1.5 py-0.5 text-[0.6rem] font-medium text-neutral-soft-foreground">

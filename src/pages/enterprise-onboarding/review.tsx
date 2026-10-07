@@ -39,8 +39,6 @@ const monogram = (name?: string) =>
     .slice(0, 3)
     .toUpperCase() || "NEW"
 
-const SECTION_COUNT = 6
-
 const formatDate = (iso?: string) => {
   if (!iso) return undefined
   const d = parseISO(iso)
@@ -74,12 +72,19 @@ export function ReviewStep({
   onChange,
   onSubmit,
   submitting,
+  title = "Step 6 of 6: Review & Submit",
+  submitLabel = "Submit Onboarding",
+  /** Sections that belong to an enterprise that already exists, so they are read-only here */
+  readOnly = [],
 }: {
   data: OnboardingData
   onBack: () => void
   onChange: (patch: Partial<OnboardingData>) => void
   onSubmit: () => void
   submitting: boolean
+  title?: string
+  submitLabel?: string
+  readOnly?: string[]
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [plantIndex, setPlantIndex] = useState(0)
@@ -160,14 +165,19 @@ export function ReviewStep({
     subs: subCount > 0,
     account: Boolean(account?.email),
   }
+  /* An enterprise being added to has no new account, so that section is not shown or counted */
+  const hasAccount = account !== undefined
+  const sections = hasAccount ? 6 : 5
   const completeCount = Object.values(done).filter(Boolean).length
   const emptyOptional = [done.department, done.subs].filter((v) => !v).length
+  /** Sections carried over from an existing enterprise cannot be edited here */
+  const editable = (key: string) => !readOnly.includes(key)
 
   return (
     <StepCard
-      title="Step 6 of 6: Review & Submit"
+      title={title}
       formId="step-review"
-      nextLabel="Submit Onboarding"
+      nextLabel={submitLabel}
       nextIcon={<Check />}
       pending={submitting}
       onBack={onBack}
@@ -212,10 +222,10 @@ export function ReviewStep({
           {/* Readiness: required sections done, optional ones called out rather than hidden */}
           <div className="flex flex-wrap items-center gap-2 border-t border-white/10 bg-white/5 px-3 py-1.5 text-[0.7rem]">
             <span className="font-medium">
-              {completeCount} of {SECTION_COUNT} sections complete
+              {completeCount} of {sections} sections complete
             </span>
             <Progress
-              value={(completeCount / SECTION_COUNT) * 100}
+              value={(completeCount / sections) * 100}
               className="h-1.5 w-28 bg-white/15 [&>[data-slot=progress-indicator]]:bg-healthy"
             />
             <span className="text-brand-navy-foreground/70">
@@ -239,6 +249,7 @@ export function ReviewStep({
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(enterpriseForm, "enterprise")}
+          readOnlyNote={editable("enterprise") ? undefined : "Set when this enterprise was onboarded — it cannot be changed here."}
           view={
             <ValueGrid
               rows={[
@@ -252,6 +263,7 @@ export function ReviewStep({
             />
           }
           edit={
+            editable("enterprise") ? (
             <SectionForm id="edit-enterprise" onSubmit={save(enterpriseForm, "enterprise")}>
               <TextField control={enterpriseForm.control} name="name" label="Enterprise Name" required className="md:col-span-2" />
               <TextField control={enterpriseForm.control} name="shortName" label="Short Name" required />
@@ -274,6 +286,7 @@ export function ReviewStep({
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
             </SectionForm>
+            ) : undefined
           }
         />
 
@@ -287,6 +300,7 @@ export function ReviewStep({
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(locationForm, "location")}
+          readOnlyNote={editable("location") ? undefined : "The enterprise head office — it cannot be changed here."}
           view={
             <ValueGrid
               rows={[
@@ -299,6 +313,7 @@ export function ReviewStep({
             />
           }
           edit={
+            editable("location") ? (
             <SectionForm id="edit-location" onSubmit={save(locationForm, "location")}>
               <SelectField control={locationForm.control} name="country" label="Country" required options={countries} />
               {isIndia ? (
@@ -310,6 +325,7 @@ export function ReviewStep({
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
               <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
             </SectionForm>
+            ) : undefined
           }
         />
 
@@ -497,6 +513,7 @@ export function ReviewStep({
           }
         />
 
+        {hasAccount ? (
         <DetailSection
           icon={Building2}
           title="Administrator Account"
@@ -516,6 +533,7 @@ export function ReviewStep({
             />
           }
         />
+        ) : null}
       </div>
     </StepCard>
   )
