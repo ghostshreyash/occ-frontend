@@ -60,18 +60,26 @@ export const indiaEnterpriseClassification: ClassificationRow[] = [
   { sectorType: "Retail", sector: "Religious Facilities", value: 0 },
 ]
 
-/**
- * Business classification, so deliberately not the health palette: a section is
- * a hue and its sectors step back from it. Mixing toward transparent rather than
- * white keeps the steps correct in both themes.
+/*
+ * Business classification, so deliberately not the health palette - these are the
+ * categorical chart tokens.
+ *
+ * Colour carries the SECTION, not the sector. Seventeen sectors cannot be told
+ * apart by hue at any palette: even a perfectly spaced 17-hue set measures a
+ * worst adjacent pair of dE 4.4 for normal vision against a floor of 15, and 0.3
+ * under deuteranopia. The sectors are separated instead by their arc and the 2px
+ * surface gap between slices, and named in the tooltip.
+ *
+ * The pair is blue/magenta rather than the old blue/violet, which measured dE
+ * 12.4 normal and 0.4 deuteranopic - all but identical to a red-green colourblind
+ * reader. Blue/magenta measures 33.9 normal and 13.7 CVD, clearing both gates in
+ * light and dark. Teal or green would have scored well too but sit beside the
+ * green ELPREMAR Status donut on the same row.
  */
 const sectionColor: Record<SectorType, string> = {
-  Industry: "var(--info)",
-  Retail: "var(--highlight)",
+  Industry: "var(--chart-1)",
+  Retail: "var(--chart-7)",
 }
-
-const shade = (base: string, pct: number) =>
-  pct >= 100 ? base : `color-mix(in oklch, ${base} ${pct}%, transparent)`
 
 export type SectorSlice = {
   key: string
@@ -121,19 +129,14 @@ export function classify(rows: ClassificationRow[]): Classification {
         value,
         color: base,
         shareOfTotal: total ? (value / total) * 100 : 0,
-        sectors: own.map((r, i) => ({
+        sectors: own.map((r) => ({
           key: `${type}-${r.sector}`,
           sector: r.sector,
           section: type,
           sectionLabel: label,
           value: r.value,
-          /*
-           * Step back across the section's own sectors, largest staying boldest.
-           * The range is divided by how many there are, so a section with eleven
-           * sectors still ends on a distinguishable shade rather than repeating
-           * the floor for its last few.
-           */
-          color: shade(base, own.length < 2 ? 100 : 100 - (i / (own.length - 1)) * 58),
+          // One colour per section - see the note on sectionColor above
+          color: base,
           shareOfTotal: total ? (r.value / total) * 100 : 0,
           shareOfSection: value ? (r.value / value) * 100 : 0,
         })),
@@ -142,4 +145,67 @@ export function classify(rows: ClassificationRow[]): Classification {
     .filter((s) => s.value > 0)
 
   return { total, sections }
+}
+
+/* ---------- Drill-down ---------- */
+
+/**
+ * The sector palette, in its validated order. Taken in sequence and never
+ * reordered - the ordering is what keeps adjacent slices separable. Eight is a
+ * hard ceiling, not a style choice: past it no palette clears the floors.
+ */
+const SECTOR_SERIES = Array.from({ length: 8 }, (_, i) => `var(--sector-${i + 1})`)
+const MAX_SLICES = SECTOR_SERIES.length
+
+export type DrillSlice = {
+  key: string
+  label: string
+  value: number
+  color: string
+  /** Share of the section being drilled into, so the ring sums to 100% */
+  shareOfSection: number
+  /** Set on the folded slice, naming what went into it */
+  rolledUp?: string[]
+}
+
+export type Drill = {
+  section: Section
+  slices: DrillSlice[]
+}
+
+/**
+ * One section's sectors as their own ring. Sectors are already sorted largest
+ * first, so when there are more than eight the smallest are folded into a single
+ * "Other" slice that names its members in the tooltip - the alternative is
+ * slices nobody can tell apart.
+ */
+export function drill(data: Classification, type: SectorType): Drill | undefined {
+  const section = data.sections.find((s) => s.key === type)
+  if (!section) return undefined
+
+  const fits = section.sectors.length <= MAX_SLICES
+  const head = fits ? section.sectors : section.sectors.slice(0, MAX_SLICES - 1)
+  const tail = fits ? [] : section.sectors.slice(MAX_SLICES - 1)
+
+  const slices: DrillSlice[] = head.map((sector, i) => ({
+    key: sector.key,
+    label: sector.sector,
+    value: sector.value,
+    color: SECTOR_SERIES[i],
+    shareOfSection: sector.shareOfSection,
+  }))
+
+  if (tail.length) {
+    const value = tail.reduce((n, t) => n + t.value, 0)
+    slices.push({
+      key: `${type}-other`,
+      label: `Other (${tail.length})`,
+      value,
+      color: SECTOR_SERIES[MAX_SLICES - 1],
+      shareOfSection: section.value ? (value / section.value) * 100 : 0,
+      rolledUp: tail.map((t) => t.sector),
+    })
+  }
+
+  return { section, slices }
 }

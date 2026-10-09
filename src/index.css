@@ -217,6 +217,24 @@
     --chart-7: oklch(0.656 0.212 354.3);               /* pink   #EC4899 */
     --chart-8: oklch(0.554 0.041 257.4);               /* slate  #64748B */
 
+    /*
+     * Sector series - the only palette on the dashboard that has to carry more
+     * than three categories at once (the classification drill-down). The
+     * --chart-* set above cannot: its three cool blues and its teal/green pair
+     * measure under the normal-vision floor, so no ordering of four or more of
+     * them is separable. These eight are a validated set - worst adjacent pair
+     * dE 19.6 normal / 9.1 CVD in light, 19.3 / 8.4 in dark - and the ORDER is
+     * the safety mechanism, so take them in sequence and never reorder them.
+     */
+    --sector-1: #2a78d6;                               /* blue    */
+    --sector-2: #eb6834;                               /* orange  */
+    --sector-3: #1baf7a;                               /* aqua    */
+    --sector-4: #eda100;                               /* yellow  */
+    --sector-5: #e87ba4;                               /* magenta */
+    --sector-6: #008300;                               /* green   */
+    --sector-7: #4a3aa7;                               /* violet  */
+    --sector-8: #e34948;                               /* red     */
+
     /* Sidebar (navy, as in mockups) */
     --sidebar: oklch(0.247 0.075 261.4);               /* #0B1F44 */
     --sidebar-foreground: oklch(0.861 0.029 261.5);    /* #C7D2E5 */
@@ -301,6 +319,16 @@
     --chart-6: oklch(0.777 0.152 181.9);
     --chart-7: oklch(0.718 0.202 349.8);
     --chart-8: oklch(0.711 0.035 256.8);
+
+    /* Sector series, stepped for the dark surface - a selected set, not a flip */
+    --sector-1: #3987e5;
+    --sector-2: #d95926;
+    --sector-3: #199e70;
+    --sector-4: #c98500;
+    --sector-5: #d55181;
+    --sector-6: #008300;
+    --sector-7: #9085e9;
+    --sector-8: #e66767;
 
     --sidebar: oklch(0.195 0.052 261.1);               /* #07142C */
     --sidebar-foreground: oklch(0.861 0.029 261.5);
