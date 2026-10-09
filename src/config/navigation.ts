@@ -31,8 +31,13 @@ export const occNavigation: NavItem[] = [
   { title: "Dashboard", path: "/", icon: House },
   { title: "Enterprises", path: "/enterprises", icon: Building2 },
   { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
-  { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
-  { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
+  /*
+   * Hidden from the sidebar on request. The screens and their routes are still
+   * there and still reachable by URL - uncomment these two lines to bring the
+   * entries back.
+   */
+  // { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
+  // { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
   { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy, covers: ["/support-ticket-details"] },
 ]
 
