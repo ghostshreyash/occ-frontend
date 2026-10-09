@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { maintenanceProgress, priorityTone, slotLabel, supportTickets, taskQueue } from "@/data/occ-tables"
+// + priorityTone, restored with the Inspection tab's Priority column
+import { maintenanceProgress, slotLabel, supportTickets, taskQueue, ticketPriorityTone } from "@/data/occ-tables"
 // + inspectionStatus, restored with the Inspection tab's Status column
 import { maintenanceStatus, workStatus, type WorkStatus } from "@/lib/status"
 
@@ -376,7 +377,7 @@ export function OperationsTables({
                   <TableCell className={cn(td, "hidden tabular-nums sm:table-cell")}>{t.raised}</TableCell>
                   <TableCell className={cn(td, "hidden lg:table-cell")}>{t.elpremar ?? <Unassigned />}</TableCell>
                   <TableCell className={td}>
-                    <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[t.priority])}>{t.priority}</span>
+                    <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", ticketPriorityTone[t.priority])}>{t.priority}</span>
                   </TableCell>
                   <TableCell className={td}><StatusBadge status={t.status} /></TableCell>
                   <TableCell className={cn(td, "py-0.5 text-center")}>

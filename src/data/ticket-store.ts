@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react"
 
 import { allSupportTickets, type TicketCategory, type TicketRow, type TicketSource } from "@/data/occ-tables"
 import { ticketDetail, type TicketDetail } from "@/data/ticket-detail"
-import type { Priority } from "@/data/occ-tables"
+import type { TicketPriority } from "@/data/occ-tables"
 import type { WorkStatus } from "@/lib/status"
 
 /**
@@ -140,7 +140,7 @@ export type NewTicket = {
   subject: string
   description: string
   category: TicketCategory
-  priority: Priority
+  priority: TicketPriority
   source: TicketSource
   assetId?: string
   inspectionId?: string

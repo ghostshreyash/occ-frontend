@@ -50,6 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setChallenge(null)
   }, [])
 
+  // TODO: PATCH /me - for now the edit lives on the session only
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setSession((current) => {
+      if (!current) return current
+      const next: AuthSession = { ...current, user: { ...current.user, ...patch } }
+      writeStoredSession(next)
+      return next
+    })
+  }, [])
+
   const signOut = useCallback(() => {
     // TODO: POST /auth/logout to revoke the refresh token server-side.
     writeStoredSession(null)
@@ -64,12 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: session?.user ?? null,
       signIn,
       signOut,
+      updateUser,
       challenge,
       setChallenge,
       resetContext,
       setResetContext,
     }),
-    [session, signIn, signOut, challenge, resetContext]
+    [session, signIn, signOut, updateUser, challenge, resetContext]
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

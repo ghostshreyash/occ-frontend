@@ -13,10 +13,9 @@ import { SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  allSupportTickets, ticketCategories, ticketSources, type TicketCategory, type TicketSource, type Priority,
+  allSupportTickets, ticketCategories, ticketPriorities, ticketSources, type TicketCategory, type TicketSource, type TicketPriority,
 } from "@/data/occ-tables"
 import { raiseTicket } from "@/data/ticket-store"
-import { priorities } from "@/data/mock"
 import { useAuth } from "@/lib/auth/context"
 import { capabilitiesFor } from "@/lib/auth/ticket-access"
 import { control } from "@/lib/data-table"
@@ -112,7 +111,7 @@ export function RaiseSupportTicketPage() {
         subject: values.subject,
         description: values.description,
         category: values.category as TicketCategory,
-        priority: values.priority as Priority,
+        priority: values.priority as TicketPriority,
         source: values.source as TicketSource,
         assetId: values.assetId || undefined,
         inspectionId: values.inspectionId || undefined,
@@ -199,7 +198,7 @@ export function RaiseSupportTicketPage() {
             <TextField control={formControl} name="subject" label="Subject" required className="md:col-span-6" />
             <TextareaField control={formControl} name="description" label="Description" required rows={4} className="md:col-span-6" />
             <SelectField control={formControl} name="category" label="Category" required options={[...ticketCategories]} className="md:col-span-2" />
-            <SelectField control={formControl} name="priority" label="Priority" required options={[...priorities]} className="md:col-span-2" />
+            <SelectField control={formControl} name="priority" label="Priority" required options={[...ticketPriorities]} className="md:col-span-2" />
             <SelectField control={formControl} name="source" label="Source / Module" required options={[...ticketSources]} className="md:col-span-2" />
 
             <div className="md:col-span-6">
