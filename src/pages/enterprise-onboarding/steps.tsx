@@ -47,6 +47,14 @@ type ListStepProps = {
 }
 
 /**
+ * Whether a form has anything worth keeping. Pressing Next used to throw away
+ * whatever had been typed but not yet added, which read as the step losing its
+ * data; now Next commits it first, so only a genuinely empty form is ignored.
+ */
+const filledIn = (values: Record<string, unknown>) =>
+  Object.values(values).some((v) => typeof v === "string" && v.trim() !== "" && v !== "Mr." && v !== "+91")
+
+/**
  * The rows a list-building step has collected so far. A row can be reopened in
  * the form above it or dropped; the row being edited is tinted, so it is clear
  * the form is amending rather than adding.
@@ -224,7 +232,7 @@ export function EnterpriseStep({
           * Work is dispatched to a plant, so the pin on the map is set per plant
           * in the next step.
           */}
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required onValueChange={fillFromPin} />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" onValueChange={fillFromPin} />
       </form>
     </StepCard>
   )
@@ -283,12 +291,7 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
   const writeDepartments = (next: DepartmentEntry[]) =>
     onPlantsChange(data.plants.map((p, i) => (i === 0 ? { ...p, departments: next } : p)))
 
-  const saveDepartment = form.handleSubmit((values) => {
-    // Every field is optional, so an entirely blank row would mean nothing
-    if (!values.name?.trim() && !values.code?.trim() && !values.type?.trim()) {
-      setListError("Enter a name, code or type before adding a department.")
-      return
-    }
+  const commit = (values: DepartmentValues) => {
     const next = [...departments]
     if (editing !== null) next[editing] = { ...values, subDepartments: next[editing].subDepartments }
     else next.push({ ...values, subDepartments: [] })
@@ -296,6 +299,21 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
     setEditing(null)
     setListError("")
     form.reset(blankDepartment)
+  }
+
+  const saveDepartment = form.handleSubmit((values) => {
+    // Every field is optional, so an entirely blank row would mean nothing
+    if (!filledIn(values)) {
+      setListError("Enter a name, code or type before adding a department.")
+      return
+    }
+    commit(values)
+  })
+
+  /* Next keeps a half-entered department rather than dropping it on the floor */
+  const continueNext = form.handleSubmit((values) => {
+    if (filledIn(values)) commit(values)
+    onNext()
   })
 
   const removeDepartment = (i: number) => {
@@ -320,7 +338,7 @@ export function DepartmentStep({ data, onPlantsChange, onNext, onBack }: ListSte
         <Ctx icon={Factory} label="Plant" value={plant?.name} />
       </Context>
 
-      <form id="step-departments" onSubmit={(ev) => { ev.preventDefault(); onNext() }} />
+      <form id="step-departments" onSubmit={continueNext} />
 
       {plant ? (
         <>
@@ -418,12 +436,7 @@ export function SubDepartmentAccountStep({
       )
     )
 
-  const saveSubDepartment = sub.handleSubmit((values) => {
-    // Fields are optional, but an entirely blank row would be meaningless
-    if (!values.name?.trim() && !values.code?.trim() && !values.function?.trim()) {
-      setListError("Enter a name, code or function before adding a sub-department.")
-      return
-    }
+  const commit = (values: SubDepartmentValues) => {
     const next = [...subs]
     if (editing !== null) next[editing] = values
     else next.push(values)
@@ -431,9 +444,32 @@ export function SubDepartmentAccountStep({
     setEditing(null)
     setListError("")
     sub.reset(blankSubDepartment)
+  }
+
+  const saveSubDepartment = sub.handleSubmit((values) => {
+    // Fields are optional, but an entirely blank row would be meaningless
+    if (!filledIn(values)) {
+      setListError("Enter a name, code or function before adding a sub-department.")
+      return
+    }
+    commit(values)
   })
 
-  const complete = account.handleSubmit((values) => onComplete(values))
+  /*
+   * Next keeps a half-entered sub-department too. Read synchronously rather
+   * than through handleSubmit, so the commit lands before the step advances -
+   * nothing on this form needs validating.
+   */
+  const keepPendingSub = () => {
+    if (!dept) return
+    const values = sub.getValues()
+    if (filledIn(values)) commit(values)
+  }
+
+  const complete = account.handleSubmit((values) => {
+    keepPendingSub()
+    onComplete(values)
+  })
 
   const loc = data.location
   return (
@@ -450,7 +486,9 @@ export function SubDepartmentAccountStep({
         <Ctx icon={Network} label="Department" value={dept?.name} />
       </Context>
 
-      {withAccount ? null : <form id="step-subdepartments" onSubmit={(ev) => { ev.preventDefault(); onComplete() }} />}
+      {withAccount ? null : (
+        <form id="step-subdepartments" onSubmit={(ev) => { ev.preventDefault(); keepPendingSub(); onComplete() }} />
+      )}
 
       <h4 className="font-semibold">{withAccount ? "1. Sub-department Details" : "Sub-department Details"}</h4>
       <p className="mb-3 text-xs text-muted-foreground">

@@ -295,7 +295,7 @@ export function ReviewStep({
               )}
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
-              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" required />
+              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" />
             </SectionForm>
             ) : undefined
           }
