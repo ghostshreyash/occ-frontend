@@ -12,6 +12,14 @@ import { activityTypes, priorities, assetCategories } from "@/data/mock"
 export type Priority = (typeof priorities)[number]
 
 /**
+ * Support tickets run a three-level scale. It is deliberately not the task
+ * `Priority` above: a ticket is triaged by a desk, not scheduled against an
+ * asset, and there is no Critical rung.
+ */
+export const ticketPriorities = ["High", "Medium", "Low"] as const
+export type TicketPriority = (typeof ticketPriorities)[number]
+
+/**
  * Mock bookings are pinned to today rather than to fixed dates, so the console
  * always shows live work and the assign dialog can open on a row's own day.
  * `day(2)` is the day after tomorrow. Drop this once the tables come from the API.
@@ -302,7 +310,7 @@ export type TicketRow = {
   scheduled?: string
   /** Hour the booked interval starts */
   slot?: number
-  priority: Priority
+  priority: TicketPriority
   status: WorkStatus
   /** What was done about it, captured when the ticket is closed */
   resolution?: string
@@ -334,7 +342,7 @@ const requesters = [
 export const supportTickets: TicketRow[] = [
   { id: "TK-4592", enterprise: "Tata Steel Limited", plant: "Jamshedpur Main Plant", country: "India", subject: "EVITA sync failing on tablet", category: "System", raised: day(-1), raisedBy: "Rajesh Iyer", source: "EVITA", lastUpdated: stamp(-1, 10), priority: "High", status: "open" },
   { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi Substation", country: "India", subject: "Request ELPREMAR assignment", category: "Assignment", raised: day(-1), raisedBy: "Meena Krishnan", source: "OCC Console", lastUpdated: stamp(-1, 12), priority: "Medium", status: "open" },
-  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar Substation", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Testing & Measurement", raised: day(-2), raisedBy: "Arun Prakash", source: "Testing & Measurements", lastUpdated: stamp(0, 9), elpremar: "Amit Sharma", scheduled: day(1), slot: 11, priority: "Critical", status: "in_progress", assetId: "AST-JMN-0142", inspectionId: "TSK-8840" },
+  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar Substation", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Testing & Measurement", raised: day(-2), raisedBy: "Arun Prakash", source: "Testing & Measurements", lastUpdated: stamp(0, 9), elpremar: "Amit Sharma", scheduled: day(1), slot: 11, priority: "High", status: "in_progress", assetId: "AST-JMN-0142", inspectionId: "TSK-8840" },
   { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra Warehouse", country: "India", subject: "Health report PDF not downloading", category: "Report", raised: day(-2), raisedBy: "Sneha Gupta", source: "Reports", lastUpdated: stamp(-1, 15), elpremar: "Anil Singh", scheduled: day(-2), slot: 10, priority: "Low", status: "closed", reportId: "RPT-MUN-2291", resolution: "Export service restarted; the report now downloads as PDF." },
   { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata Unit 2", country: "India", subject: "Add new sub-division to hierarchy", category: "System", raised: day(-3), raisedBy: "Imran Qureshi", source: "OCC Console", lastUpdated: stamp(-2, 11), elpremar: "Priya Nair", scheduled: day(-3), slot: 14, priority: "Medium", status: "closed", resolution: "Sub-division added under Electrical and access granted." },
   { id: "TK-4587", enterprise: "Emirates Steel", plant: "Dubai Main Plant", country: "United Arab Emirates", subject: "EMMSE dashboard loading slowly", category: "Dashboard", raised: day(-3), raisedBy: "Fatima Al Nuaimi", source: "EMMSE", lastUpdated: stamp(-2, 16), elpremar: "Khalid Rahman", scheduled: day(-2), slot: 9, priority: "Medium", status: "closed", resolution: "Widget query tuned; dashboard now loads within 2s." },
@@ -504,6 +512,17 @@ export const priorityTone: Record<Priority, string> = {
   Medium: "bg-info-soft text-info-soft-foreground",
   High: "bg-attention-soft text-attention-soft-foreground",
   Critical: "bg-critical-soft text-critical-soft-foreground",
+}
+
+/**
+ * Ticket priority pills. Three levels, so High is the top of the scale and takes
+ * the critical red - the same reasoning as `criticalityTone` below, and unlike
+ * the four-level task `priorityTone`, where High sits under Critical.
+ */
+export const ticketPriorityTone: Record<TicketPriority, string> = {
+  Low: "bg-neutral-soft text-neutral-soft-foreground",
+  Medium: "bg-attention-soft text-attention-soft-foreground",
+  High: "bg-critical-soft text-critical-soft-foreground",
 }
 
 /**
@@ -894,7 +913,7 @@ function moreTickets(count: number): TicketRow[] {
     const site = pick(sites)
     const category = pick(ticketCategories)
     const status = pick(ticketStates)
-    const priority = pick(priorities)
+    const priority = pick(ticketPriorities)
     const raisedOn = Math.floor(random() * 40) - 42
     // Nothing is updated before it is raised, and an open ticket has not moved on
     const updatedOn = status === "open" ? raisedOn : Math.min(raisedOn + 1 + Math.floor(random() * 6), 0)

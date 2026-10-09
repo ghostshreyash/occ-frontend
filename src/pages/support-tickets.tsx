@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { resolveAndCloseTicket, useTicketRows } from "@/data/ticket-store"
-import { priorityTone, ticketCategories, type Priority, type TicketRow } from "@/data/occ-tables"
+import { ticketCategories, ticketPriorities, ticketPriorityTone, type TicketPriority, type TicketRow } from "@/data/occ-tables"
 import { useAuth } from "@/lib/auth/context"
 import { visibleTickets } from "@/lib/auth/ticket-access"
 import { control, nextSort, sortRows, td, th, type Sort } from "@/lib/data-table"
@@ -30,7 +30,7 @@ type SortKey =
   | "raised" | "raisedBy" | "elpremar" | "priority" | "status"
 
 const statusRank: Record<WorkStatus, number> = { open: 0, reopened: 1, pending: 2, rejected: 3, assigned: 4, in_progress: 5, completed: 6, closed: 7 }
-const priorityRank: Record<Priority, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 }
+const priorityRank: Record<TicketPriority, number> = { High: 0, Medium: 1, Low: 2 }
 
 const sortValue: Record<SortKey, (r: TicketRow) => string | number> = {
   id: (r) => r.id,
@@ -198,7 +198,7 @@ export function SupportTicketsPage() {
               <SelectTrigger size="sm" className={cn(control, "w-32 bg-card")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Priorities</SelectItem>
-                {(["Critical", "High", "Medium", "Low"] as Priority[]).map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                {ticketPriorities.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -261,7 +261,7 @@ export function SupportTicketsPage() {
                   <TableCell className={cn(td, "whitespace-nowrap")}>{r.raisedBy}</TableCell>
                   <TableCell className={cn(td, "whitespace-nowrap")}>{r.elpremar ?? <Unassigned />}</TableCell>
                   <TableCell className={td}>
-                    <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[r.priority])}>{r.priority}</span>
+                    <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", ticketPriorityTone[r.priority])}>{r.priority}</span>
                   </TableCell>
                   <TableCell className={td}>
                     <Badge variant={workStatus[r.status].badge} className="rounded px-1.5 py-0 text-[0.65rem]">
