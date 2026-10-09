@@ -76,6 +76,9 @@ const shade = (base: string, pct: number) =>
 export type SectorSlice = {
   key: string
   sector: string
+  /** The section this sector sits under, carried so a slice can name its own group */
+  section: SectorType
+  sectionLabel: string
   value: number
   color: string
   /** Share of all enterprises */
@@ -110,18 +113,27 @@ export function classify(rows: ClassificationRow[]): Classification {
       const value = own.reduce((n, r) => n + r.value, 0)
       const base = sectionColor[type]
 
+      const label = `${type} Sector`
+
       return {
         key: type,
-        label: `${type} Sector`,
+        label,
         value,
         color: base,
         shareOfTotal: total ? (value / total) * 100 : 0,
         sectors: own.map((r, i) => ({
           key: `${type}-${r.sector}`,
           sector: r.sector,
+          section: type,
+          sectionLabel: label,
           value: r.value,
-          // Step back across the section's own sectors, largest staying boldest
-          color: shade(base, 100 - Math.min(i * 7, 60)),
+          /*
+           * Step back across the section's own sectors, largest staying boldest.
+           * The range is divided by how many there are, so a section with eleven
+           * sectors still ends on a distinguishable shade rather than repeating
+           * the floor for its last few.
+           */
+          color: shade(base, own.length < 2 ? 100 : 100 - (i / (own.length - 1)) * 58),
           shareOfTotal: total ? (r.value / total) * 100 : 0,
           shareOfSection: value ? (r.value / value) * 100 : 0,
         })),

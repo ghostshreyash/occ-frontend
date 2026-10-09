@@ -24,6 +24,7 @@ import { InspectionActivityDetailsPage } from "@/pages/inspection-activity-detai
 import { SupportTicketsPage } from "@/pages/support-tickets"
 import { SupportTicketDetailsPage } from "@/pages/support-ticket-details"
 import { RaiseSupportTicketPage } from "@/pages/raise-support-ticket"
+import { ProfilePage } from "@/pages/profile"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
 import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
@@ -74,6 +75,7 @@ export const router = createBrowserRouter([
           { path: "inspection-activities/add", element: <AddInspectionActivityPage /> },
           { path: "inspection-activity-details/:id", element: <InspectionActivityDetailsPage /> },
           { path: "evita", element: <EvitaDashboardPage /> },
+          { path: "profile", element: <ProfilePage /> },
           { path: "support-tickets", element: <SupportTicketsPage /> },
           { path: "support-tickets/raise", element: <RaiseSupportTicketPage /> },
           { path: "support-ticket-details/:id", element: <SupportTicketDetailsPage /> },

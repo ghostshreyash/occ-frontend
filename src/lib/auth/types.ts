@@ -19,6 +19,12 @@ export type AuthUser = {
   role: string
   email: string
   mobile: string
+  /**
+   * Profile photo as a data URL. Downscaled before it is stored, because the
+   * session lives in web storage and a full-size camera image would blow the
+   * quota. Falls back to `initials` when unset.
+   */
+  avatar?: string
 }
 
 export type AuthSession = {

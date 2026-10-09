@@ -3,7 +3,7 @@ import { useNavigate } from "react-router"
 import { format } from "date-fns"
 import { Bell, ChevronDown, Leaf, LogOut, UserRound } from "lucide-react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +64,7 @@ export function Topbar() {
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 outline-none hover:bg-white/10">
           <Avatar className="size-8">
+            {user?.avatar ? <AvatarImage src={user.avatar} alt="" /> : null}
             <AvatarFallback className="bg-primary font-semibold text-primary-foreground">{user?.initials ?? "A"}</AvatarFallback>
           </Avatar>
           <span className="hidden text-sm font-medium sm:inline">{user?.name ?? "Admin"}</span>
@@ -72,7 +73,7 @@ export function Topbar() {
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuLabel>{user?.role ?? "OLIVINE Admin"}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => navigate("/profile")}>
             <UserRound /> My Profile
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => {
