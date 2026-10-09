@@ -6,7 +6,7 @@ import { LocationPicker } from "@/components/common/location-picker"
 import { salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
 import { areaForPostalCode, departmentTypes, plantCapacityUnitCodes } from "@/data/master-data"
 import { coordsForCity } from "@/data/occ-tables"
-import { POSTAL_CODE_LENGTH } from "@/lib/validation"
+import { POSTAL_CODE_MAX_LENGTH } from "@/lib/validation"
 import type { DepartmentValues, PlantValues, SubDepartmentValues } from "@/pages/enterprise-onboarding/schemas"
 
 /*
@@ -54,7 +54,7 @@ export function PlantFields({ form }: { form: UseFormReturn<PlantValues> }) {
 
       <TextareaField control={control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
 
-      <TextField control={control} name="pin" label="Postal Code" required inputMode="numeric" maxLength={POSTAL_CODE_LENGTH} onValueChange={fillFromPin} />
+      <TextField control={control} name="pin" label="Postal Code" required maxLength={POSTAL_CODE_MAX_LENGTH} onValueChange={fillFromPin} />
       <TextField control={control} name="city" label="City" required />
       {/* The pair shares one cell so the row fills all three columns evenly */}
       <div className="grid grid-cols-2 gap-2">

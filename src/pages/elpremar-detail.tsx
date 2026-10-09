@@ -37,7 +37,7 @@ import {
 } from "@/data/elpremar-data"
 import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { countries, salutations } from "@/data/mock"
-import { POSTAL_CODE_LENGTH, optionalEmail, optionalPostalCode, phone, required } from "@/lib/validation"
+import { POSTAL_CODE_MAX_LENGTH, optionalEmail, optionalPostalCode, phone, required } from "@/lib/validation"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
@@ -235,7 +235,7 @@ export function ElpremarDetailPage() {
               <SelectField control={basicForm.control} name="gender" label="Gender" options={["Male", "Female", "Other"]} />
                             <PhoneField control={basicForm.control} codeName="phoneCode" name="phone" label="Mobile Number" required />
               <TextField control={basicForm.control} name="email" label="Email" required type="email" />
-              <TextField control={basicForm.control} name="postalCode" label="Postal Code" inputMode="numeric" maxLength={POSTAL_CODE_LENGTH} onValueChange={fillFromPostalCode} />
+              <TextField control={basicForm.control} name="postalCode" label="Postal Code" maxLength={POSTAL_CODE_MAX_LENGTH} onValueChange={fillFromPostalCode} />
               <TextField control={basicForm.control} name="district" label="District" />
               <TextField control={basicForm.control} name="city" label="City" />
               <TextField control={basicForm.control} name="state" label="State" />
