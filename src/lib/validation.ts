@@ -30,6 +30,30 @@ export const username = z
 /** Today as yyyy-MM-dd, the value a date input expects */
 export const today = () => {
   const d = new Date()
+  return isoDate(d)
+}
+
+const isoDate = (d: Date) => {
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+/**
+ * The latest date of birth that still clears a minimum age today. Doubles as
+ * the `max` a date input accepts, so the picker cannot offer a date that the
+ * schema would then reject.
+ */
+export const latestBirthDate = (minAge: number) => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - minAge)
+  return isoDate(d)
+}
+
+/**
+ * A date of birth: in the past, and old enough. Dates are held as yyyy-MM-dd,
+ * which compares correctly as text, so no parsing is needed.
+ */
+export const dateOfBirth = (minAge: number) =>
+  required("Date of birth")
+    .refine((v) => v <= today(), "Date of birth cannot be in the future")
+    .refine((v) => v <= latestBirthDate(minAge), `The ELPREMAR must be at least ${minAge} years old`)
