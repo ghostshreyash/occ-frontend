@@ -2,18 +2,18 @@ import { useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import {
   ArrowDown,
-  ArrowDownWideNarrow,
   ArrowUp,
   Building2,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Factory,
-  FileDown,
+  FileText,
   MapPin,
   Plus,
   Search,
   Server,
+  Sheet,
   X,
 } from "lucide-react"
 import { cn } from "cn"
@@ -21,14 +21,15 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PageHeader } from "@/components/common/page-header"
+import { control } from "@/lib/data-table"
 import { StatCard } from "@/components/common/stat-card"
-import { SectionCard } from "@/components/common/section-card"
 import { enterpriseRecords, enterpriseRegisterKpis, type EnterpriseRecord } from "@/data/occ-tables"
+import { exportCsv, exportPdf, type ExportColumn } from "@/lib/table-export"
 import { healthStatus } from "@/lib/status"
-import { enterpriseScales, sectorTypes } from "@/data/master-data"
+import { industrySectors, retailSectors, type SectorType } from "@/data/master-data" // + enterpriseScales, sectorTypes with the Scale / Sector value filters
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
@@ -45,14 +46,54 @@ const onboardedTime = (s: string) => {
 /** Every filter menu opens below its trigger and never flips upward */
 const DROP_DOWN = { position: "popper", side: "bottom", align: "start", sideOffset: 4, avoidCollisions: false } as const
 
+/*
+ * The one Sector menu covers both levels of the classification. A record stores
+ * `sectorType` ("Industry") and `sector` ("Large Cap") as separate fields, so the
+ * menu value says which of the two to match on rather than storing a combined
+ * value: "type:Industry" matches the whole section, a bare sector name matches
+ * that one sector. Sector names are unique across the two sections, so a bare
+ * name is never ambiguous.
+ */
+const SECTOR_ALL = "all"
+const sectionValue = (t: SectorType) => `type:${t}`
+
+const SECTOR_GROUPS: { type: SectorType; label: string; options: readonly string[] }[] = [
+  { type: "Industry", label: "Industry Sector", options: industrySectors },
+  { type: "Retail", label: "Retail Sector", options: retailSectors },
+]
+
+/** True when a record belongs under the chosen menu value */
+const matchesSector = (e: EnterpriseRecord, value: string) => {
+  if (value === SECTOR_ALL) return true
+  if (value.startsWith("type:")) return e.sectorType === value.slice(5)
+  return e.sector === value
+}
+
 const SORTS = {
   newest: { label: "Latest added", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => onboardedTime(b.onboarded) - onboardedTime(a.onboarded) },
   oldest: { label: "Oldest added", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => onboardedTime(a.onboarded) - onboardedTime(b.onboarded) },
+  /* Only reachable from the removed Sort menu; restore with it.
   name: { label: "Name A-Z", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => a.name.localeCompare(b.name) },
   assets: { label: "Most assets", compare: (a: EnterpriseRecord, b: EnterpriseRecord) => b.assets - a.assets },
+  */
 } as const
 type SortKey = keyof typeof SORTS
 const statusMeta = (s: EnterpriseRecord["status"]) => (s === "onboarding" ? onboardingBadge : healthStatus[s])
+
+/** Shared by the CSV and PDF exports, so both carry what the table shows plus its ids */
+const exportColumns: ExportColumn<EnterpriseRecord>[] = [
+  { header: "Enterprise ID", value: (e) => e.id },
+  { header: "Enterprise", value: (e) => e.name },
+  { header: "Sector Type", value: (e) => e.sectorType },
+  { header: "Sector", value: (e) => e.sector },
+  { header: "City", value: (e) => e.city },
+  { header: "Country", value: (e) => e.country },
+  { header: "Plants", value: (e) => String(e.plants) },
+  { header: "Assets", value: (e) => String(e.assets) },
+  { header: "ELPREMARs", value: (e) => String(e.elpremars) },
+  { header: "Onboarded", value: (e) => e.onboarded },
+  { header: "Status", value: (e) => statusMeta(e.status).label },
+]
 
 /* Status drives the row stripe and the monogram tint — colour reinforces the badge, never replaces it */
 const statusAccent: Record<EnterpriseRecord["status"], { stripe: string; chip: string }> = {
@@ -70,33 +111,30 @@ const initials = (name: string) =>
 export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState("")
-  const [sectorType, setSectorType] = useState("all")
-  const [scale, setScale] = useState("all")
-  const [status, setStatus] = useState("all")
+  // Restore alongside the Status filter in the toolbar below:
+  // const [status, setStatus] = useState("all")
   const [location, setLocation] = useState("all")
-  const [sector, setSector] = useState("all")
+  // One value for both levels - see SECTOR_GROUPS above
+  const [sector, setSector] = useState(SECTOR_ALL)
   const [sort, setSort] = useState<SortKey>("newest")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
 
-  const sectors = useMemo(() => [...new Set(enterpriseRecords.map((e) => e.sector))].sort(), [])
   const countries = useMemo(() => [...new Set(enterpriseRecords.map((e) => e.country))].sort(), [])
 
   const rows = useMemo(
     () =>
       enterpriseRecords
         .filter((e) => {
-          if (sectorType !== "all" && e.sectorType !== sectorType) return false
-          if (scale !== "all" && e.scale !== scale) return false
-          if (sector !== "all" && e.sector !== sector) return false
-          if (status !== "all" && e.status !== status) return false
+          if (!matchesSector(e, sector)) return false
+          // if (status !== "all" && e.status !== status) return false
           if (location !== "all" && e.country !== location) return false
           const q = query.trim().toLowerCase()
           if (!q) return true
           return [e.name, e.id, e.sector, e.sectorType, e.country, e.city].some((v) => v.toLowerCase().includes(q))
         })
         .sort(SORTS[sort].compare),
-    [query, sectorType, scale, sector, status, location, sort]
+    [query, sector, location, sort]
   )
 
   /*
@@ -104,7 +142,7 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
    * Adjusting during render (rather than in an effect) avoids a wasted commit —
    * see react.dev "You Might Not Need an Effect".
    */
-  const filterKey = `${query}|${sectorType}|${scale}|${sector}|${status}|${location}|${sort}|${pageSize}`
+  const filterKey = `${query}|${sector}|${location}|${sort}|${pageSize}`
   const [lastFilterKey, setLastFilterKey] = useState(filterKey)
   if (lastFilterKey !== filterKey) {
     setLastFilterKey(filterKey)
@@ -116,13 +154,11 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
   const start = (current - 1) * pageSize
   const pageRows = rows.slice(start, start + pageSize)
 
-  const filtered = query.trim() !== "" || sectorType !== "all" || scale !== "all" || sector !== "all" || status !== "all" || location !== "all"
+  const filtered = query.trim() !== "" || sector !== SECTOR_ALL || location !== "all"
   const clearFilters = () => {
     setQuery("")
-    setSectorType("all")
-    setScale("all")
-    setSector("all")
-    setStatus("all")
+    setSector(SECTOR_ALL)
+    // setStatus("all")
     setLocation("all")
   }
 
@@ -133,9 +169,18 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
         description="Every enterprise registered with OLIVINE, with its plants, assets and current health."
         breadcrumbs={[{ label: "Enterprises" }]}
         actions={
-          <Button size="sm" className="h-7 text-xs" onClick={onStart}>
-            <Plus className="size-3.5" /> Onboard Enterprise
-          </Button>
+          <>
+            <Button size="sm" className="h-7 text-xs" onClick={onStart}>
+              <Plus className="size-3.5" /> Onboard Enterprise
+            </Button>
+            {/* Exports carry the filtered, sorted set - not just the page on screen */}
+            <Button variant="outline" size="sm" className="h-7 bg-card text-xs" onClick={() => exportCsv("enterprises", exportColumns, rows)}>
+              <Sheet className="size-3.5" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 bg-card text-xs" onClick={() => exportPdf("Enterprises", exportColumns, rows)}>
+              <FileText className="size-3.5" /> Export PDF
+            </Button>
+          </>
         }
       />
 
@@ -146,38 +191,26 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
         <StatCard label="Total Assets" value={enterpriseRegisterKpis.assets} change={enterpriseRegisterKpis.delta.assets} icon={Server} tone="highlight" variant="plain" />
       </div>
 
-      <SectionCard
-        title="Registered Enterprises"
-        hoverable={false}
-        contentClassName="px-0 pb-0"
-        actions={
-          <span className="text-[0.7rem] tabular-nums text-muted-foreground">
-            {rows.length} of {enterpriseRecords.length}
-          </span>
-        }
-      >
-        {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-2 border-b px-3 pb-2.5">
-          <div className="min-w-0 flex-1 sm:max-w-52">
+      <section className="flex flex-col rounded-lg bg-card text-card-foreground shadow-xs ring-1 ring-foreground/10">
+        {/* Search hard left, filters centred, clear hard right - as on the activity lists */}
+        <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5">
+          <div className="relative">
             <Label htmlFor="ent-search" className="sr-only">Search enterprises</Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="ent-search"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, ID, sector"
-                className="h-7 pl-7 text-xs"
-              />
-            </div>
+            <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="ent-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search here..."
+              className={cn(control, "w-60 bg-card pl-7")}
+            />
           </div>
 
+          <div className="mx-auto flex flex-wrap items-center gap-2">
           <FilterSelect id="ent-location" label="Location" value={location} onChange={setLocation} allLabel="All Locations" options={countries} width="w-40" icon={MapPin} />
-          <FilterSelect id="ent-sector-type" label="Sector" value={sectorType} onChange={setSectorType} allLabel="All Sectors" options={[...sectorTypes]} width="w-32" />
-          <FilterSelect id="ent-scale" label="Scale" value={scale} onChange={setScale} allLabel="All Scales" options={[...enterpriseScales]} width="w-32" />
-          <FilterSelect id="ent-sector" label="Sector value" value={sector} onChange={setSector} allLabel="All Values" options={sectors} width="w-40" />
-          <FilterSelect
+          <SectorFilter value={sector} onChange={setSector} />
+          {/* <FilterSelect
             id="ent-status"
             label="Status"
             value={status}
@@ -186,28 +219,11 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
             width="w-32"
             options={["healthy", "attention", "critical", "onboarding"]}
             renderOption={(v) => statusMeta(v as EnterpriseRecord["status"]).label}
-          />
+          /> */}
+          </div>
 
-          {filtered ? (
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
-              <X className="size-3.5" /> Clear
-            </Button>
-          ) : null}
-
-          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger id="ent-sort" size="sm" aria-label="Sort by" className="ml-auto h-7 w-36 text-xs">
-              <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent {...DROP_DOWN}>
-              {(Object.keys(SORTS) as SortKey[]).map((k) => (
-                <SelectItem key={k} value={k}>{SORTS[k].label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button variant="outline" size="sm" className="h-7 text-xs">
-            <FileDown className="size-3.5" /> Export
+          <Button variant="outline" size="sm" className={cn(control, "bg-card")} disabled={!filtered} onClick={clearFilters}>
+            <X className="size-3.5" /> Clear Filters
           </Button>
         </div>
 
@@ -356,12 +372,41 @@ export function EnterpriseRegister({ onStart }: { onStart: () => void }) {
             </div>
           </div>
         )}
-      </SectionCard>
+      </section>
     </div>
   )
 }
 
 /** Labelled select used across the filter bar */
+/**
+ * The Sector menu: both sections, each with its own sectors nested under a
+ * heading. Picking a heading's "All ..." row filters the whole section; picking
+ * a sector filters that one. `sectionValue` keeps the two apart, so nothing here
+ * depends on sector names happening to be unique.
+ */
+function SectorFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger id="ent-sector" size="sm" aria-label="Sector" className="h-7 w-52 text-xs">
+        <Factory className="size-3.5 text-muted-foreground" />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent {...DROP_DOWN} className="max-h-80">
+        <SelectItem value={SECTOR_ALL}>All Sectors</SelectItem>
+        {SECTOR_GROUPS.map((g) => (
+          <SelectGroup key={g.type}>
+            <SelectLabel className="text-[0.65rem] tracking-wide text-muted-foreground uppercase">{g.label}</SelectLabel>
+            <SelectItem value={sectionValue(g.type)}>All {g.type}</SelectItem>
+            {g.options.map((o) => (
+              <SelectItem key={o} value={o} className="pl-6">{o}</SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 function FilterSelect({
   id,
   label,
