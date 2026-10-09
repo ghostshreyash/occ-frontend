@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { optionalEmail, optionalPostalCode, password, phone, postalCode, required } from "@/lib/validation"
+import { optionalEmail, optionalPhone, optionalPostalCode, password, phone, postalCode, required } from "@/lib/validation"
 import { timeZones } from "@/data/mock"
 
 const optionalText = z.string().optional()
@@ -89,7 +89,7 @@ export const departmentSchema = z.object({
   head: optionalText,
   email: optionalEmail,
   phoneCode: optionalText,
-  phone: optionalText,
+  phone: optionalPhone,
   location: optionalText,
   description: optionalText,
 })

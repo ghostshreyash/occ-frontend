@@ -21,10 +21,21 @@ export const optionalPostalCode = z
   .optional()
   .refine((v) => !v || PIN.test(v), "Enter a 6-digit postal code")
 
-export const phone = z
+/**
+ * Exactly ten digits. The dialling code is picked separately, so the number
+ * itself carries no country prefix.
+ */
+const TEN_DIGITS = /^\d{10}$/
+export const PHONE_LENGTH = 10
+
+export const phone = z.string().trim().regex(TEN_DIGITS, "Enter a 10-digit phone number")
+
+/** The same rule where the number may be left blank */
+export const optionalPhone = z
   .string()
   .trim()
-  .regex(/^\+?[0-9 ]{10,15}$/, "Enter a valid phone number")
+  .optional()
+  .refine((v) => !v || TEN_DIGITS.test(v), "Enter a 10-digit phone number")
 
 export const passwordRules = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { dialCodes } from "@/data/master-data"
+import { PHONE_LENGTH } from "@/lib/validation"
 
 type BaseProps<T extends FieldValues> = {
   control: Control<T>
@@ -261,7 +262,8 @@ export function PhoneField<T extends FieldValues>({
               {...field}
               id={name}
               type="tel"
-              inputMode="tel"
+              inputMode="numeric"
+              maxLength={PHONE_LENGTH}
               value={field.value ?? ""}
               placeholder={placeholder}
               aria-invalid={fieldState.invalid}
