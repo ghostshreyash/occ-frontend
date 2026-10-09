@@ -229,7 +229,17 @@ export function PhoneField<T extends FieldValues>({
   required,
   className,
   placeholder = "98765 43210",
-}: BaseProps<T> & { codeName: FieldPath<T>; placeholder?: string }) {
+  digits,
+}: BaseProps<T> & {
+  codeName: FieldPath<T>
+  placeholder?: string
+  /**
+   * Opt in to a fixed-length, digits-only number: anything that is not a digit
+   * is dropped as it is typed and the field stops at this many. Left unset the
+   * field stays free-form, which is what the onboarding screens expect.
+   */
+  digits?: number
+}) {
   return (
     <Controller
       control={control}
@@ -261,9 +271,15 @@ export function PhoneField<T extends FieldValues>({
               {...field}
               id={name}
               type="tel"
-              inputMode="tel"
+              inputMode={digits ? "numeric" : "tel"}
+              maxLength={digits}
               value={field.value ?? ""}
-              placeholder={placeholder}
+              onChange={
+                digits
+                  ? (e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, digits))
+                  : field.onChange
+              }
+              placeholder={digits ? "9".repeat(digits) : placeholder}
               aria-invalid={fieldState.invalid}
             />
           </div>
