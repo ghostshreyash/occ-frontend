@@ -43,7 +43,7 @@ import { countries, indianStates } from "@/data/mock"
 import { areaForPostalCode, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import { assetHealthFor, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
-import { required } from "@/lib/validation"
+import { POSTAL_CODE_LENGTH, required } from "@/lib/validation"
 import { AddPlantWizard } from "./enterprise-onboarding/add-plant"
 import {
   blankDepartment,
@@ -512,7 +512,7 @@ export function EnterpriseDetailPage() {
               )}
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
-              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" />
+              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" inputMode="numeric" maxLength={POSTAL_CODE_LENGTH} />
             </form>
           }
         />

@@ -5,6 +5,22 @@ export const required = (label = "This field") => z.string().trim().min(1, `${la
 
 export const optionalEmail = z.union([z.literal(""), z.email("Enter a valid email address")]).optional()
 
+/**
+ * A postal code is exactly six digits - the Indian PIN format. Kept in one
+ * place so every form that asks for one agrees on what a valid one looks like.
+ */
+const PIN = /^\d{6}$/
+export const POSTAL_CODE_LENGTH = 6
+
+export const postalCode = z.string().trim().regex(PIN, "Enter a 6-digit postal code")
+
+/** The same rule where the field may be left blank */
+export const optionalPostalCode = z
+  .string()
+  .trim()
+  .optional()
+  .refine((v) => !v || PIN.test(v), "Enter a 6-digit postal code")
+
 export const phone = z
   .string()
   .trim()

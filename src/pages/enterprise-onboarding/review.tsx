@@ -14,6 +14,7 @@ import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
 import { countries, indianStates } from "@/data/mock"
 import { sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { POSTAL_CODE_LENGTH } from "@/lib/validation"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -295,7 +296,7 @@ export function ReviewStep({
               )}
               <TextField control={locationForm.control} name="city" label="City" required />
               <TextareaField control={locationForm.control} name="address" label="Address (Head Office)" required rows={2} maxLength={250} className="md:col-span-2" />
-              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" />
+              <TextField control={locationForm.control} name="pin" label="Postal Code (PIN)" inputMode="numeric" maxLength={POSTAL_CODE_LENGTH} />
             </SectionForm>
             ) : undefined
           }
