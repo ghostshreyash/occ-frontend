@@ -12,18 +12,18 @@ import { Detail } from "@/components/common/detail-view"
 import { PhoneField, TextField } from "@/components/form/fields"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import { dialCodes } from "@/data/master-data"
 import { useAuth } from "@/lib/auth/context"
 import { control } from "@/lib/data-table"
-import { phone, required } from "@/lib/validation"
+import { required } from "@/lib/validation"
 
-/** E-mail is the sign-in identity, so it is shown but never edited here. */
 const schema = z.object({
   name: required("Name"),
   mobileCode: z.string().optional(),
-  mobile: phone,
+  // Ten digits exactly - the dialling code is held separately in mobileCode
+  mobile: z.string().regex(/^\d{10}$/, "Enter a 10-digit phone number"),
+  // Also the sign-in identity, so a change here changes how you log in
+  email: z.email("Enter a valid email address"),
 })
 type ProfileValues = z.infer<typeof schema>
 
@@ -34,12 +34,15 @@ type ProfileValues = z.infer<typeof schema>
  */
 const codesByLength = [...dialCodes].sort((a, b) => b.code.length - a.code.length)
 
+/** How many digits the number itself carries, once the dialling code is split off */
+const MOBILE_DIGITS = 10
+
 function splitMobile(value: string) {
   const trimmed = (value ?? "").trim()
   const match = codesByLength.find((d) => trimmed.startsWith(d.code))
-  return match
-    ? { mobileCode: match.code, mobile: trimmed.slice(match.code.length).trim() }
-    : { mobileCode: "+91", mobile: trimmed }
+  const local = match ? trimmed.slice(match.code.length) : trimmed
+  // Seeded numbers are grouped ("99887 66554"); the field holds bare digits
+  return { mobileCode: match?.code ?? "+91", mobile: local.replace(/\D/g, "").slice(0, MOBILE_DIGITS) }
 }
 
 const joinMobile = (code: string | undefined, local: string) => [code?.trim(), local.trim()].filter(Boolean).join(" ")
@@ -148,14 +151,14 @@ export function ProfilePage() {
 
   const form = useForm<ProfileValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: user?.name ?? "", ...splitMobile(user?.mobile ?? "") },
+    defaultValues: { name: user?.name ?? "", email: user?.email ?? "", ...splitMobile(user?.mobile ?? "") },
   })
   const { control: formControl, reset } = form
 
   // Signing in as someone else while this page is mounted must not keep the old values
   useEffect(() => {
-    reset({ name: user?.name ?? "", ...splitMobile(user?.mobile ?? "") })
-  }, [user?.id, user?.name, user?.mobile, reset])
+    reset({ name: user?.name ?? "", email: user?.email ?? "", ...splitMobile(user?.mobile ?? "") })
+  }, [user?.id, user?.name, user?.mobile, user?.email, reset])
 
   if (!user) return null
 
@@ -184,6 +187,7 @@ export function ProfilePage() {
     const name = values.name.trim()
     updateUser({
       name,
+      email: values.email.trim(),
       mobile: joinMobile(values.mobileCode, values.mobile),
       // The monogram is the fallback for the photo, so it has to follow the name
       initials: name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
@@ -193,7 +197,7 @@ export function ProfilePage() {
   })
 
   const cancel = () => {
-    reset({ name: user.name, ...splitMobile(user.mobile) })
+    reset({ name: user.name, email: user.email, ...splitMobile(user.mobile) })
     setEditing(false)
   }
 
@@ -244,21 +248,20 @@ export function ProfilePage() {
           {editing ? (
             <form onSubmit={save} className="grid gap-4 sm:grid-cols-2" noValidate>
               <TextField control={formControl} name="name" label="Name" required startIcon={<UserRound />} />
-              <PhoneField control={formControl} codeName="mobileCode" name="mobile" label="Phone Number" required />
+              <PhoneField control={formControl} codeName="mobileCode" name="mobile" label="Phone Number" required digits={MOBILE_DIGITS} />
 
-              {/* Shown, never edited: the e-mail is the sign-in identity */}
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="profile-email">Email Address</FieldLabel>
-                <div className="relative">
-                  <span className="pointer-events-none absolute top-1/2 left-2.5 z-10 -translate-y-1/2 text-muted-foreground [&>svg]:size-4">
-                    <Mail />
-                  </span>
-                  <Input id="profile-email" value={user.email} readOnly disabled className="pl-8" />
-                </div>
-                <p className="text-[0.7rem] text-muted-foreground">
-                  Your e-mail is your sign-in ID and cannot be changed here. Contact an administrator to update it.
-                </p>
-              </Field>
+              <TextField
+                control={formControl}
+                name="email"
+                label="Email Address"
+                required
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                startIcon={<Mail />}
+                description="This is also your sign-in ID — changing it changes how you log in."
+                className="sm:col-span-2"
+              />
             </form>
           ) : (
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
