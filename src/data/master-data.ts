@@ -113,11 +113,11 @@ export const userRoles = [
 ] as const
 
 /**
- * Team designation. A supervisor never works as an operator, and a helper is
- * recorded as an operator - the two were agreed to be the same thing.
+ * Team designation. A supervisor never works as an operator or a helper, and
+ * only a supervisor has nobody above them to report to.
  * Separate from the role streams below: one person can hold several of those.
  */
-export const elpremarDesignations = ["Supervisor", "Operator"] as const
+export const elpremarDesignations = ["Supervisor", "Operator", "Helper"] as const
 
 export const elpremarRoles = [
   "ELPREMAR – EVITA Field Inspection",
