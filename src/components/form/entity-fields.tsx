@@ -41,7 +41,7 @@ export function PlantFields({ form }: { form: UseFormReturn<PlantValues> }) {
   return (
     <>
       <TextField control={control} name="name" label="Plant Name" required placeholder="e.g. Mumbai Works" />
-      <SelectField control={control} name="type" label="Plant Type" required options={plantTypes} />
+      <SelectField control={control} name="type" label="Plant Type" options={plantTypes} />
       <TextField control={control} name="code" label="Plant Code" placeholder="e.g. TS-MUM-001" />
 
       {/* Title and head read as one name, so they share a cell */}

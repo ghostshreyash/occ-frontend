@@ -147,8 +147,11 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
      * streams, two offsets that agree modulo 3 would collapse back to one role.
      */
     roles: i % 3 === 0 ? [pick(elpremarRoles, s, 2), pick(elpremarRoles, s, 3)] : [pick(elpremarRoles, s, 2)],
-    // Roughly one supervisor to every three operators
-    designation: i % 4 === 0 ? "Supervisor" : "Operator",
+    /*
+     * By position, not by hash, so all three designations are populated -
+     * roughly one supervisor and one helper to every two operators.
+     */
+    designation: i % 4 === 0 ? "Supervisor" : i % 4 === 2 ? "Helper" : "Operator",
     enterprise: unassigned ? "" : enterprise.name,
     plant: unassigned ? "" : posting.plant.name,
     // Where they actually work, which is the plant's city rather than the HQ's

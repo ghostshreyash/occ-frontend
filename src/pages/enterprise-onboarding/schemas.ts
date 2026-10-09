@@ -4,6 +4,12 @@ import { optionalEmail, password, phone, required } from "@/lib/validation"
 import { timeZones } from "@/data/mock"
 
 const optionalText = z.string().optional()
+
+/** A postal code is never demanded, but a typo in one that was typed is caught */
+const postalCode = z
+  .string()
+  .optional()
+  .refine((v) => !v || v.trim() === "" || /^[A-Za-z0-9 -]{4,10}$/.test(v.trim()), "Enter a valid postal code")
 /**
  * Optional coordinate - the map picker fills these in, so they are not required,
  * but anything typed still has to be a real value in range.
@@ -36,12 +42,17 @@ export const locationSchema = z.object({
   state: required("State"),
   city: required("City"),
   address: required("Address"),
-  pin: z.string().trim().regex(/^[A-Za-z0-9 -]{4,10}$/, "Enter a valid postal code"),
+  /*
+   * Optional: an ELPREMAR onboarding in the field does not always have the head
+   * office postal code to hand. Anything entered still has to look like one.
+   */
+  pin: postalCode,
 })
 
 export const plantSchema = z.object({
   name: required("Plant name"),
-  type: required("Plant type"),
+  /* Not mandatory: nothing in onboarding depends on it, and it is editable later */
+  type: optionalText,
   code: optionalText,
   address: required("Plant address"),
   /*
