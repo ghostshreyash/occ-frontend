@@ -73,6 +73,7 @@ export function StepCard({
   nextIcon = <ArrowRight />,
   pending = false,
   formId,
+  extraAction,
 }: {
   title: string
   description?: string
@@ -85,6 +86,8 @@ export function StepCard({
   pending?: boolean
   /** id of the <form> the Next button submits */
   formId: string
+  /** An extra footer action, shown just before Next */
+  extraAction?: React.ReactNode
 }) {
   return (
     <section className="rounded-lg bg-card p-3 shadow-xs ring-1 ring-foreground/10 transition-shadow duration-200 ease-out hover:shadow-md">
@@ -102,6 +105,7 @@ export function StepCard({
             <ArrowLeft /> Back
           </Button>
         ) : null}
+        {extraAction}
         <Button type="submit" form={formId} size="sm" className="min-w-28" disabled={pending}>
           {pending ? (
             <>
