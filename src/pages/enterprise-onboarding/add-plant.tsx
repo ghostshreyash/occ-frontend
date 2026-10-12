@@ -67,6 +67,7 @@ export function AddPlantWizard({
       sector: profile.enterprise.sector,
       website: profile.enterprise.website,
       description: profile.enterprise.description,
+      accessOption: profile.enterprise.accessOption,
     },
     location: { ...profile.location },
     plants: [],

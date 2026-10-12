@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   SquareCheckBig,
+  Users,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
@@ -24,6 +25,11 @@ export type NavItem = {
    * its sidebar entry highlighted even though it sits on its own path.
    */
   covers?: string[]
+  /**
+   * Roles this section is limited to. Left unset the section is open to every
+   * role that reaches the brand's sidebar.
+   */
+  roles?: readonly string[]
 }
 
 /** OCC sidebar, in the order shown in the mockups */
@@ -31,9 +37,11 @@ export const occNavigation: NavItem[] = [
   { title: "Dashboard", path: "/", icon: House },
   { title: "Enterprises", path: "/enterprises", icon: Building2 },
   { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
-  { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
-  { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
+  // { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
+  // { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
   { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy, covers: ["/support-ticket-details"] },
+  // Only the OCC Admin provisions console logins
+  { title: "Manage Users", path: "/manage-users", icon: Users, roles: ["OCC Admin"] },
 ]
 
 /**
@@ -60,11 +68,17 @@ export const evitaNavigation: NavItem[] = [
 export const homeFor = (brand: BrandKey) => (brand === "evita" ? "/evita" : "/")
 
 /**
- * The sidebar for a brand. EMMSE has no set of its own yet, so it falls back to
- * the command centre's until its screens exist.
+ * The sidebar for a brand, less anything the viewer's role cannot reach. EMMSE
+ * has no set of its own yet, so it falls back to the command centre's until its
+ * screens exist.
+ *
+ * Hiding the entry is presentation only - `RequireRole` on the route is what
+ * actually keeps a non-admin out of the screen.
  */
-export const navigationFor = (brand: BrandKey): NavItem[] =>
-  brand === "evita" ? evitaNavigation : occNavigation
+export const navigationFor = (brand: BrandKey, role?: string): NavItem[] => {
+  const items = brand === "evita" ? evitaNavigation : occNavigation
+  return items.filter((item) => !item.roles || (role ? item.roles.includes(role) : false))
+}
 
 /** Every section any brand can reach — what the router builds placeholders from */
 export const allNavigation: NavItem[] = [

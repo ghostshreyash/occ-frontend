@@ -15,7 +15,7 @@ import { DepartmentFields, PlantFields, SubDepartmentFields } from "@/components
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { StepCard } from "@/components/common/wizard-layout"
 import { countries, indianStates } from "@/data/mock"
-import { sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { accessOptions, defaultScreenFor, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   accountSchema,
   blankDepartment,
@@ -148,6 +148,7 @@ export function EnterpriseStep({
     resolver: zodResolver(enterpriseDetailsSchema),
     defaultValues: {
       name: "", shortName: "", sectorType: "", sector: "", website: "", description: "",
+      accessOption: "",
       country: "India", state: "", city: "", address: "", pin: "",
       ...data.enterprise,
       ...data.location,
@@ -200,7 +201,17 @@ export function EnterpriseStep({
           placeholder={sectorType ? "Select sector" : "Select a type first"}
           disabled={!sectorType}
         />
-        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" />
+        <SelectField
+          control={control}
+          name="accessOption"
+          label="Access Options"
+          required
+          options={accessOptions}
+          placeholder="Select Monitoring or Management"
+          description={sectorType ? `${sectorType} enterprises usually take ${defaultScreenFor(sectorType)}.` : undefined}
+        />
+        {/* Website on its own line; description and logo share the next one */}
+        <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" className="md:col-span-3" />
 
         <TextareaField control={control} name="description" label="Description" rows={2} placeholder="Enter a brief description about the enterprise..." className="md:col-span-2" />
         <FileDropField control={control} name="logo" label="Company Logo" />

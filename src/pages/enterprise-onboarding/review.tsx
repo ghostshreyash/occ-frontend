@@ -13,7 +13,7 @@ import { StepCard } from "@/components/common/wizard-layout"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
 import { countries, indianStates } from "@/data/mock"
-import { sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { accessOptions, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
@@ -252,6 +252,7 @@ export function ReviewStep({
                 { label: "Short Name", value: e?.shortName },
                 { label: "Type", value: e?.sectorType },
                 { label: sectorLabelFor(e?.sectorType), value: e?.sector },
+                { label: "Access Options", value: e?.accessOption },
                 { label: "Website", value: e?.website },
                 { label: "Country", value: l?.country },
                 { label: "State", value: l?.state },
@@ -283,6 +284,7 @@ export function ReviewStep({
                 options={sectorsFor(enterpriseForm.watch("sectorType"))}
                 disabled={!enterpriseForm.watch("sectorType")}
               />
+              <SelectField control={enterpriseForm.control} name="accessOption" label="Access Options" required options={accessOptions} />
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
 

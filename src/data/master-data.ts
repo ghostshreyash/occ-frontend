@@ -55,6 +55,17 @@ export const sectorsFor = (type?: string): readonly string[] =>
 export const sectorLabelFor = (type?: string) =>
   type === "Industry" ? "Industry Sector" : type === "Retail" ? "Retail Sector" : "Sector"
 
+/**
+ * The two product areas an enterprise can be entitled to. Held as one setting
+ * each rather than a single "plan", so an enterprise can take either, both, or
+ * be switched off from one without a new plan name being invented.
+ */
+export const accessAreas = ["Monitoring", "Management"] as const
+export type AccessArea = (typeof accessAreas)[number]
+
+export const accessOptions = ["Monitoring", "Management"] as const
+export type AccessOption = (typeof accessOptions)[number]
+
 /** Default landing screen per sector type */
 export const defaultScreenFor = (type?: string) =>
   type === "Retail" ? "Monitoring" : "Management"

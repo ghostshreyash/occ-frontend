@@ -615,7 +615,16 @@ export type PlantProfile = {
  * shared across every plant.
  */
 export type EnterpriseProfile = {
-  enterprise: { name: string; shortName: string; sectorType: string; sector: string; website: string; description: string }
+  enterprise: {
+    name: string
+    shortName: string
+    sectorType: string
+    sector: string
+    website: string
+    description: string
+    /** Product area the enterprise is onboarded onto — see master-data.accessOptions */
+    accessOption: string
+  }
   location: { country: string; state: string; city: string; pin: string; address: string }
   plants: PlantProfile[]
   account: { email: string; role: string; lastLogin: string }
@@ -803,6 +812,8 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       sector: e.sector,
       website: "https://www." + slug + ".com",
       description: e.name + " is registered with OLIVINE for electrical reliability management across " + e.plants + " plants.",
+      // Industry runs the management view, Retail the monitoring one
+      accessOption: e.sectorType === "Retail" ? "Monitoring" : "Management",
     },
     location: {
       country: e.country,

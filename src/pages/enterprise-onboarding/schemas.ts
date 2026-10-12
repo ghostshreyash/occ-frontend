@@ -29,6 +29,8 @@ export const enterpriseSchema = z.object({
   website: z.union([z.literal(""), z.url("Enter a valid URL")]).optional(),
   logo: z.instanceof(File).optional(),
   description: optionalText,
+  /* Which product area the enterprise is onboarded onto - see master-data.accessOptions */
+  accessOption: required("Access option"),
 })
 
 export const locationSchema = z.object({
@@ -158,6 +160,7 @@ export const splitEnterpriseDetails = (v: EnterpriseDetailsValues) => ({
     website: v.website,
     logo: v.logo,
     description: v.description,
+    accessOption: v.accessOption,
   },
   location: { country: v.country, state: v.state, city: v.city, address: v.address, pin: v.pin },
 })
