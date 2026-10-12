@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
@@ -32,12 +32,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PasswordField, PhoneField, SelectField, TextField } from "@/components/form/fields"
 import { Context, Ctx } from "@/components/common/wizard"
 import { Attachments } from "@/components/form/attachments"
-import { today } from "@/lib/validation"
+import { latestBirthDate, today } from "@/lib/validation"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
-import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
+import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream } from "@/data/master-data"
 import { enterpriseRecords, profileFor } from "@/data/occ-tables"
 import { nextElpremarId } from "@/data/elpremar-data"
 import {
+  MIN_ELPREMAR_AGE,
   assignmentSchema,
   basicSchema,
   certificationSchema,
@@ -87,10 +88,20 @@ function Footer({ onBack, onCancel, nextLabel = "Next", formId, nextIcon = <Arro
 }
 
 function Avatar({ photo, className }: { photo?: File; className?: string }) {
-  const url = photo ? URL.createObjectURL(photo) : undefined
+  const img = useRef<HTMLImageElement>(null)
+
+  /* Created, assigned and released in one effect, so re-rendering cannot leak a URL */
+  useEffect(() => {
+    const node = img.current
+    if (!node || !photo) return
+    const url = URL.createObjectURL(photo)
+    node.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [photo])
+
   return (
     <div className={cn("flex items-center justify-center overflow-hidden rounded-full bg-muted", className)}>
-      {url ? <img src={url} alt="" className="size-full object-cover" /> : <UserRound className="size-1/2 text-muted-foreground" />}
+      {photo ? <img ref={img} alt="" className="size-full object-cover" /> : <UserRound className="size-1/2 text-muted-foreground" />}
     </div>
   )
 }
@@ -141,14 +152,21 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
         <Controller
           control={control}
           name="photo"
-          render={({ field }) => (
-            <div className="flex w-full shrink-0 flex-col items-center gap-2 self-start rounded-lg bg-muted/60 p-4 sm:w-36">
+          render={({ field, fieldState }) => (
+            <div
+              data-invalid={fieldState.invalid}
+              className="flex w-full shrink-0 flex-col items-center gap-2 self-start rounded-lg bg-muted/60 p-4 text-center data-[invalid=true]:ring-1 data-[invalid=true]:ring-critical sm:w-36"
+            >
               <Avatar photo={field.value} className="size-24" />
+              <FieldLabel className="gap-1 text-xs">
+                Profile Photo<span className="text-critical">*</span>
+              </FieldLabel>
               <label className="cursor-pointer rounded-md border bg-card px-3 py-1 text-xs font-medium text-primary hover:bg-accent">
-                Upload Photo
+                {field.value ? "Replace Photo" : "Upload Photo"}
                 <input type="file" accept="image/png,image/jpeg" className="sr-only" onChange={(e) => field.onChange(e.target.files?.[0])} />
               </label>
               <span className="text-[0.7rem] text-muted-foreground">JPG/PNG (Max 2 MB)</span>
+              {fieldState.error ? <FieldError errors={[fieldState.error]} /> : null}
             </div>
           )}
         />
@@ -163,7 +181,16 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
             inputClassName="bg-muted/60"
             description="Issued automatically — the next free ID"
           />
-          <TextField control={control} name="dob" label="Date of Birth" required type="date" />
+          {/* The picker stops at the latest birth date that clears the minimum age */}
+          <TextField
+            control={control}
+            name="dob"
+            label="Date of Birth"
+            required
+            type="date"
+            max={latestBirthDate(MIN_ELPREMAR_AGE)}
+            description={`Must be ${MIN_ELPREMAR_AGE} or older`}
+          />
           <Controller
             control={control}
             name="gender"
@@ -509,7 +536,15 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
         <div className="grid gap-2.5 p-3 md:grid-cols-2">
           <TextField control={control} name="email" label="Email ID" required type="email" description="Taken from Basic Details. This is what they sign in with - change it here if their login differs." />
           <div>
-            <SelectField control={control} name="role" label="User Role" required options={[...userRoles]} />
+            {/* Not a choice: this form onboards an ELPREMAR, so the role is settled */}
+            <TextField
+              control={control}
+              name="role"
+              label="User Role"
+              readOnly
+              inputClassName="bg-muted/60"
+              description="Set by this form — an ELPREMAR holds no other role."
+            />
             <p className="mt-2 rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
               Access to maintenance activities, checklist updates, asset condition reporting and availability.
             </p>

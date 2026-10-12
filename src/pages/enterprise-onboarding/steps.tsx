@@ -52,6 +52,14 @@ type ListStepProps = {
 }
 
 /**
+ * Whether a form has anything worth keeping. Pressing Next used to throw away
+ * whatever had been typed but not yet added, which read as the step losing its
+ * data; now Next commits it first, so only a genuinely empty form is ignored.
+ */
+const filledIn = (values: Record<string, unknown>) =>
+  Object.values(values).some((v) => typeof v === "string" && v.trim() !== "" && v !== "Mr." && v !== "+91")
+
+/**
  * The rows a list-building step has collected so far. A row can be reopened in
  * the form above it or dropped; the row being edited is tinted, so it is clear
  * the form is amending rather than adding.
@@ -351,7 +359,7 @@ export function EnterpriseStep({
           * Work is dispatched to a plant, so the pin on the map is set per plant
           * in the next step.
           */}
-        <TextField control={control} name="pin" label="Postal Code (PIN)" required onValueChange={fillFromPin} />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" onValueChange={fillFromPin} />
       </form>
       <EnterpriseAdminDialog
         key={adminOpen ? "open" : "closed"}

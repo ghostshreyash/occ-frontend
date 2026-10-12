@@ -1,12 +1,16 @@
 import { z } from "zod"
 
-import { password, phone, required } from "@/lib/validation"
+import { dateOfBirth, password, phone, required } from "@/lib/validation"
+
+/** The minimum age an ELPREMAR can be onboarded at */
+export const MIN_ELPREMAR_AGE = 18
 
 export const basicSchema = z.object({
-  photo: z.instanceof(File).optional(),
+  /* A portrait identifies the person on site, so it is not optional */
+  photo: z.instanceof(File, { message: "Upload a profile photo" }),
   fullName: required("Full name"),
   employeeId: required("Employee / ID number"),
-  dob: required("Date of birth"),
+  dob: dateOfBirth(MIN_ELPREMAR_AGE),
   gender: z.enum(["Male", "Female", "Other"], "Select gender"),
   mobileCode: z.string().optional(),
   mobile: phone,
@@ -60,7 +64,8 @@ export const credentialsSchema = z
   .object({
     // The ELPREMAR signs in with their email, carried over from Basic Details
     email: z.email("Enter a valid email address"),
-    role: required("User role"),
+    /* Fixed: this form onboards an ELPREMAR, so no other role can apply */
+    role: z.literal("ELPREMAR"),
     password,
     confirmPassword: z.string(),
     webAccess: z.boolean(),
