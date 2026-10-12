@@ -6,7 +6,7 @@
  * stay consistent across EVITA, EMMS-E and OCC.
  */
 
-/* ---------- Enterprise sector ---------- */
+/* ----------  Enterprise sector ---------- */
 
 /**
  * An enterprise is either Industry or Retail. The choice drives the sector list
