@@ -2,24 +2,30 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format, isValid, parseISO } from "date-fns"
-import { Building2, Check, Factory, Folder, MapPin, Network, Pencil, Trash2 } from "lucide-react"
+import { Building2, Check, Factory, Folder, KeyRound, MapPin, Network, Pencil, Trash2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { PasswordStrength } from "@/components/form/password-requirements"
 import { DepartmentFields, PlantFields } from "@/components/form/entity-fields"
 import { StepCard } from "@/components/common/wizard-layout"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
+import { PlantOverview } from "./steps"
 import { countries, indianStates } from "@/data/mock"
-import { sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { accessOptions, emmseOperatives, plantManagerRoles, roleLockedBy, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
   locationSchema,
+  plantManagerSchema,
   plantSchema,
   type DepartmentValues,
+  type PlantManagerValues,
   type EnterpriseValues,
   type LocationValues,
   type OnboardingData,
@@ -72,7 +78,7 @@ export function ReviewStep({
   onChange,
   onSubmit,
   submitting,
-  title = "Step 5 of 5: Review & Submit",
+  title = "Step 3 of 3: Review & Submit",
   submitLabel = "Submit Onboarding",
   /** Sections that belong to an enterprise that already exists, so they are read-only here */
   readOnly = [],
@@ -87,21 +93,30 @@ export function ReviewStep({
   readOnly?: string[]
 }) {
   const [editing, setEditing] = useState<string | null>(null)
+  const [plantIndex, setPlantIndex] = useState(0)
+  /* Open on review: this is the last look before submitting, so nothing that was
+     entered should be behind a collapsed row */
+  const [openPlants, setOpenPlants] = useState<string[]>(() => data.plants.map((_, i) => `plant-${i}`))
   const [deptIndex, setDeptIndex] = useState(0)
   const { enterprise: e, location: l, plants, account } = data
 
-  /* One plant is captured per run; the enterprise accumulates them over time */
-  const p = plants[0]
+  /* Several plants can be captured in one pass, so the sections follow a selection */
+  const currentPlant = Math.min(plantIndex, Math.max(0, plants.length - 1))
+  const p = plants[currentPlant]
   const departments = p?.departments ?? []
   const currentDept = Math.min(deptIndex, Math.max(0, departments.length - 1))
   const d = departments[currentDept]
   const subs = d?.subDepartments ?? []
 
   const subCount = departments.reduce((m, dd) => m + dd.subDepartments.length, 0)
+  /* The header counts the whole enterprise, not just the plant shown below */
+  const allDepartments = plants.reduce((m, pl) => m + pl.departments.length, 0)
+  const allSubs = plants.reduce((m, pl) => m + pl.departments.reduce((n, dd) => n + dd.subDepartments.length, 0), 0)
 
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: e })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: l })
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: p })
+  const managerForm = useForm<PlantManagerValues>({ resolver: zodResolver(plantManagerSchema), values: p?.manager })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: d })
 
   /** The enterprise card now covers the head office too, so saving it writes both records */
@@ -117,7 +132,7 @@ export function ReviewStep({
   /** Plant and department edits land on the selected row rather than on a single object */
   const savePlant = () => {
     void plantForm.handleSubmit((values) => {
-      onChange({ plants: plants.map((pl, i) => (i === 0 ? { ...pl, ...values } : pl)) })
+      onChange({ plants: plants.map((pl, i) => (i === currentPlant ? { ...pl, ...values } : pl)) })
       setEditing(null)
     })()
   }
@@ -125,7 +140,7 @@ export function ReviewStep({
     void departmentForm.handleSubmit((values) => {
       onChange({
         plants: plants.map((pl, i) =>
-          i !== 0
+          i !== currentPlant
             ? pl
             : { ...pl, departments: pl.departments.map((dd, j) => (j === currentDept ? { ...dd, ...values } : dd)) }
         ),
@@ -136,7 +151,7 @@ export function ReviewStep({
   const removeSub = (i: number) =>
     onChange({
       plants: plants.map((pl, n) =>
-        n !== 0
+        n !== currentPlant
           ? pl
           : {
               ...pl,
@@ -162,8 +177,32 @@ export function ReviewStep({
   }
   /* An enterprise being added to has no new account, so that section is not shown or counted */
   const hasAccount = account !== undefined
-  const sections = hasAccount ? 5 : 4
-  const completeCount = Object.values(done).filter(Boolean).length
+  /* The plant's own login only gets a section once one has been added */
+  const manager = p?.manager
+  const sections = 4 + (hasAccount ? 1 : 0) + (manager ? 1 : 0)
+  const completeCount =
+    Object.entries(done).filter(([k, v]) => v && (k !== "account" || hasAccount)).length + (manager ? 1 : 0)
+
+  /* Numbered in the order the sections are shown, skipping any that are not */
+  const shown = [
+    "enterprise",
+    hasAccount && "account",
+    "plant",
+    manager && "manager",
+    "department",
+    "subs",
+  ].filter(Boolean) as string[]
+  const stepNo = Object.fromEntries(shown.map((k, i) => [k, i + 1])) as Record<string, number>
+
+  const operativeName = (id?: string) => emmseOperatives.find((o) => o.id === id)?.name
+  const operativeLocation = (id?: string) => emmseOperatives.find((o) => o.id === id)?.location
+
+  const saveManager = () => {
+    void managerForm.handleSubmit((values) => {
+      onChange({ plants: plants.map((pl, i) => (i === currentPlant ? { ...pl, manager: values } : pl)) })
+      setEditing(null)
+    })()
+  }
   const emptyOptional = [done.department, done.subs].filter((v) => !v).length
   /** Sections carried over from an existing enterprise cannot be edited here */
   const editable = (key: string) => !readOnly.includes(key)
@@ -202,9 +241,9 @@ export function ReviewStep({
             </div>
             <dl className="flex gap-4 text-center">
               {[
-                { label: "Plant", value: plants.length },
-                { label: "Depts", value: departments.length },
-                { label: "Sub-depts", value: subCount },
+                { label: "Plants", value: plants.length },
+                { label: "Depts", value: allDepartments },
+                { label: "Sub-depts", value: allSubs },
               ].map((s) => (
                 <div key={s.label}>
                   <dd className="text-base leading-none font-bold tabular-nums">{s.value}</dd>
@@ -252,6 +291,7 @@ export function ReviewStep({
                 { label: "Short Name", value: e?.shortName },
                 { label: "Type", value: e?.sectorType },
                 { label: sectorLabelFor(e?.sectorType), value: e?.sector },
+                { label: "Access Options", value: e?.accessOption },
                 { label: "Website", value: e?.website },
                 { label: "Country", value: l?.country },
                 { label: "State", value: l?.state },
@@ -283,6 +323,7 @@ export function ReviewStep({
                 options={sectorsFor(enterpriseForm.watch("sectorType"))}
                 disabled={!enterpriseForm.watch("sectorType")}
               />
+              <SelectField control={enterpriseForm.control} name="accessOption" label="Access Options" required options={accessOptions} />
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
 
@@ -301,10 +342,69 @@ export function ReviewStep({
           }
         />
 
+        {hasAccount ? (
+        <DetailSection
+          icon={Building2}
+          title="Administrator Account"
+          step={stepNo.account}
+          complete={done.account}
+          summary={account?.email}
+          sectionKey="account"
+          editing={editing}
+          onEditingChange={setEditing}
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Email ID", value: account?.email },
+                // Never echo a password back, even in a review screen
+                { label: "Password", value: account?.password ? "••••••••" : undefined },
+              ]}
+            />
+          }
+        />
+        ) : null}
+
+        {/* Every plant at a glance — the sections below edit one at a time, and a
+            department added to a plant you are not looking at would otherwise seem lost */}
+        <PlantOverview
+          title="Plants in this enterprise"
+          enterprise={e?.name}
+          plants={plants}
+          open={openPlants}
+          onOpenChange={setOpenPlants}
+        />
+
+        {plants.length > 1 ? (
+          <div className="sm:max-w-80">
+            <Label htmlFor="review-plant" className="mb-1.5 block text-xs font-medium">Plant shown below</Label>
+            <Select
+              value={String(currentPlant)}
+              onValueChange={(v) => {
+                setPlantIndex(Number(v))
+                setDeptIndex(0)
+                setEditing(null)
+              }}
+            >
+              <SelectTrigger id="review-plant" className="w-full">
+                <Factory className="size-3.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false}>
+                {plants.map((pl, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    {pl.name || `Plant ${i + 1}`}
+                    <span className="ml-2 text-muted-foreground">{pl.departments.length} dept{pl.departments.length === 1 ? "" : "s"}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
         <DetailSection
           icon={Factory}
-          title="Plant"
-          step={2}
+          title={plants.length > 1 ? `Plant ${currentPlant + 1} of ${plants.length}` : "Plant"}
+          step={stepNo.plant}
           complete={done.plant}
           summary={[p?.name, p?.type].filter(Boolean).join(" · ")}
           sectionKey="plant"
@@ -348,10 +448,77 @@ export function ReviewStep({
           }
         />
 
+        {/* Only once a login has been issued for the selected plant — follows the
+            plant picker above, so switching plants switches the manager shown */}
+        {manager ? (
+          <DetailSection
+            icon={KeyRound}
+            title={`Plant Manager — ${p?.name ?? "plant"}`}
+            step={stepNo.manager}
+            complete
+            summary={[manager.role, manager.email].filter(Boolean).join(" · ")}
+            sectionKey="manager"
+            editing={editing}
+            onEditingChange={setEditing}
+            onSave={saveManager}
+            view={
+              <ValueGrid
+                rows={[
+                  { label: "Role", value: manager.role },
+                  ...(manager.role === "EMMSE-0"
+                    ? [
+                        { label: "EMMSE-0 Operative", value: operativeName(manager.emmseId) },
+                        { label: "Based At", value: operativeLocation(manager.emmseId) },
+                      ]
+                    : []),
+                  { label: "Email ID", value: manager.email },
+                  // Never echo a password back, even in a review screen
+                  { label: "Password", value: manager.password ? "••••••••" : undefined },
+                ]}
+              />
+            }
+            edit={
+              <SectionForm id="edit-manager" onSubmit={saveManager}>
+                <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
+                  Editing the login for <strong>{p?.name}</strong>
+                </p>
+                <SelectField
+                  control={managerForm.control}
+                  name="role"
+                  label="Role"
+                  required
+                  options={[...plantManagerRoles]}
+                  disabled={roleLockedBy(e?.accessOption)}
+                  description={
+                    roleLockedBy(e?.accessOption)
+                      ? `${e?.accessOption} enterprises are watched by an EMMSE-0 operative.`
+                      : undefined
+                  }
+                />
+                {managerForm.watch("role") === "EMMSE-0" ? (
+                  <SelectField
+                    control={managerForm.control}
+                    name="emmseId"
+                    label="EMMSE-0 Operative"
+                    required
+                    options={emmseOperatives.map((o) => ({ value: o.id, label: `${o.name} — ${o.location}` }))}
+                    placeholder="Select an operative"
+                  />
+                ) : null}
+                <TextField control={managerForm.control} name="email" label="Email ID" required type="email" />
+                <div className="space-y-2 md:col-span-3">
+                  <PasswordField control={managerForm.control} name="password" label="Password" required />
+                  <PasswordStrength value={managerForm.watch("password")} />
+                </div>
+              </SectionForm>
+            }
+          />
+        ) : null}
+
         <DetailSection
           icon={Network}
           title={`Departments — ${p?.name ?? "no plant added"}`}
-          step={3}
+          step={stepNo.department}
           complete={done.department}
           optional
           summary={d ? `${d.name} selected` : undefined}
@@ -410,7 +577,7 @@ export function ReviewStep({
         <DetailSection
           icon={Folder}
           title={`Sub-departments — ${d?.name ?? "no department selected"}`}
-          step={4}
+          step={stepNo.subs}
           complete={done.subs}
           optional
           summary={subs.length > 0 ? subs.map((s) => s.name).filter(Boolean).join(", ") : undefined}
@@ -464,27 +631,6 @@ export function ReviewStep({
           }
         />
 
-        {hasAccount ? (
-        <DetailSection
-          icon={Building2}
-          title="Administrator Account"
-          step={5}
-          complete={done.account}
-          summary={account?.email}
-          sectionKey="account"
-          editing={editing}
-          onEditingChange={setEditing}
-          view={
-            <ValueGrid
-              rows={[
-                { label: "Email ID", value: account?.email },
-                // Never echo a password back, even in a review screen
-                { label: "Password", value: account?.password ? "••••••••" : undefined },
-              ]}
-            />
-          }
-        />
-        ) : null}
       </div>
     </StepCard>
   )

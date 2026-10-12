@@ -2,7 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router"
 
 import { AppLayout } from "@/layouts/app-layout"
 import { allNavigation } from "@/config/navigation"
-import { PublicOnly, RequireAuth } from "@/components/auth/require-auth"
+import { PublicOnly, RequireAuth, RequireRole } from "@/components/auth/require-auth"
 import { LandingPage } from "@/pages/landing"
 import { LoginPage } from "@/pages/auth/login"
 import { VerifyOtpPage } from "@/pages/auth/verify-otp"
@@ -25,6 +25,8 @@ import { SupportTicketsPage } from "@/pages/support-tickets"
 import { SupportTicketDetailsPage } from "@/pages/support-ticket-details"
 import { RaiseSupportTicketPage } from "@/pages/raise-support-ticket"
 import { ProfilePage } from "@/pages/profile"
+import { ManageUsersPage } from "@/pages/manage-users"
+import { ManageUserDetailsPage } from "@/pages/manage-user-details"
 import { ComingSoonPage } from "@/pages/coming-soon"
 import { ThemePreview } from "@/components/theme-preview"
 import { EnterpriseOnboardingPage } from "./pages/enterprise-onboarding"
@@ -76,6 +78,14 @@ export const router = createBrowserRouter([
           { path: "inspection-activity-details/:id", element: <InspectionActivityDetailsPage /> },
           { path: "evita", element: <EvitaDashboardPage /> },
           { path: "profile", element: <ProfilePage /> },
+          // Provisioning console logins is the OCC Admin's alone
+          {
+            element: <RequireRole allow={["OCC Admin"]} />,
+            children: [
+              { path: "manage-users", element: <ManageUsersPage /> },
+              { path: "manage-users/:id", element: <ManageUserDetailsPage /> },
+            ],
+          },
           { path: "support-tickets", element: <SupportTicketsPage /> },
           { path: "support-tickets/raise", element: <RaiseSupportTicketPage /> },
           { path: "support-ticket-details/:id", element: <SupportTicketDetailsPage /> },

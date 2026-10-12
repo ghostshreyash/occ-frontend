@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { OlivineEmblem, OlivineLogo } from "@/components/layout/olivine-logo"
 import { navigationFor, type NavItem } from "@/config/navigation"
+import { useAuth } from "@/lib/auth/context"
 import { useBrand } from "@/lib/brand"
 
 const under = (current: string, path: string) =>
@@ -29,7 +30,9 @@ export function AppSidebar() {
   const { pathname } = useLocation()
   // EVITA is a different app with a different job, so it gets its own sections
   const brand = useBrand()
-  const navigation = navigationFor(brand.key)
+  // Sections the viewer's role cannot reach are left out entirely
+  const { user } = useAuth()
+  const navigation = navigationFor(brand.key, user?.role)
 
   return (
     <Sidebar collapsible="icon">

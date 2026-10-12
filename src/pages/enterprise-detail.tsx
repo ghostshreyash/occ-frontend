@@ -40,7 +40,7 @@ import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { Context, Ctx } from "@/components/common/wizard"
 import { SelectableTable } from "@/components/common/selectable-table"
 import { countries, indianStates } from "@/data/mock"
-import { areaForPostalCode, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { accessOptions, areaForPostalCode, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import { assetHealthFor, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
@@ -452,6 +452,7 @@ export function EnterpriseDetailPage() {
                 { label: "Short Name", value: e.shortName },
                 { label: "Type", value: e.sectorType },
                 { label: sectorLabelFor(e.sectorType), value: e.sector },
+                { label: "Access Options", value: e.accessOption },
                 { label: "Website", value: e.website },
                 { label: "Onboarded", value: record.onboarded },
                 { label: "Description", value: e.description },
@@ -478,6 +479,7 @@ export function EnterpriseDetailPage() {
                 options={sectorsFor(enterpriseForm.watch("sectorType"))}
                 disabled={!enterpriseForm.watch("sectorType")}
               />
+              <SelectField control={enterpriseForm.control} name="accessOption" label="Access Options" required options={accessOptions} />
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
             </form>

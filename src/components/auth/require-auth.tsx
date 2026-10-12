@@ -27,3 +27,16 @@ export function PublicOnly({ children }: { children: React.ReactNode }) {
   if (session) return <Navigate to="/" replace />
   return children
 }
+
+/**
+ * Keeps a screen to the roles that own it. Hiding the sidebar entry is only
+ * presentation — this is what stops someone reaching the route by typing it.
+ *
+ * Sends the wrong role home rather than to a 403: every role has somewhere it
+ * belongs, and a dead end is worse than a redirect.
+ */
+export function RequireRole({ allow }: { allow: readonly string[] }) {
+  const { user } = useAuth()
+  if (!user || !allow.includes(user.role)) return <Navigate to="/" replace />
+  return <Outlet />
+}
