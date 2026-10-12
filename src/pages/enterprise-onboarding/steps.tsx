@@ -52,7 +52,7 @@ type ListStepProps = {
 }
 
 /**
- * The rows a list-building step has collected so far. A row can be reopened in
+ *  The rows a list-building step has collected so far. A row can be reopened in
  * the form above it or dropped; the row being edited is tinted, so it is clear
  * the form is amending rather than adding.
  */

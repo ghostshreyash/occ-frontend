@@ -45,7 +45,7 @@ export const occNavigation: NavItem[] = [
 ]
 
 /**
- * EVITA sidebar — the field engineer's app, not the command centre.
+ *  EVITA sidebar — the field engineer's app, not the command centre.
  *
  * A different set of sections entirely: an ELPREMAR works their own tasks and
  * the assets in front of them, and never sees enterprises, the ELPREMAR register

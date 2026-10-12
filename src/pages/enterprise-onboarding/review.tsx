@@ -162,7 +162,7 @@ export function ReviewStep({
       ),
     })
 
-  /* SelectableTable keys rows by id; onboarding rows are only ever positional */
+  /*  SelectableTable keys rows by id; onboarding rows are only ever positional */
   const departmentRows = departments.map((dd, i) => ({ ...dd, id: String(i) }))
 
   const isIndia = locationForm.watch("country") === "India"
