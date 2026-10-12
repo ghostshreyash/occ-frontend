@@ -63,42 +63,8 @@ export const sectorLabelFor = (type?: string) =>
 export const accessAreas = ["Monitoring", "Management"] as const
 export type AccessArea = (typeof accessAreas)[number]
 
-export const accessOptions = ["Monitoring Only", "Monitoring and Management"] as const
+export const accessOptions = ["Monitoring", "Management"] as const
 export type AccessOption = (typeof accessOptions)[number]
-
-/**
- * Who a plant's own login belongs to. A narrow list on purpose — the plant form
- * issues one account, not the full `userRoles` vocabulary below.
- */
-export const plantManagerRoles = ["Plant Manager", "EMMSE-0"] as const
-export type PlantManagerRole = (typeof plantManagerRoles)[number]
-
-/**
- * A monitoring-only enterprise has no management side to run, so its plants are
- * watched by an EMMSE-0 operative rather than handed a Plant Manager login.
- */
-export const roleForAccess = (accessOption?: string): PlantManagerRole =>
-  accessOption === "Monitoring Only" ? "EMMSE-0" : "Plant Manager"
-
-/** True when the access level leaves no choice of role */
-export const roleLockedBy = (accessOption?: string) => accessOption === "Monitoring Only"
-
-/**
- * The EMMSE-0 operatives a plant can be assigned to. Name and where they are
- * based, because the choice is usually made on proximity.
- *
- * Replace with GET /emmse-operatives later.
- */
-export const emmseOperatives = [
-  { id: "EMM-0001", name: "Imran Qureshi", location: "Dubai, United Arab Emirates" },
-  { id: "EMM-0002", name: "Fatima Al Nuaimi", location: "Abu Dhabi, United Arab Emirates" },
-  { id: "EMM-0003", name: "Sanjay Deshpande", location: "Pune, India" },
-  { id: "EMM-0004", name: "Anita Rao", location: "Hyderabad, India" },
-  { id: "EMM-0005", name: "Hans Richter", location: "Frankfurt, Germany" },
-  { id: "EMM-0006", name: "Grace Tan", location: "Singapore" },
-  { id: "EMM-0007", name: "Diego Alvarez", location: "Houston, United States" },
-  { id: "EMM-0008", name: "Rohit Malhotra", location: "Jamshedpur, India" },
-] as const
 
 /** Default landing screen per sector type */
 export const defaultScreenFor = (type?: string) =>

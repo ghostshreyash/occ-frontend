@@ -813,7 +813,7 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       website: "https://www." + slug + ".com",
       description: e.name + " is registered with OLIVINE for electrical reliability management across " + e.plants + " plants.",
       // Industry runs the management view, Retail the monitoring one
-      accessOption: e.sectorType === "Retail" ? "Monitoring Only" : "Monitoring and Management",
+      accessOption: e.sectorType === "Retail" ? "Monitoring" : "Management",
     },
     location: {
       country: e.country,

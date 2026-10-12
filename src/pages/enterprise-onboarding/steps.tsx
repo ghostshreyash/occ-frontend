@@ -18,7 +18,7 @@ import { DepartmentFields, PlantFields, SubDepartmentFields } from "@/components
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
 import { StepCard } from "@/components/common/wizard-layout"
 import { countries, indianStates } from "@/data/mock"
-import { accessOptions, defaultScreenFor, emmseOperatives, plantManagerRoles, roleForAccess, roleLockedBy, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { accessOptions, defaultScreenFor, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   accountSchema,
   blankDepartment,
@@ -322,19 +322,6 @@ export function EnterpriseStep({
           description={sectorType ? `${sectorType} enterprises usually take ${defaultScreenFor(sectorType)}.` : undefined}
         />
         {/* Website on its own line; description and logo share the next one */}
-        <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2.5 md:col-span-3">
-          <KeyRound className="size-4 shrink-0 text-primary" />
-          <span className="text-xs">
-            <span className="font-medium">Enterprise Admin</span>{" "}
-            {account ? (
-              <span className="text-muted-foreground">{account.email}</span>
-            ) : (
-              <span className="text-muted-foreground">not added yet — use Add Enterprise Admin below.</span>
-            )}
-          </span>
-          {adminError && !account ? <span className="text-xs font-medium text-critical">{adminError}</span> : null}
-        </div>
-
         <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" className="md:col-span-3" />
 
         <TextareaField control={control} name="description" label="Description" rows={2} placeholder="Enter a brief description about the enterprise..." className="md:col-span-2" />

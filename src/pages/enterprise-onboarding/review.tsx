@@ -17,7 +17,7 @@ import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { SelectableTable } from "@/components/common/selectable-table"
 import { PlantOverview } from "./steps"
 import { countries, indianStates } from "@/data/mock"
-import { accessOptions, emmseOperatives, plantManagerRoles, roleLockedBy, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { accessOptions, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
   departmentSchema,
   enterpriseSchema,
