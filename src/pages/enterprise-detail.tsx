@@ -17,6 +17,7 @@ import {
   Plus,
   Search,
   HeartPulse,
+  KeyRound,
   Server,
   X,
   ShieldAlert,
@@ -31,7 +32,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { PasswordStrength } from "@/components/form/password-requirements"
 import { DepartmentFields, PlantFields, SubDepartmentFields } from "@/components/form/entity-fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
@@ -40,7 +42,7 @@ import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { Context, Ctx } from "@/components/common/wizard"
 import { SelectableTable } from "@/components/common/selectable-table"
 import { countries, indianStates } from "@/data/mock"
-import { accessOptions, areaForPostalCode, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
+import { accessOptions, areaForPostalCode, emmseOperatives, plantManagerRoles, roleForAccess, roleLockedBy, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
 import { assetHealthFor, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
 import { healthStatus } from "@/lib/status"
 import { required } from "@/lib/validation"
@@ -51,12 +53,14 @@ import {
   departmentSchema,
   enterpriseSchema,
   locationSchema,
+  plantManagerSchema,
   plantSchema,
   subDepartmentSchema,
   type DepartmentValues,
   type EnterpriseValues,
   type LocationValues,
   type PlantEntry,
+  type PlantManagerValues,
   type PlantValues,
   type SubDepartmentValues,
 } from "./enterprise-onboarding/schemas"
@@ -214,6 +218,17 @@ export function EnterpriseDetailPage() {
   const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: profile?.enterprise })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: profile?.location })
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: plant })
+  /* Falls back to a blank login with the role the enterprise's access implies,
+     so "Add Plant Manager" opens a form that is already half-answered */
+  const managerForm = useForm<PlantManagerValues>({
+    resolver: zodResolver(plantManagerSchema),
+    values: plant?.manager ?? {
+      role: roleForAccess(profile?.enterprise.accessOption),
+      emmseId: "",
+      email: "",
+      password: "",
+    },
+  })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: dept })
 
   /*
@@ -258,6 +273,20 @@ export function EnterpriseDetailPage() {
         setEditing(null)
       })()
     }
+
+  /** The plant's own login sits on the plant, so it writes through the plant list */
+  const savePlantManager = () => {
+    void managerForm.handleSubmit((values) => {
+      // TODO: PATCH /enterprises/:id/plants/:plantId/manager once the API exists
+      setOverrides((o) => ({
+        ...o,
+        plants: (o.plants ?? plants).map((pl) => (pl.id === plant?.id ? { ...pl, manager: values } : pl)),
+      }))
+      setEditing(null)
+    })()
+  }
+
+  const operative = (id?: string) => emmseOperatives.find((o) => o.id === id)
 
   /** Appends to the live list, which is the overridden one once anything has been changed */
   const writePlants = (next: PlantProfile[]) => setOverrides((o) => ({ ...o, plants: next }))
@@ -519,6 +548,41 @@ export function EnterpriseDetailPage() {
           }
         />
 
+        <DetailSection
+          icon={Building2}
+          title="Enterprise Administrator Account"
+          sectionKey="account"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={saveAccount}
+          view={
+            <ValueGrid
+              rows={[
+                { label: "Email ID", value: account.email },
+                { label: "Role", value: account.role },
+                // Credentials are never echoed back, even to an owner
+                { label: "Password", value: "••••••••" },
+                { label: "Last Login", value: account.lastLogin },
+              ]}
+            />
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
+              <TextField control={accountForm.control} name="email" label="Email ID" required type="email" />
+              <SelectField control={accountForm.control} name="role" label="Role" required options={userRoles} />
+              {/*
+                * No password controls: OCC cannot set or reset an enterprise
+                * password. To stop an account being used, deactivate it.
+                */}
+              <p className="md:col-span-2 rounded-md bg-muted/40 p-2.5 text-[0.7rem] text-muted-foreground">
+                Passwords are managed by the enterprise. They are prompted to set a new one at first
+                sign-in, and can reset it themselves afterwards. To stop this account being used,
+                deactivate the enterprise.
+              </p>
+            </form>
+          }
+        />
+
         {/* Plants: an enterprise has many, so pick one and drill down */}
         <DetailSection
           icon={Factory}
@@ -638,6 +702,89 @@ export function EnterpriseDetailPage() {
                 Editing <strong>{plant?.name}</strong>
               </p>
               <PlantFields form={plantForm} />
+            </form>
+          }
+        />
+
+        {/* The plant's own login, edited the same way as the plant itself */}
+        <DetailSection
+          icon={KeyRound}
+          title={`Plant Manager — ${plant?.name ?? "no plant selected"}`}
+          complete={Boolean(plant?.manager)}
+          optional
+          summary={plant?.manager ? [plant.manager.role, plant.manager.email].filter(Boolean).join(" · ") : undefined}
+          sectionKey="plant-manager"
+          editing={editing}
+          onEditingChange={setEditing}
+          onSave={savePlantManager}
+          saveLabel={plant?.manager ? "Save" : "Add Plant Manager"}
+          action={
+            plant && !plant.manager ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
+                disabled={editing !== null || adding !== null}
+                onClick={() => setEditing("plant-manager")}
+              >
+                <Plus className="size-3" /> Add Plant Manager
+              </Button>
+            ) : null
+          }
+          view={
+            plant?.manager ? (
+              <ValueGrid
+                rows={[
+                  { label: "Role", value: plant.manager.role },
+                  ...(plant.manager.role === "EMMSE-0"
+                    ? [
+                        { label: "EMMSE-0 Operative", value: operative(plant.manager.emmseId)?.name },
+                        { label: "Based At", value: operative(plant.manager.emmseId)?.location },
+                      ]
+                    : []),
+                  { label: "Email ID", value: plant.manager.email },
+                  // Credentials are never echoed back, even to an owner
+                  { label: "Password", value: plant.manager.password ? "••••••••" : undefined },
+                ]}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No login issued for this plant yet — use Add Plant Manager above.
+              </p>
+            )
+          }
+          edit={
+            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
+              <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
+                Editing the login for <strong>{plant?.name}</strong>
+              </p>
+              <SelectField
+                control={managerForm.control}
+                name="role"
+                label="Role"
+                required
+                options={[...plantManagerRoles]}
+                disabled={roleLockedBy(e.accessOption)}
+                description={
+                  roleLockedBy(e.accessOption) ? `${e.accessOption} enterprises are watched by an EMMSE-0 operative.` : undefined
+                }
+              />
+              {managerForm.watch("role") === "EMMSE-0" ? (
+                <SelectField
+                  control={managerForm.control}
+                  name="emmseId"
+                  label="EMMSE-0 Operative"
+                  required
+                  options={emmseOperatives.map((o) => ({ value: o.id, label: `${o.name} — ${o.location}` }))}
+                  placeholder="Select an operative"
+                />
+              ) : null}
+              <TextField control={managerForm.control} name="email" label="Email ID" required type="email" />
+              <div className="space-y-2 md:col-span-3">
+                <PasswordField control={managerForm.control} name="password" label="Password" required />
+                <PasswordStrength value={managerForm.watch("password")} />
+              </div>
             </form>
           }
         />
@@ -811,40 +958,6 @@ export function EnterpriseDetailPage() {
           }
         />
 
-        <DetailSection
-          icon={Building2}
-          title="Enterprise Administrator Account"
-          sectionKey="account"
-          editing={editing}
-          onEditingChange={setEditing}
-          onSave={saveAccount}
-          view={
-            <ValueGrid
-              rows={[
-                { label: "Email ID", value: account.email },
-                { label: "Role", value: account.role },
-                // Credentials are never echoed back, even to an owner
-                { label: "Password", value: "••••••••" },
-                { label: "Last Login", value: account.lastLogin },
-              ]}
-            />
-          }
-          edit={
-            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
-              <TextField control={accountForm.control} name="email" label="Email ID" required type="email" />
-              <SelectField control={accountForm.control} name="role" label="Role" required options={userRoles} />
-              {/*
-                * No password controls: OCC cannot set or reset an enterprise
-                * password. To stop an account being used, deactivate it.
-                */}
-              <p className="md:col-span-2 rounded-md bg-muted/40 p-2.5 text-[0.7rem] text-muted-foreground">
-                Passwords are managed by the enterprise. They are prompted to set a new one at first
-                sign-in, and can reset it themselves afterwards. To stop this account being used,
-                deactivate the enterprise.
-              </p>
-            </form>
-          }
-        />
       </SectionCard>
 
     </div>
