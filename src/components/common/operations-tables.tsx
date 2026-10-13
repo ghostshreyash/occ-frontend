@@ -50,6 +50,16 @@ function ActionButton({ onClick }: { onClick: () => void }) {
 
 type Tab = "maintenance" | "tasks" | "tickets"
 
+/*
+ * The dashboard shows support tickets only for now.
+ *
+ * A flag rather than commented-out JSX: both panels already contain commented
+ * Action columns, and JSX comments cannot nest — wrapping them breaks the file.
+ * Set this back to true to bring the Maintenance and Inspection tabs, their
+ * panels and the assignment dialog back together.
+ */
+const SHOW_ACTIVITY_TABS = false
+
 /**
  * Each tab is named after its sidebar entry, so "View All" can look its page up
  * rather than repeat the path — the link then follows whatever the sidebar says.
@@ -189,13 +199,17 @@ export function OperationsTables({
   })
 
   const tabs = [
-    { value: "maintenance", label: "Maintenance Activities", icon: Wrench, count: maintenance.length },
-    { value: "tasks", label: "Inspection Activities", icon: ClipboardList, count: tasks.length },
+    ...(SHOW_ACTIVITY_TABS
+      ? [
+          { value: "maintenance", label: "Maintenance Activities", icon: Wrench, count: maintenance.length },
+          { value: "tasks", label: "Inspection Activities", icon: ClipboardList, count: tasks.length },
+        ]
+      : []),
     { value: "tickets", label: "Support Tickets", icon: LifeBuoy, count: tickets.length },
   ].map((t) => ({ ...t, to: sidebarPath(t.label) }))
 
   // Controlled, so the header's "View All" can point at the active tab's page
-  const [active, setActive] = useState("maintenance")
+  const [active, setActive] = useState<string>(SHOW_ACTIVITY_TABS ? "maintenance" : "tickets")
   const activeTab = tabs.find((t) => t.value === active) ?? tabs[0]
 
   const [assigning, setAssigning] = useState<(AssignTarget & { tab: Exclude<Tab, "tickets"> }) | null>(null)
@@ -260,6 +274,7 @@ export function OperationsTables({
       </div>
 
       <div className="overflow-x-auto px-1 pb-2">
+        {SHOW_ACTIVITY_TABS ? (
         <TabsContent value="maintenance">
           <Table>
             <TableHeader>
@@ -301,7 +316,9 @@ export function OperationsTables({
             </TableBody>
           </Table>
         </TabsContent>
+        ) : null}
 
+        {SHOW_ACTIVITY_TABS ? (
         <TabsContent value="tasks">
           <Table>
             <TableHeader>
@@ -347,6 +364,7 @@ export function OperationsTables({
             </TableBody>
           </Table>
         </TabsContent>
+        ) : null}
 
         <TabsContent value="tickets">
           <Table>
@@ -402,6 +420,7 @@ export function OperationsTables({
         }}
       />
 
+      {SHOW_ACTIVITY_TABS ? (
       <AssignElpremarDialog
         key={assigning ? `${assigning.tab}-${assigning.id}` : "closed"}
         target={assigning}
@@ -409,6 +428,7 @@ export function OperationsTables({
         onOpenChange={(open) => !open && setAssigning(null)}
         onAssign={assign}
       />
+      ) : null}
     </Tabs>
   )
 }
