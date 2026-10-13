@@ -37,11 +37,6 @@ export const occNavigation: NavItem[] = [
   { title: "Dashboard", path: "/", icon: House },
   { title: "Enterprises", path: "/enterprises", icon: Building2 },
   { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
-  /*
-   * Hidden from the sidebar on request. The screens and their routes are still
-   * there and still reachable by URL - uncomment these two lines to bring the
-   * entries back.
-   */
   // { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
   // { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
   { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy, covers: ["/support-ticket-details"] },
@@ -50,7 +45,7 @@ export const occNavigation: NavItem[] = [
 ]
 
 /**
- * EVITA sidebar — the field engineer's app, not the command centre.
+ *  EVITA sidebar — the field engineer's app, not the command centre.
  *
  * A different set of sections entirely: an ELPREMAR works their own tasks and
  * the assets in front of them, and never sees enterprises, the ELPREMAR register

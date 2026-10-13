@@ -6,7 +6,7 @@
 import { addDays, format } from "date-fns"
 
 import type { HealthStatus, WorkStatus } from "@/lib/status"
-import { activeElpremarNames, dialCodeFor, elpremarNames, postalCodeForCity, type AssetCriticality, type EnterpriseScale } from "@/data/master-data"
+import { activeElpremarNames, dialCodeFor, elpremarNames, emmseOperatives, postalCodeForCity, type AssetCriticality, type EnterpriseScale } from "@/data/master-data"
 import { activityTypes, priorities, assetCategories } from "@/data/mock"
 
 export type Priority = (typeof priorities)[number]
@@ -606,6 +606,11 @@ export type PlantProfile = {
   timeZone: string
   address: string
   notes: string
+  /**
+   * The plant's own login. Optional because plants onboarded before the field
+   * existed have none — see master-data.plantManagerRoles.
+   */
+  manager?: { role: string; emmseId?: string; email: string; password: string }
   departments: DepartmentProfile[]
 }
 
@@ -800,6 +805,21 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
       timeZone: timeZonesByCountry[e.country] ?? "(UTC+00:00) GMT",
       address: pick(plantSuffixes, s, 2) + ", " + city + ", " + e.country,
       notes: "Registered during initial enterprise onboarding.",
+      /*
+       * Not every plant has been given its own login yet — roughly one in three
+       * has not, which is the state the "Add Plant Manager" action exists for.
+       * Monitoring-only enterprises are watched by an EMMSE-0 operative.
+       */
+      ...(i % 3 === 1
+        ? {}
+        : {
+            manager: {
+              role: e.sectorType === "Retail" ? "EMMSE-0" : "Plant Manager",
+              ...(e.sectorType === "Retail" ? { emmseId: emmseOperatives[s % emmseOperatives.length].id } : {}),
+              email: mail(head),
+              password: "Olivine@2026",
+            },
+          }),
       departments,
     }
   })
@@ -833,7 +853,7 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
 }
 
 /**
- * Asset health split for one enterprise. The record carries a total and an
+ *  Asset health split for one enterprise. The record carries a total and an
  * overall status; these are the per-band counts behind that status, using the
  * platform's Healthy / Alarming / At Risk bands.
  */

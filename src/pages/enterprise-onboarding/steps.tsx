@@ -52,15 +52,7 @@ type ListStepProps = {
 }
 
 /**
- * Whether a form has anything worth keeping. Pressing Next used to throw away
- * whatever had been typed but not yet added, which read as the step losing its
- * data; now Next commits it first, so only a genuinely empty form is ignored.
- */
-const filledIn = (values: Record<string, unknown>) =>
-  Object.values(values).some((v) => typeof v === "string" && v.trim() !== "" && v !== "Mr." && v !== "+91")
-
-/**
- * The rows a list-building step has collected so far. A row can be reopened in
+ *  The rows a list-building step has collected so far. A row can be reopened in
  * the form above it or dropped; the row being edited is tinted, so it is clear
  * the form is amending rather than adding.
  */
@@ -270,12 +262,26 @@ export function EnterpriseStep({
       formId="step-enterprise"
       nextLabel="Next: Plant & Structure"
       onCancel={onCancel}
-      extraAction={
-        <Button type="button" onClick={() => setAdminOpen(true)}>
-          <Plus /> {account ? "Edit Enterprise Admin" : "Add Enterprise Admin"}
-        </Button>
-      }
     >
+      {/* Top right, as on the plant step — the account belongs to the enterprise
+          being described below, not to the step's navigation */}
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h4 className="font-semibold">Enterprise Details</h4>
+          <p className="text-xs text-muted-foreground">The enterprise, its head office and its administrator login.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {account ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <KeyRound className="size-3.5" /> {account.email}
+            </span>
+          ) : null}
+          <Button type="button" onClick={() => setAdminOpen(true)}>
+            <Plus /> {account ? "Edit Enterprise Admin" : "Add Enterprise Admin"}
+          </Button>
+        </div>
+      </div>
+
       <form
         id="step-enterprise"
         onSubmit={form.handleSubmit((values) => {
@@ -322,18 +328,11 @@ export function EnterpriseStep({
           description={sectorType ? `${sectorType} enterprises usually take ${defaultScreenFor(sectorType)}.` : undefined}
         />
         {/* Website on its own line; description and logo share the next one */}
-        <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2.5 md:col-span-3">
-          <KeyRound className="size-4 shrink-0 text-primary" />
-          <span className="text-xs">
-            <span className="font-medium">Enterprise Admin</span>{" "}
-            {account ? (
-              <span className="text-muted-foreground">{account.email}</span>
-            ) : (
-              <span className="text-muted-foreground">not added yet — use Add Enterprise Admin below.</span>
-            )}
-          </span>
-          {adminError && !account ? <span className="text-xs font-medium text-critical">{adminError}</span> : null}
-        </div>
+        {adminError && !account ? (
+          <p className="rounded-md bg-critical-soft p-2.5 text-xs font-medium text-critical-soft-foreground md:col-span-3">
+            {adminError}
+          </p>
+        ) : null}
 
         <TextField control={control} name="website" label="Website" placeholder="https://www.yourcompany.com" className="md:col-span-3" />
 
