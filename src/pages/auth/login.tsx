@@ -53,6 +53,22 @@ export function LoginPage() {
       setChallenge(await signIn(values.identifier, values.password, next))
       navigate(`/login/verify${brandQuery}`, { state: { remember: values.remember } })
     } catch (e) {
+      /*
+       * Two of Cognito's answers are a next screen rather than a message: an
+       * account on a temporary password, and one an administrator has flagged
+       * for reset. Showing either as an error leaves the user stuck.
+       */
+      const code = e instanceof AuthError ? e.code : ""
+
+      if (code === "NewPasswordRequired") {
+        navigate(`/login/new-password${brandQuery}`, { state: { remember: values.remember, next } })
+        return
+      }
+      if (code === "PasswordResetRequired") {
+        navigate(`/forgot-password${brandQuery}`, { state: { identifier: values.identifier } })
+        return
+      }
+
       setError(e instanceof AuthError ? e.message : "Sign in failed. Please try again.")
     }
   }

@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { AuthContext, type AuthContextValue } from "./context"
+import { currentUser, signOutCognito } from "./auth-service"
+import { setTokenStorage } from "./cognito"
 import type { AuthSession, AuthUser, OtpChallenge, ResetContext } from "./types"
 
 const STORAGE_KEY = "occ.session"
@@ -43,7 +45,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [challenge, setChallenge] = useState<OtpChallenge | null>(null)
   const [resetContext, setResetContext] = useState<ResetContext | null>(null)
 
+  /*
+   * The stored session is a UI convenience — the tokens behind it are Amplify's
+   * and can expire or be revoked without this knowing. On boot, ask Cognito who
+   * is signed in and drop anything it no longer recognises.
+   */
+  useEffect(() => {
+    let cancelled = false
+    void currentUser().then((user) => {
+      if (cancelled) return
+      setSession((current) => {
+        if (!user) {
+          if (current) writeStoredSession(null)
+          return null
+        }
+        // Refresh the profile from the ID token rather than trusting what was stored
+        const next: AuthSession = { ...(current ?? { issuedAt: Date.now(), remember: true }), user }
+        writeStoredSession(next)
+        return next
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const signIn = useCallback((user: AuthUser, remember: boolean, brand?: string) => {
+    // Decides whether Amplify's tokens outlive the tab, so it must be set first
+    setTokenStorage(remember)
     const next: AuthSession = { user, issuedAt: Date.now(), remember, brand }
     writeStoredSession(next)
     setSession(next)
@@ -61,7 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = useCallback(() => {
-    // TODO: POST /auth/logout to revoke the refresh token server-side.
+    // Ends the Cognito session too, not just this tab's copy of it
+    void signOutCognito()
     writeStoredSession(null)
     setSession(null)
     setChallenge(null)

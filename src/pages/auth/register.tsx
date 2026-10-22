@@ -6,24 +6,30 @@ import { ArrowLeft, ArrowRight, LogIn, Mail, Phone, TriangleAlert, UserRound, Us
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { SelectField, TextField, TextareaField } from "@/components/form/fields"
+import { PasswordField, SelectField, TextField, TextareaField } from "@/components/form/fields"
+import { PasswordStrength } from "@/components/form/password-requirements"
 import { AuthAside, AuthCard, AuthNotice, AuthScreen, AuthSubmit } from "@/components/auth/auth-screen"
 import { AuthResult } from "@/components/auth/auth-result"
 import { useBrand } from "@/lib/brand"
 import { AuthSteps } from "@/components/auth/auth-steps"
 import { OtpForm } from "@/components/auth/otp-form"
-import { completeAccessRequest, startAccessRequest } from "@/lib/auth/auth-service"
+import { confirmRegistration, registerUser } from "@/lib/auth/auth-service"
+import { submitRegistrationProfile } from "@/lib/auth/registration"
 import { AuthError, type OtpChallenge } from "@/lib/auth/types"
 import { ACCESS_ROLES, accessRequestSchema, type AccessRequestValues } from "./schemas"
 
-const STEPS = ["Your details", "Verify mobile", "Submitted"]
+const STEPS = ["Your details", "Verify e-mail", "Done"]
 
 /**
- * "Request access".
+ * Registration.
  *
- * Accounts are created by an OLIVINE administrator, so this raises a request
- * rather than creating one. The applicant's mobile is verified first, using the
- * same one-time-code step as signing in.
+ * Creates the Cognito account directly — `signUp` stores the attributes and
+ * e-mails a confirmation code, `confirmSignUp` activates the account. The OCC
+ * database row is created on first sign-in by `/auth/sync`, which reads the
+ * attributes back off the verified token.
+ *
+ * The fields Cognito has no attribute for (organisation, reason) are posted to
+ * the backend separately, and that post is not allowed to fail the sign-up.
  */
 export function RegisterPage() {
   const brand = useBrand()
@@ -34,34 +40,40 @@ export function RegisterPage() {
 
   const form = useForm<AccessRequestValues>({
     resolver: zodResolver(accessRequestSchema),
-    defaultValues: { fullName: "", email: "", mobile: "", organisation: "", role: "", reason: "" },
+    defaultValues: {
+      fullName: "", email: "", mobile: "", organisation: "", role: "", reason: "",
+      password: "", confirmPassword: "",
+    },
   })
 
   async function onSubmit(values: AccessRequestValues) {
     setError(null)
     try {
-      setChallenge(await startAccessRequest(values))
+      // Cognito first: if it rejects the account, nothing else should have run
+      const next = await registerUser(values)
+      // Bookkeeping only — a backend that is down must not lose the account
+      await submitRegistrationProfile(values)
+      setChallenge(next)
       setStep(1)
       window.scrollTo({ top: 0 })
     } catch (e) {
-      setError(e instanceof AuthError ? e.message : "We could not submit your request. Please try again.")
+      setError(e instanceof AuthError ? e.message : "We could not create your account. Please try again.")
     }
   }
 
   if (step === 2) {
     return (
       <AuthScreen brand={brand}>
-        <AuthCard brand={brand} emblem={false} title="Request submitted" above={<AuthSteps steps={STEPS} current={2} />}>
+        <AuthCard brand={brand} emblem={false} title="Account created" above={<AuthSteps steps={STEPS} current={2} />}>
           <AuthResult
-            tone="pending"
-            title="Your request is with the OLIVINE team"
-            description="An administrator will review it and set up your account."
+            tone="success"
+            title="Your account is ready"
+            description="Your e-mail address is confirmed. You can sign in now."
             reference={reference}
-            referenceLabel="Request reference"
+            referenceLabel="Registered e-mail"
             notes={[
-              "You will receive an e-mail once your request is approved.",
-              "Your login credentials will be sent to your registered e-mail address.",
-              "Quote the reference above when following up with the helpdesk.",
+              "Signing in sends a one-time code to this address.",
+              "An administrator assigns your console access; some areas stay hidden until they do.",
             ]}
           >
             <Button size="lg" asChild className="h-11 w-full text-base font-semibold">
@@ -81,18 +93,18 @@ export function RegisterPage() {
         <AuthCard
           brand={brand}
           emblem={false}
-          title="Verify your mobile"
-          description="Confirm the number so the team can reach you about this request."
+          title="Verify your e-mail"
+          description="Enter the code we sent so we can activate your account."
           above={<AuthSteps steps={STEPS} current={1} />}
         >
           <OtpForm
             challenge={challenge}
             onChallengeChange={setChallenge}
-            verifyLabel="Verify & submit request"
+            verifyLabel="Verify & activate account"
             recoveryHref={null}
             onVerify={async (code) => {
-              const { reference: ref } = await completeAccessRequest(challenge, code)
-              setReference(ref)
+              await confirmRegistration(challenge, code)
+              setReference(form.getValues("email"))
               setStep(2)
               window.scrollTo({ top: 0 })
             }}
@@ -113,8 +125,8 @@ export function RegisterPage() {
       <AuthCard
         brand={brand}
         emblem={false}
-        title="Request access"
-        description="Tell us who you are and an OLIVINE administrator will set up your account."
+        title="Create your account"
+        description="Register for the OLIVINE console. Your access level is assigned by an administrator."
         above={<AuthSteps steps={STEPS} current={0} />}
       >
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
@@ -163,7 +175,7 @@ export function RegisterPage() {
               name="role"
               label="Role requested"
               required
-              options={ACCESS_ROLES}
+              options={[...ACCESS_ROLES]}
               placeholder="Select the access you need"
               className="sm:col-span-2"
             />
@@ -176,6 +188,13 @@ export function RegisterPage() {
               className="sm:col-span-2"
               placeholder="Briefly describe why you need access."
             />
+
+            {/* The account is created in Cognito now, so it needs a password */}
+            <div className="space-y-2">
+              <PasswordField control={form.control} name="password" label="Password" required />
+              <PasswordStrength value={form.watch("password")} />
+            </div>
+            <PasswordField control={form.control} name="confirmPassword" label="Confirm password" required />
           </div>
 
           <AuthSubmit busy={form.formState.isSubmitting} className="mt-5">

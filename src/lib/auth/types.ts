@@ -16,7 +16,10 @@ export type AuthUser = {
   id: string
   name: string
   initials: string
+  /** Acting role, from the backend's role codes — see app-user.roleLabel */
   role: string
+  /** Every role the backend returned, for display where more than one matters */
+  roles?: string[]
   email: string
   mobile: string
   /**
