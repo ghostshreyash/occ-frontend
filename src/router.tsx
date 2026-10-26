@@ -6,6 +6,7 @@ import { PublicOnly, RequireAuth, RequireRole } from "@/components/auth/require-
 import { LandingPage } from "@/pages/landing"
 import { LoginPage } from "@/pages/auth/login"
 import { VerifyOtpPage } from "@/pages/auth/verify-otp"
+import { NewPasswordPage } from "@/pages/auth/new-password"
 import { ForgotPasswordPage } from "@/pages/auth/forgot-password"
 import { VerifyResetPage } from "@/pages/auth/verify-reset"
 import { ResetPasswordPage } from "@/pages/auth/reset-password"
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
 
   { path: "/login", element: <PublicOnly><LoginPage /></PublicOnly> },
   { path: "/login/verify", element: <PublicOnly><VerifyOtpPage /></PublicOnly> },
+  { path: "/login/new-password", element: <PublicOnly><NewPasswordPage /></PublicOnly> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/forgot-password/verify", element: <VerifyResetPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
