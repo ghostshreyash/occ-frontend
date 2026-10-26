@@ -37,7 +37,62 @@ type ApiOptions = Omit<RequestInit, "body"> & {
   body?: unknown
   /** False for endpoints reachable before sign-in, e.g. registration */
   auth?: boolean
+  /**
+   * False to accept a 401 as the answer instead of refreshing and retrying.
+   * Sign-out needs this: refreshing there would mint a brand new token for a
+   * session the user has just asked to end.
+   */
+  retryOn401?: boolean
+  /** Abort after this many ms, so a hung API cannot stall the caller */
+  timeoutMs?: number
+  /**
+   * Lets this one request carry the outgoing token while a sign-out is running.
+   * Only `/auth/logout` sets it — the backend needs a live bearer to know whose
+   * session to revoke, and everything else must be turned away.
+   */
+  allowDuringLogout?: boolean
 }
+
+/* ------------------------------------------------------------ sign-out -- */
+
+/**
+ * Whether a sign-out is in progress.
+ *
+ * Clearing the Cognito tokens is asynchronous, so for a short window the old
+ * access token is still valid and still readable. Anything that starts a
+ * request in that window would attach a token belonging to a session the user
+ * has already ended. The flag is set synchronously at the top of the sign-out
+ * so there is no gap between the user's click and the block taking effect.
+ *
+ * It stays set until the next successful sign-in: once the tokens are gone
+ * there is no session to authenticate against anyway, so refusing authenticated
+ * calls is the correct answer right through to the new one.
+ */
+let signingOut = false
+
+/**
+ * Aborts the requests that were already in the air when sign-out began.
+ *
+ * Those have left the browser, so this cannot un-send them — the server may
+ * still act on them. What it does buy is that their responses are never applied
+ * to a signed-out console. Replaced on each new session, because an aborted
+ * controller stays aborted.
+ */
+let inFlight = new AbortController()
+
+/** Blocks authenticated requests and cancels the ones already running */
+export function beginSignOut() {
+  signingOut = true
+  inFlight.abort(new DOMException("Signed out", "AbortError"))
+}
+
+/** Reopens the client for a new session. Called when a sign-in completes. */
+export function endSignOut() {
+  signingOut = false
+  inFlight = new AbortController()
+}
+
+export const isSigningOut = () => signingOut
 
 /**
  * What to do when Cognito can no longer produce a token — the refresh token has
@@ -74,12 +129,31 @@ function sessionExpired() {
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
   if (BASE === undefined) throw new ApiError(0, "VITE_API_URL is not set for this environment.")
 
-  const { body, headers, auth = true, ...rest } = options
+  const { body, headers, auth = true, retryOn401 = true, timeoutMs, allowDuringLogout = false, ...rest } = options
+
+  /*
+   * Checked before the token is read, and again after — `accessToken()` awaits,
+   * and a sign-out starting in that gap would otherwise hand this request a
+   * bearer from the session that was just ended.
+   */
+  const blocked = () => auth && signingOut && !allowDuringLogout
+  if (blocked()) throw new ApiError(401, "Signing out.")
 
   const send = async (token: string | null) => {
+    const signals: AbortSignal[] = []
+    if (timeoutMs) signals.push(AbortSignal.timeout(timeoutMs))
+    /*
+     * Only authenticated calls. An unauthenticated one carries no token, so it
+     * has nothing to leak — and since the block stays up until the next
+     * sign-in, cancelling those would leave registration and password reset
+     * dead for anyone who had signed out earlier in the session.
+     */
+    if (auth && !allowDuringLogout) signals.push(inFlight.signal)
+    const abort = signals.length ? AbortSignal.any(signals) : undefined
     try {
       return await fetch(`${BASE}${path}`, {
         ...rest,
+        ...(abort ? { signal: abort } : {}),
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -95,6 +169,8 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   let token: string | null = null
   if (auth) {
     token = await accessToken()
+    // The await above yields: a sign-out may have begun while it was pending
+    if (blocked()) throw new ApiError(401, "Signing out.")
     if (!token) {
       sessionExpired()
       throw new ApiError(401, "Not signed in.")
@@ -103,8 +179,10 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   let response = await send(token)
 
-  if (response.status === 401 && auth) {
+  if (response.status === 401 && auth && retryOn401) {
     const fresh = await refreshAccessToken()
+    // Refreshing awaits too, so the same race applies to the retry
+    if (blocked()) throw new ApiError(401, "Signing out.")
     if (!fresh) {
       // Cognito will not issue another token: the session is over, not the request
       sessionExpired()

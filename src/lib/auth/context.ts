@@ -7,7 +7,8 @@ export type AuthContextValue = {
   user: AuthUser | null
   /** Completes login once an OTP has been verified. */
   signIn: (user: AuthUser, remember: boolean, brand?: string) => void
-  signOut: () => void
+  /** Resolves once the Cognito tokens are actually gone, not just the UI state */
+  signOut: () => Promise<void>
   /** Applies a profile edit to the signed-in user and persists the session. */
   updateUser: (patch: Partial<AuthUser>) => void
   /** OTP challenge awaiting verification, handed between the auth screens. */
