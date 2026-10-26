@@ -396,3 +396,15 @@
 .occ-map .maplibregl-ctrl-group button:disabled .maplibregl-ctrl-icon {
     opacity: 0.3;
 }
+
+/*
+ * Edge (and some Chromium builds) draw their own reveal and clear controls
+ * inside every password input. They land at the right edge, exactly where
+ * PasswordField's own eye button sits, so the user sees two eyes and a click
+ * can hit the native one instead of the toggle that drives the React state.
+ * The app owns its toggle, so the native pair goes.
+ */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}

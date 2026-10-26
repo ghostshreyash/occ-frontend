@@ -77,8 +77,9 @@ export function Topbar() {
             <UserRound /> My Profile
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => {
-              signOut()
-              navigate("/login?reason=signed-out", { replace: true })
+              // The guard already redirects once the session is null; this waits
+              // for the tokens to be cleared so a fast reload cannot undo it.
+              void signOut().finally(() => navigate("/login?reason=signed-out", { replace: true }))
             }}>
             <LogOut /> Log out
           </DropdownMenuItem>

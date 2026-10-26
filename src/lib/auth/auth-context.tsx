@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { setSessionExpiredHandler } from "@/lib/api/client"
+import { endSignOut, setSessionExpiredHandler } from "@/lib/api/client"
 
 import { AuthContext, type AuthContextValue } from "./context"
 import { currentUser, signOutCognito } from "./auth-service"
@@ -54,6 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   useEffect(() => {
     let cancelled = false
+
+    /*
+     * Amplify's token provider goes back to localStorage on every page load, so
+     * a session that asked for sessionStorage has to say so again before the
+     * first `fetchAuthSession` below. Skipping this hides those tokens from
+     * boot and, worse, points a later sign-out at the wrong store — which would
+     * leave a live session behind after the user had logged out.
+     */
+    const stored = readStoredSession()
+    if (stored) setTokenStorage(stored.remember)
+
     void currentUser().then((user) => {
       if (cancelled) return
       setSession((current) => {
@@ -81,6 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = useCallback((user: AuthUser, remember: boolean, brand?: string) => {
+    /*
+     * The sign-out block stays up from the last logout until here, so a new
+     * session is what lifts it. Both ways in — the OTP screen and the forced
+     * password change — complete through this one call.
+     */
+    endSignOut()
     // Decides whether Amplify's tokens outlive the tab, so it must be set first
     setTokenStorage(remember)
     const next: AuthSession = { user, issuedAt: Date.now(), remember, brand }
@@ -99,10 +116,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  const signOut = useCallback(() => {
-    // Ends the backend and Cognito sessions too, not just this tab's copy
-    void signOutCognito()
+  const signOut = useCallback(async () => {
+    /*
+     * Clear this tab first so the console is unusable straight away, then wait
+     * for the tokens themselves to go. Returning before that resolved was the
+     * bug: a reload in the gap found the tokens still in storage and signed the
+     * user back in.
+     */
     clearLocalSession()
+    await signOutCognito()
   }, [clearLocalSession])
 
   /*

@@ -24,7 +24,7 @@ import {
   updateMFAPreference,
 } from "aws-amplify/auth"
 
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, beginSignOut } from "@/lib/api/client"
 
 import { resolveAppUser, syncAppUser } from "./app-user"
 import { cognitoConfigured } from "./cognito"
@@ -59,6 +59,20 @@ export function maskPhone(mobile: string) {
 export function maskEmail(email: string) {
   const [local = "", domain = ""] = email.split("@")
   return `${local.slice(0, 2)}${"•".repeat(Math.max(local.length - 2, 2))}@${domain}`
+}
+
+/**
+ * What the code screen shows as the address the code went to.
+ *
+ * Cognito masks `codeDeliveryDetails.destination` itself, but it masks the
+ * domain as well ("o***@y***"), which leaves someone with more than one address
+ * unable to tell which was used. The address is already known here, so mask it
+ * locally and keep the domain readable; Cognito's string is only the fallback
+ * for the paths that have no username to hand.
+ */
+function emailSentTo(destination?: string, username?: string) {
+  if (username?.includes("@")) return maskEmail(username)
+  return destination ?? "your e-mail"
 }
 
 /* ----------------------------------------------------------- in flight --- */
@@ -153,8 +167,7 @@ async function chooseEmailFactor(
       nextStep?.signInStep ?? "unknown"
     )
 
-  const sentTo =
-    nextStep.codeDeliveryDetails?.destination ?? (flow ? maskEmail(flow.username) : "your e-mail")
+  const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, flow?.username)
   /*
    * E-mail only for now. Cognito may well offer SMS as well, but the console
    * does not use it, so the code screen must not advertise a "try another way"
@@ -193,7 +206,7 @@ export async function signIn(email: string, password: string, next?: string): Pr
     switch (nextStep.signInStep) {
       case "CONFIRM_SIGN_IN_WITH_EMAIL_CODE": {
         flow = { username, password }
-        const sentTo = nextStep.codeDeliveryDetails?.destination ?? maskEmail(username)
+        const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, username)
         return challengeFrom("login", sentTo, next)
       }
 
@@ -352,8 +365,7 @@ export async function completeNewPassword(
 
     // The usual path: password accepted, now prove the e-mail
     if (nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_EMAIL_CODE") {
-      const sentTo =
-        nextStep.codeDeliveryDetails?.destination ?? (flow ? maskEmail(flow.username) : "your e-mail")
+      const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, flow?.username)
       return { challenge: challengeFrom("login", sentTo, next) }
     }
 
@@ -401,25 +413,50 @@ async function preferEmailMfa() {
   }
 }
 
-/** Ends the Cognito session as well as the local one */
+/**
+ * End the session: tell the backend, then clear the Cognito tokens.
+ *
+ * The order is forced. `RevokeToken` invalidates the access tokens issued from
+ * the refresh token as well, so after the Cognito sign-out there is no bearer
+ * the backend would accept — it has to be told first.
+ *
+ * That call therefore sits in front of the only step that actually ends the
+ * session, so it is bounded and never retried. Without `retryOn401` a backend
+ * answering 401 would send the client off to refresh the token, minting a brand
+ * new one for the session being closed; without the timeout a hung API would
+ * hold the tokens in storage indefinitely, and anything that re-read them in
+ * that window — a reload, a second tab — would find the user still signed in.
+ */
 export async function signOutCognito() {
+  /*
+   * Synchronous and first: from this point no other request may pick up the
+   * outgoing token, and anything already running is cancelled. Everything below
+   * is asynchronous, so leaving this any later reopens the window it closes.
+   */
+  beginSignOut()
   clearAuthFlow()
 
-  /*
-   * Tell the backend first, while the token is still valid — it needs a live
-   * bearer to know who is leaving. Best-effort: a backend that is down must not
-   * strand someone in a session they asked to end.
-   */
   try {
-    await apiFetch("/api/v1/auth/logout", { method: "POST" })
+    await apiFetch("/api/v1/auth/logout", {
+      method: "POST",
+      retryOn401: false,
+      timeoutMs: 4000,
+      // The one request that still carries the old token, by design
+      allowDuringLogout: true,
+    })
   } catch (e) {
     console.warn("[auth] /auth/logout failed; ending the local session anyway.", e)
   }
 
   try {
     await cognitoSignOut()
-  } catch {
-    // Already signed out, or offline: the local session is cleared regardless
+  } catch (e) {
+    /*
+     * The tokens may still be in storage, which would let the next page load
+     * rehydrate the session. Loud on purpose: a sign-out that did not take is
+     * the one failure here the user must not be left unaware of.
+     */
+    console.error("[auth] Cognito sign-out failed; tokens may remain in storage.", e)
   }
 }
 
@@ -492,10 +529,7 @@ export async function requestPasswordReset(identifier: string): Promise<OtpChall
     const { nextStep } = await cognitoResetPassword({ username })
     resetFor = username
 
-    const sentTo =
-      nextStep.resetPasswordStep === "CONFIRM_RESET_PASSWORD_WITH_CODE"
-        ? (nextStep.codeDeliveryDetails?.destination ?? maskEmail(username))
-        : maskEmail(username)
+    const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, username)
 
     return challengeFrom("password-reset", sentTo)
   } catch (e) {
@@ -562,7 +596,7 @@ export async function registerUser(input: {
     })
 
     if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
-      const sentTo = nextStep.codeDeliveryDetails?.destination ?? maskEmail(username)
+      const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, username)
       registeringAs = username
       return challengeFrom("contact-verification", sentTo)
     }
