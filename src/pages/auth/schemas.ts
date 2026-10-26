@@ -36,14 +36,22 @@ export const newPasswordSchema = z
   })
 export type NewPasswordValues = z.infer<typeof newPasswordSchema>
 
-export const accessRequestSchema = z.object({
-  fullName: required("Full name"),
-  email: z.email("Enter your official e-mail address"),
-  mobile: phone,
-  organisation: required("Organisation"),
-  role: required("Role"),
-  reason: required("Reason").max(500),
-})
+export const accessRequestSchema = z
+  .object({
+    fullName: required("Full name"),
+    email: z.email("Enter your official e-mail address"),
+    mobile: phone,
+    organisation: required("Organisation"),
+    role: required("Role"),
+    reason: required("Reason").max(500),
+    /* Registration creates the Cognito account directly, so it sets a password */
+    password,
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
 export type AccessRequestValues = z.infer<typeof accessRequestSchema>
 
 export const recoverySchema = z.object({
@@ -55,12 +63,17 @@ export const recoverySchema = z.object({
 })
 export type RecoveryValues = z.infer<typeof recoverySchema>
 
+/**
+ * What goes into `custom:user_role` at sign-up.
+ *
+ * The VALUE must be a role code the backend accepts — a display label is
+ * rejected on sync. The label is only what the applicant reads.
+ */
 export const ACCESS_ROLES = [
-  "OCC Operator",
-  "OCC Supervisor",
-  "OLIVINE Admin",
-  "Enterprise Coordinator",
-  "Support / Helpdesk",
+  { value: "OCC_TECHNICIAN", label: "OCC Technician" },
+  { value: "OCC_MANAGER", label: "OCC Manager" },
+  { value: "ELPREMAR", label: "ELPREMAR (field engineer)" },
+  { value: "ENTERPRISE_MANAGER", label: "Enterprise Coordinator" },
 ] as const
 
 /** Step labels for the password-reset flow, shared by its three screens. */
