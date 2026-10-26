@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { setSessionExpiredHandler } from "@/lib/api/client"
+
 import { AuthContext, type AuthContextValue } from "./context"
 import { currentUser, signOutCognito } from "./auth-service"
 import { setTokenStorage } from "./cognito"
@@ -70,6 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  /** Drops this tab's session without touching Cognito or the backend */
+  const clearLocalSession = useCallback(() => {
+    writeStoredSession(null)
+    setSession(null)
+    setChallenge(null)
+    setResetContext(null)
+  }, [])
+
   const signIn = useCallback((user: AuthUser, remember: boolean, brand?: string) => {
     // Decides whether Amplify's tokens outlive the tab, so it must be set first
     setTokenStorage(remember)
@@ -90,13 +100,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = useCallback(() => {
-    // Ends the Cognito session too, not just this tab's copy of it
+    // Ends the backend and Cognito sessions too, not just this tab's copy
     void signOutCognito()
-    writeStoredSession(null)
-    setSession(null)
-    setChallenge(null)
-    setResetContext(null)
-  }, [])
+    clearLocalSession()
+  }, [clearLocalSession])
+
+  /*
+   * The API client reports a session Cognito can no longer refresh. Clear the
+   * local state only — Amplify has already decided the tokens are finished, and
+   * calling /auth/logout with a dead token would just fail. The route guard
+   * sends them to sign-in as soon as the session goes null.
+   */
+  useEffect(() => {
+    setSessionExpiredHandler(clearLocalSession)
+    return () => setSessionExpiredHandler(null)
+  }, [clearLocalSession])
 
   const value = useMemo<AuthContextValue>(
     () => ({

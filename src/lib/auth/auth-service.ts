@@ -24,7 +24,9 @@ import {
   updateMFAPreference,
 } from "aws-amplify/auth"
 
-import { loadAppUser, syncAppUser } from "./app-user"
+import { apiFetch } from "@/lib/api/client"
+
+import { resolveAppUser, syncAppUser } from "./app-user"
 import { cognitoConfigured } from "./cognito"
 import { type RecoveryRequestInput } from "./requests"
 import { AuthError, type AuthUser, type OtpChallenge, type OtpChannel, type OtpPurpose, type ResetContext } from "./types"
@@ -169,9 +171,11 @@ function asAuthError(e: unknown, fallback: string): AuthError {
 }
 
 /*
- * The profile no longer comes from the ID token: `app-user.loadAppUser` builds
- * it from GET /api/v1/auth/me, because the backend owns roles. Cognito is still
- * where the contact attributes live, which that module reads directly.
+ * The profile comes from `app-user.resolveAppUser`: the Cognito attributes
+ * (name, e-mail, phone and the `custom:user_role` the role is read from), with
+ * whatever GET /api/v1/auth/me returns laid over the top. Both sign-in and boot
+ * go through it, so a reload cannot show a different name or role than sign-in
+ * did, and a backend that is down still leaves a usable profile.
  */
 
 /* ------------------------------------------------------- login & the OTP -- */
@@ -400,6 +404,18 @@ async function preferEmailMfa() {
 /** Ends the Cognito session as well as the local one */
 export async function signOutCognito() {
   clearAuthFlow()
+
+  /*
+   * Tell the backend first, while the token is still valid — it needs a live
+   * bearer to know who is leaving. Best-effort: a backend that is down must not
+   * strand someone in a session they asked to end.
+   */
+  try {
+    await apiFetch("/api/v1/auth/logout", { method: "POST" })
+  } catch (e) {
+    console.warn("[auth] /auth/logout failed; ending the local session anyway.", e)
+  }
+
   try {
     await cognitoSignOut()
   } catch {
@@ -415,7 +431,7 @@ export async function currentUser(): Promise<AuthUser | null> {
   try {
     const session = await fetchAuthSession()
     if (!session.tokens?.idToken) return null
-    return await loadAppUser()
+    return await resolveAppUser()
   } catch {
     // No usable Cognito session; the stored one is dropped by the caller
     return null
@@ -430,6 +446,35 @@ export async function accessToken(): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * Force Amplify to mint a new access token from the refresh token.
+ *
+ * Used by the API client when a call comes back 401 despite having sent a token
+ * Amplify considered current — the clock skewed, or the token was revoked.
+ * Returns null when the refresh token itself is finished, which is the client's
+ * signal that the session is over rather than the request.
+ *
+ * Concurrent callers share one refresh: a page that fires several requests at
+ * once would otherwise send several refresh calls for the same expiry, and
+ * Cognito counts those against the pool's request limits.
+ */
+let refreshing: Promise<string | null> | null = null
+
+export function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    try {
+      const session = await fetchAuthSession({ forceRefresh: true })
+      return session.tokens?.accessToken?.toString() ?? null
+    } catch {
+      // Refresh token expired or revoked - the caller signs the user out
+      return null
+    } finally {
+      refreshing = null
+    }
+  })()
+  return refreshing
 }
 
 /* -------------------------------------------------------- password reset -- */
