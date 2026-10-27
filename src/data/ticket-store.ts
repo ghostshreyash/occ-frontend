@@ -154,7 +154,7 @@ export type NewTicket = {
  * rather than collected, and any module context passed in is carried across.
  * Returns the new ticket id so the caller can navigate straight to it.
  */
-export function raiseTicket(input: NewTicket, raisedBy: string) {
+export function raiseTicket(input: NewTicket, raisedBy: string, raisedByRole: string) {
   const at = now()
   const [date] = at.split(" ")
   // Ids count up from the highest TK- already on the desk
@@ -170,6 +170,7 @@ export function raiseTicket(input: NewTicket, raisedBy: string) {
     category: input.category,
     raised: date,
     raisedBy,
+    raisedByRole,
     source: input.source,
     lastUpdated: at,
     priority: input.priority,
