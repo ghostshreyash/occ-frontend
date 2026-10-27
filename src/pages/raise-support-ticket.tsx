@@ -119,7 +119,8 @@ export function RaiseSupportTicketPage() {
         reportId: values.reportId || undefined,
         attachments: files,
       },
-      user?.name ?? "Admin"
+      user?.name ?? "Admin",
+      user?.role ?? "OCC Admin"
     )
     toast.success(`${id} raised`, { description: `${values.category} · ${values.plant}` })
     navigate(`/support-ticket-details/${id}`)

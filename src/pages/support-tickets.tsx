@@ -27,7 +27,7 @@ const parseDate = (d: string) => parse(d, "dd-MM-yyyy", new Date())
 
 type SortKey =
   | "id" | "enterprise" | "plant" | "subject" | "category"
-  | "raised" | "raisedBy" | "elpremar" | "priority" | "status"
+  | "raised" | "raisedBy" | "priority" | "status"
 
 const statusRank: Record<WorkStatus, number> = { open: 0, reopened: 1, pending: 2, rejected: 3, assigned: 4, in_progress: 5, completed: 6, closed: 7 }
 const priorityRank: Record<TicketPriority, number> = { High: 0, Medium: 1, Low: 2 }
@@ -40,8 +40,6 @@ const sortValue: Record<SortKey, (r: TicketRow) => string | number> = {
   category: (r) => r.category,
   raised: (r) => parseDate(r.raised).getTime(),
   raisedBy: (r) => r.raisedBy,
-  // Unassigned sorts last rather than first, so the queue reads owner-first
-  elpremar: (r) => r.elpremar ?? "￿",
   priority: (r) => priorityRank[r.priority],
   status: (r) => statusRank[r.status],
 }
@@ -55,13 +53,15 @@ const exportColumns: ExportColumn<TicketRow>[] = [
   { header: "Category", value: (r) => r.category },
   { header: "Raised", value: (r) => r.raised },
   { header: "Raised By", value: (r) => r.raisedBy },
-  { header: "Assigned To", value: (r) => r.elpremar ?? "Unassigned" },
+  { header: "Raised By Role", value: (r) => r.raisedByRole },
   { header: "Priority", value: (r) => r.priority },
   { header: "Status", value: (r) => workStatus[r.status].label },
 ]
 
-/** Shown wherever a ticket has no owner yet, so the gap reads as a state */
-const Unassigned = () => <span className="text-muted-foreground/70 italic">Unassigned</span>
+/* Went with the Assigned To column; kept for when the desk shows owners again.
+ * (`noUnusedLocals` rejects it while nothing renders it.)
+ * const Unassigned = () => <span className="text-muted-foreground/70 italic">Unassigned</span>
+ */
 
 /** Same ghost icon button the dashboard tickets table uses */
 function ActionButton({ onClick }: { onClick: () => void }) {
@@ -230,7 +230,6 @@ export function SupportTicketsPage() {
                 <SortHead label="Category" column="category" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Raised" column="raised" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Raised By" column="raisedBy" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
-                <SortHead label="Assigned To" column="elpremar" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Priority" column="priority" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <SortHead label="Status" column="status" sort={sort} onSort={(c) => setSort(nextSort(sort, c))} />
                 <TableHead className={cn(th, "text-center")}>Action</TableHead>
@@ -258,8 +257,11 @@ export function SupportTicketsPage() {
                   <TableCell className={cn(td, "max-w-56 font-medium whitespace-normal")}>{r.subject}</TableCell>
                   <TableCell className={cn(td, "whitespace-nowrap")}>{r.category}</TableCell>
                   <TableCell className={cn(td, "tabular-nums whitespace-nowrap")}>{r.raised}</TableCell>
-                  <TableCell className={cn(td, "whitespace-nowrap")}>{r.raisedBy}</TableCell>
-                  <TableCell className={cn(td, "whitespace-nowrap")}>{r.elpremar ?? <Unassigned />}</TableCell>
+                  <TableCell className={cn(td, "whitespace-nowrap")}>
+                    <div>{r.raisedBy}</div>
+                    {/* The role is what the desk triages on, so it travels with the name */}
+                    <div className="text-[0.65rem] text-muted-foreground">{r.raisedByRole}</div>
+                  </TableCell>
                   <TableCell className={td}>
                     <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", ticketPriorityTone[r.priority])}>{r.priority}</span>
                   </TableCell>

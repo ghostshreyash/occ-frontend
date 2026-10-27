@@ -301,6 +301,8 @@ export type TicketRow = {
   raised: string
   /** Who reported it — an enterprise or plant user, not the OCC desk */
   raisedBy: string
+  /** The role they reported it under, e.g. ELPREMAR, Plant Manager */
+  raisedByRole: string
   /** The module the ticket was raised from */
   source: TicketSource
   /** Last status change / comment / assignment, as `dd-MM-yyyy HH:mm` */
@@ -326,28 +328,35 @@ export type TicketRow = {
 const stamp = (offset: number, hour: number) => `${day(offset)} ${hh(hour)}`
 
 /** Enterprise and plant people who report problems, kept apart from the field crew */
+/**
+ * Who raises tickets, and under which role.
+ *
+ * The role travels with the name because the desk triages on it — an ELPREMAR
+ * reporting a field fault and a Plant Manager reporting the same fault are not
+ * the same ticket. Paired here so a name can never show the wrong role.
+ */
 const requesters = [
-  "Rajesh Iyer",
-  "Meena Krishnan",
-  "Arun Prakash",
-  "Sneha Gupta",
-  "Imran Qureshi",
-  "Fatima Al Nuaimi",
-  "Hans Richter",
-  "Elena Fischer",
-  "Diego Alvarez",
-  "Grace Tan",
+  { name: "Rajesh Iyer", role: "ELPREMAR" },
+  { name: "Meena Krishnan", role: "Plant Manager" },
+  { name: "Arun Prakash", role: "ELPREMAR" },
+  { name: "Sneha Gupta", role: "EMMSE Admin" },
+  { name: "Imran Qureshi", role: "Plant Manager" },
+  { name: "Fatima Al Nuaimi", role: "EMMSE Admin" },
+  { name: "Hans Richter", role: "ELPREMAR" },
+  { name: "Elena Fischer", role: "Plant Manager" },
+  { name: "Diego Alvarez", role: "ELPREMAR" },
+  { name: "Grace Tan", role: "EMMSE Admin" },
 ]
 
 export const supportTickets: TicketRow[] = [
-  { id: "TK-4592", enterprise: "Tata Steel Limited", plant: "Jamshedpur Main Plant", country: "India", subject: "EVITA sync failing on tablet", category: "System", raised: day(-1), raisedBy: "Rajesh Iyer", source: "EVITA", lastUpdated: stamp(-1, 10), priority: "High", status: "open" },
-  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi Substation", country: "India", subject: "Request ELPREMAR assignment", category: "Assignment", raised: day(-1), raisedBy: "Meena Krishnan", source: "OCC Console", lastUpdated: stamp(-1, 12), priority: "Medium", status: "open" },
-  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar Substation", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Testing & Measurement", raised: day(-2), raisedBy: "Arun Prakash", source: "Testing & Measurements", lastUpdated: stamp(0, 9), elpremar: "Amit Sharma", scheduled: day(1), slot: 11, priority: "High", status: "in_progress", assetId: "AST-JMN-0142", inspectionId: "TSK-8840" },
-  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra Warehouse", country: "India", subject: "Health report PDF not downloading", category: "Report", raised: day(-2), raisedBy: "Sneha Gupta", source: "Reports", lastUpdated: stamp(-1, 15), elpremar: "Anil Singh", scheduled: day(-2), slot: 10, priority: "Low", status: "closed", reportId: "RPT-MUN-2291", resolution: "Export service restarted; the report now downloads as PDF." },
-  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata Unit 2", country: "India", subject: "Add new sub-division to hierarchy", category: "System", raised: day(-3), raisedBy: "Imran Qureshi", source: "OCC Console", lastUpdated: stamp(-2, 11), elpremar: "Priya Nair", scheduled: day(-3), slot: 14, priority: "Medium", status: "closed", resolution: "Sub-division added under Electrical and access granted." },
-  { id: "TK-4587", enterprise: "Emirates Steel", plant: "Dubai Main Plant", country: "United Arab Emirates", subject: "EMMSE dashboard loading slowly", category: "Dashboard", raised: day(-3), raisedBy: "Fatima Al Nuaimi", source: "EMMSE", lastUpdated: stamp(-2, 16), elpremar: "Khalid Rahman", scheduled: day(-2), slot: 9, priority: "Medium", status: "closed", resolution: "Widget query tuned; dashboard now loads within 2s." },
-  { id: "TK-4586", enterprise: "Tata Steel Europe", plant: "IJmuiden Unit 2", country: "Netherlands", subject: "Asset QR code not scanning", category: "Asset", raised: day(-4), raisedBy: "Hans Richter", source: "Asset", lastUpdated: stamp(-4, 13), priority: "High", status: "open", assetId: "AST-IJM-0077" },
-  { id: "TK-4585", enterprise: "BHP Group", plant: "Sydney Utility Block", country: "Australia", subject: "User access request for plant head", category: "Access", raised: day(-4), raisedBy: "Grace Tan", source: "OCC Console", lastUpdated: stamp(-3, 10), elpremar: "Lukas Weber", scheduled: day(-4), slot: 15, priority: "Low", status: "closed", resolution: "Plant Head role granted and confirmed with the requester." },
+  { id: "TK-4592", enterprise: "Tata Steel Limited", plant: "Jamshedpur Main Plant", country: "India", subject: "EVITA sync failing on tablet", category: "System", raised: day(-1), raisedBy: "Rajesh Iyer", raisedByRole: "ELPREMAR", source: "EVITA", lastUpdated: stamp(-1, 10), priority: "High", status: "open" },
+  { id: "TK-4591", enterprise: "JSW Group", plant: "Dolvi Substation", country: "India", subject: "Request ELPREMAR assignment", category: "Assignment", raised: day(-1), raisedBy: "Meena Krishnan", raisedByRole: "Plant Manager", source: "OCC Console", lastUpdated: stamp(-1, 12), priority: "Medium", status: "open" },
+  { id: "TK-4590", enterprise: "Reliance Industries", plant: "Jamnagar Substation", country: "India", subject: "PD meter not pairing over Bluetooth", category: "Testing & Measurement", raised: day(-2), raisedBy: "Arun Prakash", raisedByRole: "ELPREMAR", source: "Testing & Measurements", lastUpdated: stamp(0, 9), elpremar: "Amit Sharma", scheduled: day(1), slot: 11, priority: "High", status: "in_progress", assetId: "AST-JMN-0142", inspectionId: "TSK-8840" },
+  { id: "TK-4589", enterprise: "Adani Group", plant: "Mundra Warehouse", country: "India", subject: "Health report PDF not downloading", category: "Report", raised: day(-2), raisedBy: "Sneha Gupta", raisedByRole: "EMMSE Admin", source: "Reports", lastUpdated: stamp(-1, 15), elpremar: "Anil Singh", scheduled: day(-2), slot: 10, priority: "Low", status: "closed", reportId: "RPT-MUN-2291", resolution: "Export service restarted; the report now downloads as PDF." },
+  { id: "TK-4588", enterprise: "NTPC", plant: "Kolkata Unit 2", country: "India", subject: "Add new sub-division to hierarchy", category: "System", raised: day(-3), raisedBy: "Imran Qureshi", raisedByRole: "Plant Manager", source: "OCC Console", lastUpdated: stamp(-2, 11), elpremar: "Priya Nair", scheduled: day(-3), slot: 14, priority: "Medium", status: "closed", resolution: "Sub-division added under Electrical and access granted." },
+  { id: "TK-4587", enterprise: "Emirates Steel", plant: "Dubai Main Plant", country: "United Arab Emirates", subject: "EMMSE dashboard loading slowly", category: "Dashboard", raised: day(-3), raisedBy: "Fatima Al Nuaimi", raisedByRole: "EMMSE Admin", source: "EMMSE", lastUpdated: stamp(-2, 16), elpremar: "Khalid Rahman", scheduled: day(-2), slot: 9, priority: "Medium", status: "closed", resolution: "Widget query tuned; dashboard now loads within 2s." },
+  { id: "TK-4586", enterprise: "Tata Steel Europe", plant: "IJmuiden Unit 2", country: "Netherlands", subject: "Asset QR code not scanning", category: "Asset", raised: day(-4), raisedBy: "Hans Richter", raisedByRole: "ELPREMAR", source: "Asset", lastUpdated: stamp(-4, 13), priority: "High", status: "open", assetId: "AST-IJM-0077" },
+  { id: "TK-4585", enterprise: "BHP Group", plant: "Sydney Utility Block", country: "Australia", subject: "User access request for plant head", category: "Access", raised: day(-4), raisedBy: "Grace Tan", raisedByRole: "EMMSE Admin", source: "OCC Console", lastUpdated: stamp(-3, 10), elpremar: "Lukas Weber", scheduled: day(-4), slot: 15, priority: "Low", status: "closed", resolution: "Plant Head role granted and confirmed with the requester." },
 ]
 
 /**
@@ -952,6 +961,7 @@ function moreTickets(count: number): TicketRow[] {
     const owned = settled || status === "in_progress"
     const short = site.plant.slice(0, 3).toUpperCase()
 
+    const requester = pick(requesters)
     rows.push({
       id: `TK-${4584 - i}`,
       enterprise: site.enterprise,
@@ -960,7 +970,8 @@ function moreTickets(count: number): TicketRow[] {
       subject: pick(ticketSubjectsByCategory[category]),
       category,
       raised: day(raisedOn),
-      raisedBy: pick(requesters),
+      raisedBy: requester.name,
+      raisedByRole: requester.role,
       source: sourceForCategory[category],
       lastUpdated: stamp(updatedOn, pick(daySlots)),
       ...(owned ? { elpremar: pick(crew), scheduled: day(updatedOn), slot: pick(daySlots) } : {}),
