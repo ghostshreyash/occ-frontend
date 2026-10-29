@@ -166,23 +166,6 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
   }
 })
 
-/**
- * The next free employee ID. Onboarding fills this in rather than asking for
- * it, so two people can never be handed the same one.
- */
-export const nextElpremarId = () => {
-  const highest = elpremarRecords.reduce((n, e) => Math.max(n, Number(e.id.replace(/\D/g, "")) || 0), 1000)
-  return `ELP-${highest + 1}`
-}
-
-export const elpremarRegisterKpis = {
-  total: elpremarRecords.length,
-  active: elpremarRecords.filter((e) => e.status === "active").length,
-  inactive: elpremarRecords.filter((e) => e.status === "inactive").length,
-  /** Absolute month-over-month movement; these are counts in the tens */
-  delta: { total: 2, active: 3 },
-}
-
 /* ---------- Full profile ---------- */
 
 export type ElpremarProfile = {

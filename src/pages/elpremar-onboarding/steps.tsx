@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
@@ -34,9 +34,10 @@ import { Context, Ctx } from "@/components/common/wizard"
 import { Attachments } from "@/components/form/attachments"
 import { latestBirthDate, today } from "@/lib/validation"
 import { PasswordRequirements, PasswordStrength } from "@/components/form/password-requirements"
+import { ErrorNotice } from "@/components/common/data-state"
 import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream } from "@/data/master-data"
-import { enterpriseRecords, profileFor } from "@/data/occ-tables"
-import { nextElpremarId } from "@/data/elpremar-data"
+import { getEnterprise, listEnterprises, type EnterpriseRow } from "@/lib/api/enterprises"
+import { useResource } from "@/lib/api/use-resource"
 import {
   MIN_ELPREMAR_AGE,
   assignmentSchema,
@@ -52,6 +53,12 @@ import {
   type WorkValues,
 } from "./schemas"
 
+
+/**
+ * The empty enterprise list, as one value - `data?.rows ?? []` would be a new
+ * array on every render.
+ */
+const NO_ENTERPRISES: EnterpriseRow[] = []
 
 /* ---------- shared bits ---------- */
 
@@ -130,7 +137,7 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
   const form = useForm<BasicValues>({
     resolver: zodResolver(basicSchema),
     defaultValues: draft.basic ?? {
-      fullName: "", employeeId: nextElpremarId(), dob: "", mobileCode: "+91", mobile: "", email: "",
+      fullName: "", employeeId: "", dob: "", mobileCode: "+91", mobile: "", email: "",
       postalCode: "", district: "", city: "", state: "", addressLine1: "", addressLine2: "",
     },
   })
@@ -172,14 +179,21 @@ export function BasicDetailsStep({ draft, onNext, onCancel }: { draft: ElpremarD
         />
         <div className="grid flex-1 gap-4 md:grid-cols-2">
           <TextField control={control} name="fullName" label="Full Name" required />
+          {/*
+            Issued by the API from a database sequence when the record is
+            created, so there is nothing to show here yet and nothing to send.
+            Previewing "the next free ID" was only ever possible against a
+            local list, and two operators onboarding at once would have been
+            shown the same one.
+          */}
           <TextField
             control={control}
             name="employeeId"
             label="Employee / ID Number"
-            required
             readOnly
             inputClassName="bg-muted/60"
-            description="Issued automatically — the next free ID"
+            placeholder="Issued on submit"
+            description="Issued automatically when the profile is created"
           />
           {/* The picker stops at the latest birth date that clears the minimum age */}
           <TextField
@@ -415,9 +429,34 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
   })
   const { control, watch, setValue } = form
 
+  /*
+   * The enterprises to post to, and then the chosen one's own plant tree.
+   *
+   * Two reads rather than one: the register answers with plant *summaries*
+   * only, and this step needs the departments and the heads under them, which
+   * is what `GET /enterprises/{id}` carries. The tree is read when an
+   * enterprise is picked, so opening the step is one request, not one per
+   * enterprise on the platform.
+   *
+   * The form still stores names. The API resolves an enterprise, plant and
+   * department by name as well as by id, so nothing here has to carry a UUID
+   * through the wizard.
+   */
+  const readRegister = useCallback(() => listEnterprises(), [])
+  const register = useResource(readRegister)
+  const enterprises = register.data?.rows ?? NO_ENTERPRISES
+
+  const chosen = enterprises.find((e) => e.name === watch("enterprise"))
+  const chosenId = chosen?.id
+  const readTree = useCallback(
+    () => (chosenId ? getEnterprise(chosenId) : Promise.resolve(undefined)),
+    [chosenId]
+  )
+  const tree = useResource(readTree)
+
   // Each level is narrowed by the one above it
-  const record = enterpriseRecords.find((e) => e.name === watch("enterprise"))
-  const plants = record ? profileFor(record).plants : []
+  const record = chosen
+  const plants = chosenId && tree.data?.id === chosenId ? tree.data.plants : []
   const plant = plants.find((p) => p.name === watch("plant"))
   const departments = plant?.departments ?? []
   const department = departments.find((d) => d.name === watch("department"))
@@ -443,13 +482,19 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
     >
       <form id="elp-assign" onSubmit={form.handleSubmit(onNext)} noValidate>
         <ElpremarContext draft={draft} />
+        {register.error ? (
+          <ErrorNotice error={register.error} onRetry={register.reload} className="mb-3" />
+        ) : null}
+        {tree.error ? <ErrorNotice error={tree.error} onRetry={tree.reload} className="mb-3" /> : null}
         <div className="grid gap-4 md:grid-cols-2">
           <SelectField
             control={control}
             name="enterprise"
             label="Enterprise"
             required
-            options={enterpriseRecords.map((e) => e.name)}
+            disabled={register.loading && enterprises.length === 0}
+            placeholder={register.loading && enterprises.length === 0 ? "Loading enterprises…" : "Select"}
+            options={enterprises.map((e) => e.name)}
             onValueChange={() => clear("plant", "department", "subDepartment", "supervisor")}
           />
           <SelectField
@@ -457,8 +502,8 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
             name="plant"
             label="Plant"
             required
-            disabled={!record}
-            placeholder={record ? "Select" : "Select an enterprise first"}
+            disabled={!record || tree.loading}
+            placeholder={!record ? "Select an enterprise first" : tree.loading ? "Loading plants…" : "Select"}
             options={plants.map((p) => p.name)}
             onValueChange={() => clear("department", "subDepartment", "supervisor")}
           />
@@ -497,7 +542,7 @@ export function AssignEnterpriseStep({ draft, onNext, onBack }: { draft: Elprema
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg bg-info-soft/60 p-4 text-xs">
             <span className="flex items-center gap-1.5 font-semibold"><Building2 className="size-4 text-primary" /> {record.name}</span>
             <span className="text-muted-foreground">{record.sectorType} · {record.sector}</span>
-            <span className="flex items-center gap-1.5"><Factory className="size-4 text-primary" /> {record.plants} plants</span>
+            <span className="flex items-center gap-1.5"><Factory className="size-4 text-primary" /> {record.plants} {record.plants === 1 ? "plant" : "plants"}</span>
             <span className="flex items-center gap-1.5"><Network className="size-4 text-primary" /> {record.city}, {record.country}</span>
           </div>
         ) : null}
@@ -616,7 +661,20 @@ function ReviewSection({ icon: Icon, title, children, onEdit }: { icon: typeof U
   )
 }
 
-export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: ElpremarDraft; onBack: () => void; onEdit: (step: number) => void; onSubmit: () => void }) {
+export function ReviewStep({
+  draft,
+  onBack,
+  onEdit,
+  onSubmit,
+  submitting = false,
+}: {
+  draft: ElpremarDraft
+  onBack: () => void
+  onEdit: (step: number) => void
+  onSubmit: () => void
+  /** Creating the record is a round trip, so the button says so and locks */
+  submitting?: boolean
+}) {
   const { basic, work, assignment, credentials } = draft
   return (
     <section className="rounded-xl bg-card p-5 shadow-xs ring-1 ring-foreground/10">
@@ -697,8 +755,10 @@ export function ReviewStep({ draft, onBack, onEdit, onSubmit }: { draft: Elprema
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
-        <Button variant="outline" size="lg" onClick={onBack}><ArrowLeft /> Back</Button>
-        <Button size="lg" onClick={onSubmit}>Submit &amp; Complete Onboarding <Check /></Button>
+        <Button variant="outline" size="lg" onClick={onBack} disabled={submitting}><ArrowLeft /> Back</Button>
+        <Button size="lg" onClick={onSubmit} disabled={submitting}>
+          {submitting ? "Submitting…" : "Submit & Complete Onboarding"} <Check />
+        </Button>
       </div>
     </section>
   )

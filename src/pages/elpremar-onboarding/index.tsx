@@ -6,6 +6,8 @@ import { ArrowLeft, ArrowRight, BarChart3, Building2, CheckCircle2, ClipboardChe
 import { Button } from "@/components/ui/button"
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
+import { createElpremar } from "@/lib/api/elpremars"
+import { messageFor } from "@/lib/api/use-resource"
 import { AssignEnterpriseStep, BasicDetailsStep, CredentialsStep, ReviewStep, WorkSkillsStep } from "./steps"
 import { ElpremarRegister } from "./register"
 import type { ElpremarDraft } from "./schemas"
@@ -50,11 +52,17 @@ const keyInfo = [
   ],
 ]
 
+/*
+ * What the API actually does on submit. The wizard used to promise a welcome
+ * email and activated credentials; the endpoint creates the Cognito user and
+ * the profile, takes no password, and sends no message - so the list says that
+ * instead of describing a flow that does not run.
+ */
 const whatNext = [
   "The ELPREMAR profile will be created in the database.",
-  "Login credentials will be activated.",
-  "A welcome email/SMS will be sent to the ELPREMAR.",
-  "The ELPREMAR can now access the system.",
+  "Their employee ID will be issued and shown on the register.",
+  "A sign-in account is created for the email entered in Step 4.",
+  "They will appear on the ELPREMAR register, ready to be given work.",
   "You can proceed to the ELPREMAR Activity & Availability page to view and manage activities.",
 ]
 
@@ -75,6 +83,7 @@ export function ElpremarOnboardingPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [furthest, setFurthest] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
   const [draft, setDraft] = useState<ElpremarDraft>({})
 
   const closeWizard = () => {
@@ -141,14 +150,24 @@ export function ElpremarOnboardingPage() {
           draft={draft}
           onBack={() => go(3)}
           onEdit={go}
-          onSubmit={() => {
-            // TODO: POST /elpremars
-            toast.success(`${draft.basic?.fullName} onboarded as ELPREMAR`, {
-              description: "Login credentials are now active.",
-              icon: <CheckCircle2 className="size-4 text-healthy" />,
-            })
-            // Back to the register, where the new record belongs
-            closeWizard()
+          submitting={submitting}
+          onSubmit={async () => {
+            setSubmitting(true)
+            try {
+              const created = await createElpremar(draft)
+              toast.success(`${created.basic.name} onboarded as ELPREMAR`, {
+                description: `Employee ID ${created.employeeId}.`,
+                icon: <CheckCircle2 className="size-4 text-healthy" />,
+              })
+              // Back to the register, where the new record belongs
+              closeWizard()
+            } catch (e) {
+              /* The wizard stays open with the draft intact, so whatever the
+                 API objected to can be corrected and resubmitted. */
+              toast.error("Could not onboard the ELPREMAR", { description: messageFor(e), duration: 12_000 })
+            } finally {
+              setSubmitting(false)
+            }
           }}
         />
       )}
