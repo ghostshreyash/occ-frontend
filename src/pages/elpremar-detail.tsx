@@ -32,6 +32,7 @@ import { slotLabel } from "@/data/occ-tables"
 import { elpremarStatusMeta, upcomingFor, whenLabel } from "@/data/elpremar-data"
 import { getEnterprise, listEnterprises, type EnterpriseRow } from "@/lib/api/enterprises"
 import {
+  basicPatch,
   getElpremar,
   updateElpremar,
   workPatch,
@@ -192,7 +193,7 @@ export function ElpremarDetailPage() {
               : section === "account"
                 ? { account: accountPatch(values as unknown as AccountValues) }
                 : section === "basic"
-                  ? { basic: values as unknown as ElpremarProfileData["basic"] }
+                  ? basicPatch(values as unknown as ElpremarProfileData["basic"])
                   : { posting: values as unknown as ElpremarProfileData["posting"] }
           )
           setEditing(null)

@@ -41,14 +41,15 @@ export const emptyPagination = (limit = 10): Pagination => ({
 /**
  * A query string from the parameters that have a value.
  *
- * Empty strings, nulls and `"all"` are dropped: the filter menus use `"all"` as
- * their unset value, and sending it would have the backend search for an
- * industry literally called "all".
+ * Only `undefined` and the empty string are dropped. A filter menu's unset
+ * value - `"all"` in this console - is the caller's business to turn into
+ * `undefined`: dropping it here would also drop a search for the word "all",
+ * which would quietly return the whole register instead of nothing.
  */
 export function query(params: Record<string, string | number | string[] | undefined>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === "" || value === "all") continue
+    if (value === undefined || value === "") continue
     // The list filters that take several values send them comma-separated
     search.set(key, Array.isArray(value) ? value.join(",") : String(value))
   }

@@ -19,10 +19,10 @@
  *   way out and `roleLabel` restores it on the way in, so an unprefixed role in
  *   the database still reaches the screens looking like the console's own.
  * - **Experience.** A number on the API, a string on the form.
- * - **The employee ID is issued by the API**, from a database sequence. The
- *   wizard shows one so the operator can see what is coming, but what the form
- *   holds is never sent — two people onboarded at once would otherwise be
- *   handed the same one.
+ * - **The employee ID is issued by the API**, from a database sequence. It is
+ *   neither sent on a create nor accepted on a patch, and the wizard no longer
+ *   previews one — a "next free ID" computed in the browser would hand the same
+ *   one to two people onboarded at the same moment.
  *
  * ## What is collected and cannot be stored
  *
@@ -458,7 +458,8 @@ export async function createElpremar(draft: ElpremarDraft): Promise<ElpremarProf
  * user did not touch is not in the body and is left alone.
  */
 export type ElpremarPatch = {
-  basic?: Partial<ElpremarProfileData["basic"]>
+  /** `employeeId` is not editable: the API issues it and does not accept it back */
+  basic?: Partial<Omit<ElpremarProfileData["basic"], "employeeId">>
   work?: { designation?: string; experience?: number; roles?: string[] }
   posting?: Partial<ElpremarProfileData["posting"]>
   account?: { email?: string; role?: string; webAccess?: boolean; mobileAccess?: boolean; status?: string }
@@ -471,6 +472,17 @@ export async function updateElpremar(id: string, patch: ElpremarPatch): Promise<
   })
   return toProfile(body.data)
 }
+
+/**
+ * The basic section as the API takes it.
+ *
+ * `employeeId` is dropped: it is read-only on the form and the endpoint neither
+ * accepts nor would honour it.
+ */
+export const basicPatch = ({
+  employeeId: _employeeId,
+  ...rest
+}: ElpremarProfileData["basic"]): ElpremarPatch => ({ basic: rest })
 
 /** The work section, with the console's role labels and string years converted */
 export const workPatch = (values: { roles: string[]; designation: string; experience: string }): ElpremarPatch => ({

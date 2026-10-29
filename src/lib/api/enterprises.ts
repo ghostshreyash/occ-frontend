@@ -44,6 +44,7 @@
  * `fallback` helpers below) so nothing is invented out of nothing. The fix is
  * for the API to accept them as absent; until it does, this is the seam.
  */
+import { dialCodes } from "@/data/master-data"
 import { apiFetch } from "./client"
 import { defined, emptyPagination, query, type Envelope, type Page, type Paged } from "./types"
 import type {
@@ -292,8 +293,27 @@ export type EnterpriseDetail = {
 const splitPhone = (value: string | null | undefined): { phoneCode: string; phone: string } => {
   const raw = str(value).trim()
   if (!raw) return { phoneCode: "", phone: "" }
-  const match = /^(\+\d{1,4})[\s-]+(.*)$/.exec(raw)
-  if (match && match[2]) return { phoneCode: match[1], phone: match[2].replace(/\D/g, "") }
+
+  const separated = /^(\+\d{1,4})[\s-]+(.*)$/.exec(raw)
+  if (separated && separated[2]) {
+    return { phoneCode: separated[1], phone: separated[2].replace(/\D/g, "") }
+  }
+
+  /*
+   * No separator. A row written by this client always has one, but one written
+   * anywhere else may read "+919876543210" - and leaving the code on the front
+   * puts thirteen characters into a field the form requires to be ten digits,
+   * which makes the plant unsaveable. Longest code first, so +91 cannot win
+   * over +911 where both would match.
+   */
+  if (raw.startsWith("+")) {
+    const code = dialCodes
+      .map((d) => d.code)
+      .sort((a, b) => b.length - a.length)
+      .find((c) => raw.startsWith(c))
+    if (code) return { phoneCode: code, phone: raw.slice(code.length).replace(/\D/g, "") }
+  }
+
   return { phoneCode: "", phone: raw }
 }
 
@@ -409,8 +429,8 @@ export async function listEnterprises(filters: EnterpriseFilters = {}): Promise<
         limit: MAX_LIMIT,
         search: filters.search?.trim(),
         status: filters.status && filters.status !== "all" ? filters.status.toUpperCase() : undefined,
-        industry: filters.industry,
-        country: filters.country,
+        industry: filters.industry === "all" ? undefined : filters.industry,
+        country: filters.country === "all" ? undefined : filters.country,
         sortBy: "name",
         sortOrder: "asc",
       })}`,
@@ -622,7 +642,9 @@ export async function updatePlant(id: string, values: Partial<ApiPlantProfile>):
         values.phone === undefined && values.phoneCode === undefined
           ? undefined
           : joinPhone(values.phoneCode, values.phone),
-      commissioningDate: values.commissioningDate || undefined,
+      /* Present but blank means "clear it"; absent means "leave it alone" */
+      commissioningDate:
+        values.commissioningDate === undefined ? undefined : values.commissioningDate || null,
       capacity: values.capacity === undefined ? undefined : asNumber(values.capacity),
       capacityUnit: values.capacityUnit,
       timezone: values.timeZone,
