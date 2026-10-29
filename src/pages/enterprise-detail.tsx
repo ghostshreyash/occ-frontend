@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useState } from "react"
 import { Link, useParams } from "react-router"
 import { toast } from "sonner"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
@@ -16,12 +16,9 @@ import {
   Network,
   Plus,
   Search,
-  HeartPulse,
   KeyRound,
   Server,
   X,
-  ShieldAlert,
-  TriangleAlert,
 } from "lucide-react"
 
 import { cn } from "cn"
@@ -32,54 +29,43 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PasswordField, SelectField, TextareaField, TextField } from "@/components/form/fields"
-import { PasswordStrength } from "@/components/form/password-requirements"
-import { DepartmentFields, PlantFields, SubDepartmentFields } from "@/components/form/entity-fields"
+import { SelectField, TextareaField, TextField } from "@/components/form/fields"
+import { DepartmentFields, PlantFields } from "@/components/form/entity-fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { StatCard } from "@/components/common/stat-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
-import { Context, Ctx } from "@/components/common/wizard"
 import { SelectableTable } from "@/components/common/selectable-table"
+import { ErrorNotice } from "@/components/common/data-state"
 import { countries, indianStates } from "@/data/mock"
-import { accessOptions, areaForPostalCode, emmseOperatives, plantManagerRoles, roleForAccess, roleLockedBy, sectorLabelFor, sectorTypes, sectorsFor, userRoles } from "@/data/master-data"
-import { assetHealthFor, enterpriseRecords, profileFor, type DepartmentProfile, type EnterpriseProfile, type EnterpriseRecord, type PlantProfile } from "@/data/occ-tables"
-import { healthStatus } from "@/lib/status"
-import { POSTAL_CODE_MAX_LENGTH, required } from "@/lib/validation"
-import { AddPlantWizard } from "./enterprise-onboarding/add-plant"
+import { sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
 import {
-  blankDepartment,
-  blankSubDepartment,
+  getEnterprise,
+  setEnterpriseStatus,
+  updateDepartment,
+  updateEnterprise,
+  updatePlant,
+  type ApiDepartmentProfile,
+  type ApiPlantProfile,
+} from "@/lib/api/enterprises"
+import { resolveLocationIds } from "@/lib/api/locations"
+import { messageFor, useResource } from "@/lib/api/use-resource"
+import { POSTAL_CODE_MAX_LENGTH } from "@/lib/validation"
+import {
   departmentSchema,
   enterpriseSchema,
   locationSchema,
-  plantManagerSchema,
   plantSchema,
-  subDepartmentSchema,
   type DepartmentValues,
-  type EnterpriseValues,
   type LocationValues,
-  type PlantEntry,
-  type PlantManagerValues,
   type PlantValues,
-  type SubDepartmentValues,
 } from "./enterprise-onboarding/schemas"
-
-/**
- * Account editor. OCC does not set or reset enterprise passwords - an account is
- * stopped by deactivating it, not by changing its credentials.
- */
-const accountFormSchema = z.object({
-  email: z.email("Enter a valid email address"),
-  role: required("Role"),
-})
-type AccountFormValues = z.infer<typeof accountFormSchema>
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
 
-const onboardingBadge = { label: "Onboarded", badge: "neutral" as const }
-const statusMeta = (s: EnterpriseRecord["status"]) => (s === "onboarding" ? onboardingBadge : healthStatus[s])
+/** Not served by the API yet - an empty cell rather than a plausible number */
+const NOT_SERVED = "—"
 
 /** ISO date in state, readable date on screen */
 const showDate = (iso?: string) => {
@@ -88,125 +74,65 @@ const showDate = (iso?: string) => {
   return isValid(d) ? format(d, "dd MMM yyyy") : iso
 }
 
-/*
- * Onboarding captures a form; the profile stores a record. These fill in what a
- * record needs and the form does not carry - an id, the state the postal code
- * resolves to, and an empty list of children.
+/**
+ * The Enterprise section edits what the API stores.
+ *
+ * `accessOption` and `logo` are dropped from the onboarding schema here: there
+ * is no column for either (see `src/lib/api/enterprises.ts`), so a required
+ * Access Options field would make the section unsaveable the moment it is read
+ * back empty. Both are still asked for during onboarding, where they drive
+ * which login a plant is given.
  */
-const toPlantProfile = (values: PlantValues, id: string, fallbackState: string): PlantProfile => ({
-  id,
-  name: values.name,
-  type: values.type ?? "",
-  code: values.code ?? "",
-  city: values.city ?? "",
-  state: areaForPostalCode(values.pin)?.state ?? fallbackState,
-  pin: values.pin,
-  latitude: values.latitude ?? "",
-  longitude: values.longitude ?? "",
-  salutation: values.salutation,
-  head: values.head,
-  email: values.email,
-  phoneCode: values.phoneCode ?? "",
-  phone: values.phone,
-  capacity: values.capacity ?? "",
-  capacityUnit: values.capacityUnit ?? "",
-  commissioningDate: values.commissioningDate ?? "",
-  timeZone: values.timeZone ?? "",
-  address: values.address,
-  notes: values.notes ?? "",
-  departments: [],
-})
+const enterpriseFormSchema = enterpriseSchema.omit({ accessOption: true, logo: true })
+type EnterpriseFormValues = z.infer<typeof enterpriseFormSchema>
 
-const toDepartmentProfile = (values: DepartmentValues, id: string): DepartmentProfile => ({
-  id,
-  name: values.name ?? "",
-  code: values.code ?? "",
-  type: values.type ?? "",
-  parent: values.parent ?? "",
-  salutation: values.salutation ?? "",
-  head: values.head ?? "",
-  email: values.email ?? "",
-  phoneCode: values.phoneCode ?? "",
-  phone: values.phone ?? "",
-  description: values.description ?? "",
-  subDepartments: [],
-})
+/** Which section is being saved, so its footer says so and locks */
+type Section = "enterprise" | "location" | "plant" | "department"
 
 /**
- * The panel an "Add" button opens. Same shape for a plant, a department or a
- * sub-department: what is already settled sits in the strip at the top, the
- * form below is the onboarding one, and nothing is written until Add is pressed.
+ * Why a control that writes is turned off.
+ *
+ * Adding a plant, a department or a sub-department, and editing a plant's own
+ * login, all need endpoints the API does not have: `/plants` and
+ * `/departments` accept PATCH only, and nothing creates a plant login. The
+ * controls stay visible and say why rather than disappearing, so it is clear
+ * this is a missing API and not a permission.
  */
-function AddPanel({
-  title,
-  description,
-  context,
-  addLabel,
-  onAdd,
-  onCancel,
-  children,
-}: {
-  title: string
-  description: string
-  context: React.ReactNode
-  addLabel: string
-  onAdd: () => void
-  onCancel: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-md bg-card p-2.5 ring-1 ring-primary/40">
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h5 className="text-xs font-semibold">{title}</h5>
-          <p className="text-[0.7rem] text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex gap-1.5">
-          <Button type="button" variant="ghost" size="sm" className="h-6 text-[0.7rem]" onClick={onCancel}>
-            <X className="size-3" /> Cancel
-          </Button>
-          <Button type="button" size="sm" className="h-6 text-[0.7rem]" onClick={onAdd}>
-            <Plus className="size-3" /> {addLabel}
-          </Button>
-        </div>
-      </div>
-      {context}
-      <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
-        {children}
-      </form>
-    </div>
-  )
-}
+const NO_CREATE_ENDPOINT = "Not available yet: the API has no endpoint for this."
 
 /** Enterprise detail: the full onboarding profile, editable, plus its work history */
 export function EnterpriseDetailPage() {
-  const { id } = useParams()
-  const record = enterpriseRecords.find((e) => e.id === id)
+  const { id = "" } = useParams()
 
   const [editing, setEditing] = useState<string | null>(null)
-  const [accountState, setAccountState] = useState<boolean | null>(null)
-  const [overrides, setOverrides] = useState<Partial<EnterpriseProfile>>({})
+  /** Which section is being saved, so its footer says so and locks */
+  const [saving, setSaving] = useState<Section | null>(null)
   /** Which plant, and which of its departments, the drill-down is showing */
   const [plantId, setPlantId] = useState<string>()
   const [deptId, setDeptId] = useState<string>()
   const [plantQuery, setPlantQuery] = useState("")
   const [plantCity, setPlantCity] = useState("all")
-  /** Which section is currently adding a row. Separate from `editing` - one adds, the other amends. */
-  const [adding, setAdding] = useState<"department" | "subs" | null>(null)
-  /** Adding a plant opens the onboarding wizard over the whole page */
-  const [addingPlant, setAddingPlant] = useState(false)
 
-  const base = useMemo(() => (record ? profileFor(record) : undefined), [record])
-  const profile = base ? { ...base, ...overrides } : undefined
+  /*
+   * One read for the whole page: `GET /enterprises/{id}` carries the enterprise,
+   * every plant under it, and each plant's departments with their
+   * sub-departments nested - which is exactly the tree this screen drills
+   * through. A save PATCHes one record and re-reads, so what is on screen is
+   * what the server stored and no local copy can drift from it.
+   */
+  const read = useCallback(() => getEnterprise(id), [id])
+  const { data: profile, error, loading, reload } = useResource(read)
 
   const plants = profile?.plants ?? []
-  const plantCities = [...new Set(plants.map((pl) => pl.city))].sort()
+  const plantCities = [...new Set(plants.map((pl) => pl.city).filter(Boolean))].sort()
 
   const visiblePlants = plants.filter((pl) => {
     if (plantCity !== "all" && pl.city !== plantCity) return false
     const q = plantQuery.trim().toLowerCase()
     if (!q) return true
-    return [pl.name, pl.code, pl.type, pl.head, pl.city, pl.state].some((v) => v.toLowerCase().includes(q))
+    return [pl.name, pl.code, pl.type, pl.head, pl.city, pl.state]
+      .filter(Boolean)
+      .some((v) => v.toLowerCase().includes(q))
   })
 
   /* The selection follows the filter: if the chosen plant is filtered out, fall back to the first visible one */
@@ -215,209 +141,122 @@ export function EnterpriseDetailPage() {
   const dept = departments.find((d) => d.id === deptId) ?? departments[0]
   const subs = dept?.subDepartments ?? []
 
-  const enterpriseForm = useForm<EnterpriseValues>({ resolver: zodResolver(enterpriseSchema), values: profile?.enterprise })
+  const enterpriseForm = useForm<EnterpriseFormValues>({
+    resolver: zodResolver(enterpriseFormSchema),
+    values: profile?.enterprise,
+  })
   const locationForm = useForm<LocationValues>({ resolver: zodResolver(locationSchema), values: profile?.location })
   const plantForm = useForm<PlantValues>({ resolver: zodResolver(plantSchema), values: plant })
-  /* Falls back to a blank login with the role the enterprise's access implies,
-     so "Add Plant Manager" opens a form that is already half-answered */
-  const managerForm = useForm<PlantManagerValues>({
-    resolver: zodResolver(plantManagerSchema),
-    values: plant?.manager ?? {
-      role: roleForAccess(profile?.enterprise.accessOption),
-      emmseId: "",
-      email: "",
-      password: "",
-    },
-  })
   const departmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), values: dept })
 
-  /*
-   * Adding a department or a sub-department uses the same forms as onboarding
-   * does, with what is already settled shown above them as fixed context.
-   */
-  const newDepartmentForm = useForm<DepartmentValues>({ resolver: zodResolver(departmentSchema), defaultValues: blankDepartment })
-  const newSubForm = useForm<SubDepartmentValues>({ resolver: zodResolver(subDepartmentSchema), defaultValues: blankSubDepartment })
-
-  const accountForm = useForm<AccountFormValues>({
-    resolver: zodResolver(accountFormSchema),
-    values: profile ? { email: profile.account.email, role: profile.account.role } : undefined,
-  })
-
   /**
-   * Writes a section's form back into the profile. Plant and department edits
-   * land on the selected row, not on a single top-level object.
+   * Saves one section.
+   *
+   * Each section is its own record on the API, so each has its own route: the
+   * enterprise and its head office are both `PATCH /enterprises/{id}`, a plant
+   * is `PATCH /plants/{id}` and a department `PATCH /departments/{id}`. The
+   * selected row is the one written, and a failure leaves the form open with
+   * the values still in it.
    */
   const save =
-    <T extends FieldValues>(form: UseFormReturn<T>, key: "enterprise" | "location" | "plant" | "department") =>
+    <T extends FieldValues>(form: UseFormReturn<T>, section: Section) =>
     () => {
-      void form.handleSubmit((values) => {
-        // TODO: PATCH /enterprises/:id once the API exists
-        setOverrides((o) => {
-          if (key === "plant" || key === "department") {
-            const next = (o.plants ?? plants).map((pl) =>
-              pl.id !== plant?.id
-                ? pl
-                : key === "plant"
-                  ? { ...pl, ...(values as Partial<PlantProfile>) }
-                  : {
-                      ...pl,
-                      departments: pl.departments.map((d) =>
-                        d.id === dept?.id ? { ...d, ...(values as Partial<DepartmentProfile>) } : d
-                      ),
-                    }
-            )
-            return { ...o, plants: next }
+      void form.handleSubmit(async (values) => {
+        setSaving(section)
+        try {
+          if (section === "enterprise") {
+            const v = values as unknown as EnterpriseFormValues
+            await updateEnterprise(id, {
+              name: v.name,
+              shortName: v.shortName?.trim() || undefined,
+              enterpriseType: v.sectorType,
+              industry: v.sector,
+              website: v.website?.trim() || null,
+              description: v.description?.trim() || null,
+            })
+          } else if (section === "location") {
+            const v = values as unknown as LocationValues
+            /* The record stores the names; the ids go alongside when the
+               location lists can resolve them. */
+            const ids = await resolveLocationIds(v.country, v.state)
+            await updateEnterprise(id, {
+              country: v.country,
+              state: v.state,
+              city: v.city,
+              address: v.address,
+              postalCode: v.pin?.trim() || null,
+              countryId: ids.countryId ?? null,
+              stateId: ids.stateId ?? null,
+            })
+          } else if (section === "plant") {
+            if (!plant) return
+            await updatePlant(plant.id, values as unknown as Partial<ApiPlantProfile>)
+          } else {
+            if (!dept) return
+            await updateDepartment(dept.id, values as unknown as Partial<ApiDepartmentProfile>)
           }
-          return { ...o, [key]: values }
-        })
-        setEditing(null)
+          setEditing(null)
+          reload()
+          toast.success("Saved")
+        } catch (e) {
+          toast.error("Could not save", { description: messageFor(e), duration: 10_000 })
+        } finally {
+          setSaving(null)
+        }
       })()
     }
 
-  /** The plant's own login sits on the plant, so it writes through the plant list */
-  const savePlantManager = () => {
-    void managerForm.handleSubmit((values) => {
-      // TODO: PATCH /enterprises/:id/plants/:plantId/manager once the API exists
-      setOverrides((o) => ({
-        ...o,
-        plants: (o.plants ?? plants).map((pl) => (pl.id === plant?.id ? { ...pl, manager: values } : pl)),
-      }))
-      setEditing(null)
-    })()
-  }
-
-  const operative = (id?: string) => emmseOperatives.find((o) => o.id === id)
-
-  /** Appends to the live list, which is the overridden one once anything has been changed */
-  const writePlants = (next: PlantProfile[]) => setOverrides((o) => ({ ...o, plants: next }))
-
-  /** An id that no existing row holds, so a removal earlier cannot cause a clash */
-  const freeId = (prefix: string, taken: string[]) => {
-    let n = taken.length + 1
-    while (taken.includes(prefix + n)) n += 1
-    return prefix + n
-  }
-
-  const cancelAdd = () => {
-    setAdding(null)
-    newDepartmentForm.reset(blankDepartment)
-    newSubForm.reset(blankSubDepartment)
-  }
-
-  /**
-   * The wizard hands back plants with their departments and sub-departments
-   * already nested, so one pass turns the whole tree into records.
-   */
-  const addPlants = (entries: PlantEntry[]) => {
-    // TODO: POST /enterprises/:id/plants once the API exists
-    const taken = plants.map((pl) => pl.id)
-    const created = entries.map((entry) => {
-      const plantId = freeId(`${record?.id.slice(0, 3) ?? "ENT"}-P`, taken)
-      taken.push(plantId)
-      const deptIds: string[] = []
-      return {
-        ...toPlantProfile(entry, plantId, profile?.location.state ?? ""),
-        departments: entry.departments.map((d) => {
-          const deptId = freeId(`${plantId}-D`, deptIds)
-          deptIds.push(deptId)
-          return {
-            ...toDepartmentProfile(d, deptId),
-            subDepartments: d.subDepartments.map((sd) => ({
-              name: sd.name ?? "",
-              code: sd.code ?? "",
-              function: sd.function ?? "",
-              description: sd.description,
-            })),
-          }
-        }),
-      }
-    })
-    writePlants([...plants, ...created])
-    setPlantId(created[0]?.id)
-    setDeptId(undefined)
-    setAddingPlant(false)
-    window.scrollTo({ top: 0 })
-    toast.success(
-      created.length === 1 ? `${created[0].name} added` : `${created.length} plants added`,
-      { description: `They now sit under ${profile?.enterprise.name}.` }
-    )
-  }
-
-  const addDepartment = newDepartmentForm.handleSubmit((values) => {
-    if (!plant) return
-    const created = toDepartmentProfile(values, freeId(`${plant.id}-D`, plant.departments.map((d) => d.id)))
-    writePlants(plants.map((pl) => (pl.id === plant.id ? { ...pl, departments: [...pl.departments, created] } : pl)))
-    setDeptId(created.id)
-    cancelAdd()
-    toast.success(`${created.name} added`, { description: `It now sits under ${plant.name}.` })
-  })
-
-  const addSubDepartment = newSubForm.handleSubmit((values) => {
-    if (!plant || !dept) return
-    const created = {
-      name: values.name ?? "",
-      code: values.code ?? "",
-      function: values.function ?? "",
-      description: values.description,
-    }
-    writePlants(
-      plants.map((pl) =>
-        pl.id !== plant.id
-          ? pl
-          : {
-              ...pl,
-              departments: pl.departments.map((d) =>
-                d.id === dept.id ? { ...d, subDepartments: [...d.subDepartments, created] } : d
-              ),
-            }
-      )
-    )
-    cancelAdd()
-    toast.success(`${created.name} added`, { description: `It now sits under ${dept.name}.` })
-  })
-
-  const saveAccount = accountForm.handleSubmit((values) => {
-    setOverrides((o) => ({
-      ...o,
-      account: { ...(profile?.account ?? { email: "", role: "", lastLogin: "" }), email: values.email, role: values.role },
-    }))
-    setEditing(null)
-  })
-
-  if (!record || !profile) {
+  if (!profile) {
     return (
       <div className="space-y-3">
-        <PageHeader title="Enterprise not found" breadcrumbs={[{ label: "Enterprises", to: "/enterprises" }, { label: "Not found" }]} />
-        <SectionCard title="Nothing here">
-          <p className="text-xs text-muted-foreground">
-            No enterprise matches that ID.{" "}
-            <Link to="/enterprises" className="text-primary hover:underline">Back to Enterprises</Link>
-          </p>
-        </SectionCard>
+        <PageHeader
+          title={loading ? "Loading enterprise…" : "Enterprise not found"}
+          breadcrumbs={[
+            { label: "Enterprises", to: "/enterprises" },
+            { label: loading ? "Loading" : "Not found" },
+          ]}
+        />
+        {error ? <ErrorNotice error={error} onRetry={reload} /> : null}
+        {loading ? null : (
+          <SectionCard title="Nothing here">
+            <p className="text-xs text-muted-foreground">
+              No enterprise matches that ID.{" "}
+              <Link to="/enterprises" className="text-primary hover:underline">Back to Enterprises</Link>
+            </p>
+          </SectionCard>
+        )}
       </div>
     )
   }
 
-  const { enterprise: e, location: l, account } = profile
+  const { enterprise: e, location: l } = profile
   const editingCountryIsIndia = locationForm.watch("country") === "India"
-  const health = assetHealthFor(record)
-  const pct = (n: number) => Math.round((n / record.assets) * 100)
+  const departmentCount = plants.reduce((n, pl) => n + pl.departments.length, 0)
+  const subDepartmentCount = plants.reduce(
+    (n, pl) => n + pl.departments.reduce((m, d) => m + d.subDepartments.length, 0),
+    0
+  )
 
   /*
    * Deactivation stops the enterprise using the app; the record and its history
-   * stay. Local only for now - replace with PATCH /enterprises/:id later.
+   * stay. This is the one write on the page that is not a section edit, so it
+   * re-reads on its own rather than through `save`.
    */
-  const account_active = accountState ?? record.accountStatus === "active"
-  const toggleAccount = () => {
-    const next = !account_active
-    setAccountState(next)
-    toast.success(next ? `${e.name} reactivated` : `${e.name} deactivated`, {
-      description: next ? "They can sign in again." : "They can no longer sign in. Nothing has been deleted.",
-    })
-  }
-
-  if (addingPlant) {
-    return <AddPlantWizard profile={profile} onCancel={() => setAddingPlant(false)} onSubmit={addPlants} />
+  const active = profile.status === "active"
+  const toggleAccount = async () => {
+    const next = active ? "inactive" : "active"
+    try {
+      await setEnterpriseStatus(id, next)
+      reload()
+      toast.success(next === "active" ? `${e.name} reactivated` : `${e.name} deactivated`, {
+        description:
+          next === "active"
+            ? "They can sign in again."
+            : "They can no longer sign in. Nothing has been deleted.",
+      })
+    } catch (err) {
+      toast.error("Could not change the account status", { description: messageFor(err), duration: 10_000 })
+    }
   }
 
   return (
@@ -428,25 +267,21 @@ export function EnterpriseDetailPage() {
         breadcrumbs={[{ label: "Enterprises", to: "/enterprises" }, { label: e.name }]}
         actions={
           <>
-            <Badge
-              variant={account_active ? "success" : "neutral"}
-              className="rounded px-1.5 py-0 text-[0.65rem]"
-            >
-              {account_active ? "Active" : "Inactive"}
+            {/* The one status the API knows: whether the account may be used.
+                Asset health used to sit beside it and has no endpoint. */}
+            <Badge variant={active ? "success" : "neutral"} className="rounded px-1.5 py-0 text-[0.65rem]">
+              {active ? "Active" : "Inactive"}
             </Badge>
-            <Badge variant={statusMeta(record.status).badge} className="rounded px-1.5 py-0 text-[0.65rem]">
-              {statusMeta(record.status).label}
-            </Badge>
-            <Button size="sm" className="h-7 text-xs" onClick={() => setAddingPlant(true)}>
+            <Button size="sm" className="h-7 text-xs" disabled title={NO_CREATE_ENDPOINT}>
               <Plus className="size-3.5" /> Add Plant
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={cn("h-7 text-xs", account_active && "text-critical")}
-              onClick={toggleAccount}
+              className={cn("h-7 text-xs", active && "text-critical")}
+              onClick={() => void toggleAccount()}
             >
-              {account_active ? <><Ban className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Reactivate</>}
+              {active ? <><Ban className="size-3.5" /> Deactivate</> : <><CircleCheck className="size-3.5" /> Reactivate</>}
             </Button>
             <Button asChild variant="outline" size="sm" className="h-7 text-xs">
               <Link to="/enterprises"><ArrowLeft className="size-3.5" /> Back to Enterprises</Link>
@@ -455,13 +290,25 @@ export function EnterpriseDetailPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="Plants" value={record.plants} icon={Factory} tone="success" variant="plain" />
-        <StatCard label="Assets Monitored" value={record.assets} icon={Server} tone="info" variant="plain" />
-        {/* Asset health split, using the platform's three bands */}
-        <StatCard label="Healthy Assets" value={health.healthy} percent={pct(health.healthy)} icon={HeartPulse} tone="healthy" variant="plain" />
-        <StatCard label="Alarming" value={health.attention} percent={pct(health.attention)} icon={TriangleAlert} tone="attention" variant="plain" />
-        <StatCard label="At Risk" value={health.critical} percent={pct(health.critical)} icon={ShieldAlert} tone="critical" variant="plain" />
+      {error ? <ErrorNotice error={error} onRetry={reload} /> : null}
+
+      {/*
+        Counted off the tree the API returned. The three asset-health bands that
+        used to sit here were read from the mock; there is no asset endpoint, so
+        the structure of the enterprise is what can honestly be summarised.
+      */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <StatCard label="Plants" value={plants.length} icon={Factory} tone="success" variant="plain" />
+        <StatCard label="Departments" value={departmentCount} icon={Network} tone="info" variant="plain" />
+        <StatCard label="Sub-departments" value={subDepartmentCount} icon={Folder} tone="highlight" variant="plain" />
+        <StatCard
+          label="Assets Monitored"
+          value={NOT_SERVED}
+          icon={Server}
+          tone="neutral"
+          variant="plain"
+          footer={<span className="text-[0.65rem] text-muted-foreground">No asset endpoint yet</span>}
+        />
       </div>
 
       {/* Full onboarding profile, section by section, editable in place */}
@@ -473,17 +320,17 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(enterpriseForm, "enterprise")}
+          saveLabel={saving === "enterprise" ? "Saving…" : "Save"}
           view={
             <ValueGrid
               rows={[
-                { label: "Enterprise ID", value: record.id },
+                { label: "Enterprise ID", value: profile.id },
                 { label: "Enterprise Name", value: e.name },
                 { label: "Short Name", value: e.shortName },
                 { label: "Type", value: e.sectorType },
                 { label: sectorLabelFor(e.sectorType), value: e.sector },
-                { label: "Access Options", value: e.accessOption },
                 { label: "Website", value: e.website },
-                { label: "Onboarded", value: record.onboarded },
+                { label: "Onboarded", value: profile.onboarded },
                 { label: "Description", value: e.description },
               ]}
             />
@@ -508,7 +355,9 @@ export function EnterpriseDetailPage() {
                 options={sectorsFor(enterpriseForm.watch("sectorType"))}
                 disabled={!enterpriseForm.watch("sectorType")}
               />
-              <SelectField control={enterpriseForm.control} name="accessOption" label="Access Options" required options={accessOptions} />
+              {/* Access Options is collected during onboarding, where it decides
+                  which login a plant is given, but the API has no column for it
+                  - so it cannot be read back or changed here. */}
               <TextField control={enterpriseForm.control} name="website" label="Website" />
               <TextareaField control={enterpriseForm.control} name="description" label="Description" rows={2} className="md:col-span-3" />
             </form>
@@ -522,6 +371,7 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(locationForm, "location")}
+          saveLabel={saving === "location" ? "Saving…" : "Save"}
           view={
             <ValueGrid
               rows={[
@@ -548,38 +398,38 @@ export function EnterpriseDetailPage() {
           }
         />
 
+        {/*
+          The administrator account.
+
+          `GET /enterprises/{id}` carries no account at all, and there is no
+          endpoint to change one: `POST /users` creates a login (which is what
+          onboarding uses) and nothing updates it. So this reads as a section
+          waiting on an API rather than an editable one - the alternative was a
+          form that looks editable and silently discards what is typed.
+        */}
         <DetailSection
           icon={Building2}
           title="Enterprise Administrator Account"
           sectionKey="account"
           editing={editing}
           onEditingChange={setEditing}
-          onSave={saveAccount}
+          readOnlyNote="The API does not serve or update the administrator account yet. It is created during onboarding."
           view={
-            <ValueGrid
-              rows={[
-                { label: "Email ID", value: account.email },
-                { label: "Role", value: account.role },
-                // Credentials are never echoed back, even to an owner
-                { label: "Password", value: "••••••••" },
-                { label: "Last Login", value: account.lastLogin },
-              ]}
-            />
-          }
-          edit={
-            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
-              <TextField control={accountForm.control} name="email" label="Email ID" required type="email" />
-              <SelectField control={accountForm.control} name="role" label="Role" required options={userRoles} />
-              {/*
-                * No password controls: OCC cannot set or reset an enterprise
-                * password. To stop an account being used, deactivate it.
-                */}
-              <p className="md:col-span-2 rounded-md bg-muted/40 p-2.5 text-[0.7rem] text-muted-foreground">
-                Passwords are managed by the enterprise. They are prompted to set a new one at first
-                sign-in, and can reset it themselves afterwards. To stop this account being used,
+            <div className="space-y-2">
+              <ValueGrid
+                rows={[
+                  { label: "Email ID", value: undefined },
+                  { label: "Role", value: "Enterprise Admin" },
+                  // Credentials are never echoed back, even to an owner
+                  { label: "Password", value: "••••••••" },
+                ]}
+              />
+              <p className="rounded-md bg-muted/40 p-2.5 text-[0.7rem] text-muted-foreground">
+                Passwords are managed by the enterprise. They set one at first sign-in and can reset it
+                themselves afterwards; OCC never sets or reads it. To stop this account being used,
                 deactivate the enterprise.
               </p>
-            </form>
+            </div>
           }
         />
 
@@ -594,6 +444,7 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(plantForm, "plant")}
+          saveLabel={saving === "plant" ? "Saving…" : "Save"}
           view={
             <div className="space-y-2.5">
               {/* Search and location filter, so a 12-plant enterprise stays navigable */}
@@ -677,8 +528,8 @@ export function EnterpriseDetailPage() {
                   <ValueGrid
                     rows={[
                       { label: "Plant Name", value: plant.name },
-                      { label: "Plant Type", value: plant.type },
                       { label: "Plant Code", value: plant.code },
+                      { label: "Plant Type", value: plant.type },
                       { label: "Plant Head", value: [plant.salutation, plant.head].filter(Boolean).join(" ") },
                       { label: "Email", value: plant.email },
                       { label: "Phone Number", value: [plant.phoneCode, plant.phone].filter(Boolean).join(" ") },
@@ -706,86 +557,27 @@ export function EnterpriseDetailPage() {
           }
         />
 
-        {/* The plant's own login, edited the same way as the plant itself */}
+        {/*
+          The plant's own login.
+
+          Nothing on the API carries it: a plant row has no login columns and
+          there is no endpoint that issues one for a plant, so this cannot be
+          read back or created. The section says so rather than offering a form
+          whose contents would go nowhere.
+        */}
         <DetailSection
           icon={KeyRound}
           title={`Plant Manager — ${plant?.name ?? "no plant selected"}`}
-          complete={Boolean(plant?.manager)}
           optional
-          summary={plant?.manager ? [plant.manager.role, plant.manager.email].filter(Boolean).join(" · ") : undefined}
           sectionKey="plant-manager"
           editing={editing}
           onEditingChange={setEditing}
-          onSave={savePlantManager}
-          saveLabel={plant?.manager ? "Save" : "Add Plant Manager"}
-          action={
-            plant && !plant.manager ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
-                disabled={editing !== null || adding !== null}
-                onClick={() => setEditing("plant-manager")}
-              >
-                <Plus className="size-3" /> Add Plant Manager
-              </Button>
-            ) : null
-          }
+          readOnlyNote={NO_CREATE_ENDPOINT}
           view={
-            plant?.manager ? (
-              <ValueGrid
-                rows={[
-                  { label: "Role", value: plant.manager.role },
-                  ...(plant.manager.role === "EMMSE-0"
-                    ? [
-                        { label: "EMMSE-0 Operative", value: operative(plant.manager.emmseId)?.name },
-                        { label: "Based At", value: operative(plant.manager.emmseId)?.location },
-                      ]
-                    : []),
-                  { label: "Email ID", value: plant.manager.email },
-                  // Credentials are never echoed back, even to an owner
-                  { label: "Password", value: plant.manager.password ? "••••••••" : undefined },
-                ]}
-              />
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No login issued for this plant yet — use Add Plant Manager above.
-              </p>
-            )
-          }
-          edit={
-            <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
-              <p className="text-[0.7rem] text-muted-foreground md:col-span-3">
-                Editing the login for <strong>{plant?.name}</strong>
-              </p>
-              <SelectField
-                control={managerForm.control}
-                name="role"
-                label="Role"
-                required
-                options={[...plantManagerRoles]}
-                disabled={roleLockedBy(e.accessOption)}
-                description={
-                  roleLockedBy(e.accessOption) ? `${e.accessOption} enterprises are watched by an EMMSE-0 operative.` : undefined
-                }
-              />
-              {managerForm.watch("role") === "EMMSE-0" ? (
-                <SelectField
-                  control={managerForm.control}
-                  name="emmseId"
-                  label="EMMSE-0 Operative"
-                  required
-                  options={emmseOperatives.map((o) => ({ value: o.id, label: `${o.name} — ${o.location}` }))}
-                  placeholder="Select an operative"
-                />
-              ) : null}
-              <TextField control={managerForm.control} name="email" label="Email ID" required type="email" />
-              <div className="space-y-2 md:col-span-3">
-                <PasswordField control={managerForm.control} name="password" label="Password" required />
-                <PasswordStrength value={managerForm.watch("password")} />
-              </div>
-            </form>
+            <p className="text-xs text-muted-foreground">
+              A plant login cannot be issued or read yet — the API has no endpoint for one. Until it
+              does, a plant is reached through the enterprise administrator account.
+            </p>
           }
         />
 
@@ -801,41 +593,25 @@ export function EnterpriseDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(departmentForm, "department")}
+          saveLabel={saving === "department" ? "Saving…" : "Save"}
           action={
-            adding === "department" || !plant ? null : (
+            /* An existing department can be edited (PATCH /departments/{id});
+               creating one needs a POST the API does not have. */
+            plant ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
-                disabled={editing !== null || adding !== null}
-                onClick={() => setAdding("department")}
+                className="h-6 text-[0.7rem]"
+                disabled
+                title={NO_CREATE_ENDPOINT}
               >
                 <Plus className="size-3" /> Add Department
               </Button>
-            )
+            ) : null
           }
           view={
             <div className="space-y-2.5">
-              {adding === "department" && plant ? (
-                <AddPanel
-                  title={`Add a department to ${plant.name}`}
-                  description="A plant can have as many departments as it needs."
-                  addLabel="Add Department"
-                  onAdd={addDepartment}
-                  onCancel={cancelAdd}
-                  context={
-                    <Context>
-                      <Ctx icon={Building2} label="Enterprise" value={e.name} />
-                      <Ctx icon={Factory} label="Plant" value={plant.name} />
-                      <Ctx icon={MapPin} label="Location" value={`${plant.city}, ${plant.state}`} />
-                    </Context>
-                  }
-                >
-                  <DepartmentFields form={newDepartmentForm} />
-                </AddPanel>
-              ) : null}
-
               <SelectableTable
                 rows={departments}
                 selectedId={deptId}
@@ -890,40 +666,23 @@ export function EnterpriseDetailPage() {
           sectionKey="subs"
           editing={editing}
           onEditingChange={setEditing}
+          readOnlyNote={NO_CREATE_ENDPOINT}
           action={
-            adding === "subs" || !dept ? null : (
+            dept ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 text-[0.7rem] text-primary hover:bg-primary/10"
-                disabled={editing !== null || adding !== null}
-                onClick={() => setAdding("subs")}
+                className="h-6 text-[0.7rem]"
+                disabled
+                title={NO_CREATE_ENDPOINT}
               >
                 <Plus className="size-3" /> Add Sub-department
               </Button>
-            )
+            ) : null
           }
           view={
             <div className="space-y-2.5">
-              {adding === "subs" && dept ? (
-                <AddPanel
-                  title={`Add a sub-department to ${dept.name}`}
-                  description="Sub-departments give granular asset and maintenance tracking."
-                  addLabel="Add Sub-department"
-                  onAdd={addSubDepartment}
-                  onCancel={cancelAdd}
-                  context={
-                    <Context>
-                      <Ctx icon={Factory} label="Plant" value={plant?.name} />
-                      <Ctx icon={Network} label="Department" value={dept.name} />
-                    </Context>
-                  }
-                >
-                  <SubDepartmentFields form={newSubForm} />
-                </AddPanel>
-              ) : null}
-
               {subs.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   {dept ? "No sub-departments under this department." : "Select a department to see its sub-departments."}
@@ -942,7 +701,7 @@ export function EnterpriseDetailPage() {
                   </TableHeader>
                   <TableBody>
                     {subs.map((s, i) => (
-                      <TableRow key={`${s.code}-${i}`}>
+                      <TableRow key={s.id}>
                         <TableCell className={`${td} tabular-nums text-muted-foreground`}>{i + 1}</TableCell>
                         <TableCell className={`${td} font-medium`}>{s.name}</TableCell>
                         <TableCell className={`${td} tabular-nums`}>{s.code}</TableCell>

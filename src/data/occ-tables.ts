@@ -861,23 +861,6 @@ export function profileFor(e: EnterpriseRecord): EnterpriseProfile {
   }
 }
 
-/**
- *  Asset health split for one enterprise. The record carries a total and an
- * overall status; these are the per-band counts behind that status, using the
- * platform's Healthy / Alarming / At Risk bands.
- */
-export function assetHealthFor(e: EnterpriseRecord) {
-  const mix =
-    e.status === "critical"
-      ? { healthy: 0.58, attention: 0.27 }
-      : e.status === "attention"
-        ? { healthy: 0.74, attention: 0.2 }
-        : { healthy: 0.91, attention: 0.07 }
-  const healthy = Math.round(e.assets * mix.healthy)
-  const attention = Math.round(e.assets * mix.attention)
-  return { healthy, attention, critical: e.assets - healthy - attention }
-}
-
 /* ---------- The full books of work ---------- */
 
 /*

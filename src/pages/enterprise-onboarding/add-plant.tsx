@@ -1,3 +1,13 @@
+/*
+ * Adding a plant to an enterprise that already exists.
+ *
+ * NOT CURRENTLY REACHED. The enterprise detail page's Add Plant button is
+ * disabled because the API has no endpoint for it: `POST /enterprises` creates
+ * plants as part of an onboarding, and `/plants` accepts PATCH only. This file
+ * is kept rather than deleted because it is the finished, reviewed screen the
+ * moment a `POST /plants` (or an enterprise PATCH that accepts plants) exists -
+ * nothing about it needs to change, only the button that opens it.
+ */
 import { useState } from "react"
 import { Building2, ClipboardCheck, Factory } from "lucide-react"
 
