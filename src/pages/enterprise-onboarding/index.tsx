@@ -4,6 +4,10 @@ import { Building2, ClipboardCheck, Factory } from "lucide-react"
 
 import { WizardPage, KeyInfo } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
+import { createEnterprise } from "@/lib/api/enterprises"
+import { resolveLocationIds } from "@/lib/api/locations"
+import { createEnterpriseAdmin } from "@/lib/api/users"
+import { messageFor } from "@/lib/api/use-resource"
 import { EnterpriseStep, PlantStructureStep } from "./steps"
 import { EnterpriseRegister } from "./register"
 import { ReviewStep } from "./review"
@@ -142,14 +146,45 @@ export function EnterpriseOnboardingPage() {
           onSubmit={async () => {
             setSubmitting(true)
             try {
-              // TODO: POST /enterprises with the full onboarding payload.
-              // Simulated latency so the Saving… state is visible until the API exists.
-              await new Promise((resolve) => setTimeout(resolve, 600))
-              toast.success(`${data.enterprise?.name} onboarded successfully`, {
-                description: "The enterprise administrator can now log in to EMMS-E.",
-              })
+              /*
+               * The enterprise, its plants and their departments are one
+               * transactional call. The administrator's login is a second one,
+               * against a different endpoint, so the two can succeed
+               * separately - and that is reported rather than smoothed over:
+               * an enterprise that exists without its login needs someone to
+               * finish the job, and a toast claiming success would hide it.
+               */
+              const ids = await resolveLocationIds(data.location?.country, data.location?.state)
+              const created = await createEnterprise(data, ids)
+
+              let adminError: string | undefined
+              if (data.account) {
+                try {
+                  await createEnterpriseAdmin(created.enterprise.name, data.account.email, data.account.password)
+                } catch (e) {
+                  adminError = messageFor(e)
+                }
+              }
+
+              if (adminError) {
+                toast.warning(`${created.enterprise.name} onboarded, but the administrator login was not created`, {
+                  description: `${adminError} Create the login from Manage Users.`,
+                  duration: 12_000,
+                })
+              } else {
+                toast.success(`${created.enterprise.name} onboarded successfully`, {
+                  description: data.account
+                    ? "The enterprise administrator can now log in to EMMS-E."
+                    : "No administrator login was requested.",
+                })
+              }
+
               // Back to the Enterprises register, where the new record belongs
               closeWizard()
+            } catch (e) {
+              /* The wizard stays open with everything typed still in it, so the
+                 operator can correct what the API objected to and resubmit. */
+              toast.error("Could not onboard the enterprise", { description: messageFor(e), duration: 12_000 })
             } finally {
               setSubmitting(false)
             }
