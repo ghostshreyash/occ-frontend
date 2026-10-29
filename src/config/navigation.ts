@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   SquareCheckBig,
+  Users,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
@@ -24,6 +25,11 @@ export type NavItem = {
    * its sidebar entry highlighted even though it sits on its own path.
    */
   covers?: string[]
+  /**
+   * Roles this section is limited to. Left unset the section is open to every
+   * role that reaches the brand's sidebar.
+   */
+  roles?: readonly string[]
 }
 
 /** OCC sidebar, in the order shown in the mockups */
@@ -31,18 +37,15 @@ export const occNavigation: NavItem[] = [
   { title: "Dashboard", path: "/", icon: House },
   { title: "Enterprises", path: "/enterprises", icon: Building2 },
   { title: "ELPREMARs", path: "/elpremars", icon: HardHat },
-  /*
-   * Hidden from the sidebar on request. The screens and their routes are still
-   * there and still reachable by URL - uncomment these two lines to bring the
-   * entries back.
-   */
   // { title: "Maintenance Activities", path: "/maintenance-activities", icon: Wrench, covers: ["/maintenance-activity-details"] },
   // { title: "Inspection Activities", path: "/inspection-activities", icon: FileText, covers: ["/inspection-activity-details"] },
   { title: "Support Tickets", path: "/support-tickets", icon: LifeBuoy, covers: ["/support-ticket-details"] },
+  // Only the OCC Admin provisions console logins
+  { title: "Manage Users", path: "/manage-users", icon: Users, roles: ["OCC Admin"] },
 ]
 
 /**
- * EVITA sidebar — the field engineer's app, not the command centre.
+ *  EVITA sidebar — the field engineer's app, not the command centre.
  *
  * A different set of sections entirely: an ELPREMAR works their own tasks and
  * the assets in front of them, and never sees enterprises, the ELPREMAR register
@@ -65,11 +68,17 @@ export const evitaNavigation: NavItem[] = [
 export const homeFor = (brand: BrandKey) => (brand === "evita" ? "/evita" : "/")
 
 /**
- * The sidebar for a brand. EMMSE has no set of its own yet, so it falls back to
- * the command centre's until its screens exist.
+ * The sidebar for a brand, less anything the viewer's role cannot reach. EMMSE
+ * has no set of its own yet, so it falls back to the command centre's until its
+ * screens exist.
+ *
+ * Hiding the entry is presentation only - `RequireRole` on the route is what
+ * actually keeps a non-admin out of the screen.
  */
-export const navigationFor = (brand: BrandKey): NavItem[] =>
-  brand === "evita" ? evitaNavigation : occNavigation
+export const navigationFor = (brand: BrandKey, role?: string): NavItem[] => {
+  const items = brand === "evita" ? evitaNavigation : occNavigation
+  return items.filter((item) => !item.roles || (role ? item.roles.includes(role) : false))
+}
 
 /** Every section any brand can reach — what the router builds placeholders from */
 export const allNavigation: NavItem[] = [

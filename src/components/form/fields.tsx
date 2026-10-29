@@ -174,12 +174,18 @@ export function SelectField<T extends FieldValues>({
   label,
   required,
   className,
+  description,
   options,
   placeholder = "Select",
   disabled,
   onValueChange,
 }: BaseProps<T> & {
-  options: readonly string[]
+  /**
+   * Plain strings when the label is the value. A `{ value, label }` pair when the
+   * stored value is an id and the label is for reading — an operative's name and
+   * location, say.
+   */
+  options: readonly (string | { value: string; label: string })[]
   placeholder?: string
   disabled?: boolean
   /** Runs after the value changes - used to clear a dependent field */
@@ -204,13 +210,17 @@ export function SelectField<T extends FieldValues>({
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
-              {options.map((o) => (
-                <SelectItem key={o} value={o}>
-                  {o}
-                </SelectItem>
-              ))}
+              {options.map((o) => {
+                const { value, label: text } = typeof o === "string" ? { value: o, label: o } : o
+                return (
+                  <SelectItem key={value} value={value}>
+                    {text}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
+          {description ? <FieldDescription>{description}</FieldDescription> : null}
           <FieldError errors={[fieldState.error]} />
         </Field>
       )}
@@ -230,7 +240,17 @@ export function PhoneField<T extends FieldValues>({
   required,
   className,
   placeholder = "98765 43210",
-}: BaseProps<T> & { codeName: FieldPath<T>; placeholder?: string }) {
+  digits = PHONE_LENGTH,
+}: BaseProps<T> & {
+  codeName: FieldPath<T>
+  placeholder?: string
+  /**
+   * How many digits the number is, ten by default: anything that is not a digit
+   * is dropped as it is typed and the field stops at this many. Pass
+   * `undefined` to leave the field free-form.
+   */
+  digits?: number
+}) {
   return (
     <Controller
       control={control}
@@ -262,10 +282,15 @@ export function PhoneField<T extends FieldValues>({
               {...field}
               id={name}
               type="tel"
-              inputMode="numeric"
-              maxLength={PHONE_LENGTH}
+              inputMode={digits ? "numeric" : "tel"}
+              maxLength={digits}
               value={field.value ?? ""}
-              placeholder={placeholder}
+              onChange={
+                digits
+                  ? (e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, digits))
+                  : field.onChange
+              }
+              placeholder={digits ? "9".repeat(digits) : placeholder}
               aria-invalid={fieldState.invalid}
             />
           </div>

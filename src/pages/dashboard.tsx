@@ -25,7 +25,7 @@ import { StatCard } from "@/components/common/stat-card"
 import { CountUp } from "@/components/common/count-up"
 import { SectionCard } from "@/components/common/section-card"
 import { DonutChart } from "@/components/common/donut-chart"
-import { ClassificationDonut } from "@/components/common/classification-donut"
+import { ClassificationDonut, SectorViewFilter, type SectorView } from "@/components/common/classification-donut"
 import { classify, enterpriseClassification, indiaEnterpriseClassification } from "@/data/enterprise-classification"
 import { elpremarRecords } from "@/data/elpremar-data"
 import { CustomerMap, MapViewToggle, type MapView } from "@/components/common/customer-map"
@@ -64,6 +64,8 @@ const activityIcons = { enterprise: Building2, plant: Factory, inspection: FileC
 /** Dashboard */
 export function DashboardPage() {
   const [view, setView] = useState<MapView>("global")
+  // Which sectors the classification ring is showing - both sections, or one drilled into
+  const [sectorView, setSectorView] = useState<SectorView>("all")
   const indiaPlants = mapPlants.filter((p) => p.lng > 68 && p.lng < 98 && p.lat > 6 && p.lat < 36)
   const plants = view === "india" ? indiaPlants : mapPlants
   const kpis = view === "india" ? indiaKpis : globalKpis
@@ -227,8 +229,9 @@ export function DashboardPage() {
         <SectionCard
           title={view === "india" ? "Enterprise Classification (India)" : "Enterprise Classification"}
           viewAllTo="/enterprises"
+          actions={<SectorViewFilter value={sectorView} onChange={setSectorView} />}
         >
-          <ClassificationDonut centerLabel="Enterprises" data={classification} />
+          <ClassificationDonut centerLabel="Enterprises" data={classification} view={sectorView} />
         </SectionCard>
 
         <SectionCard title={view === "india" ? "ELPREMAR Status (India)" : "ELPREMAR Status"} viewAllTo="/elpremars">

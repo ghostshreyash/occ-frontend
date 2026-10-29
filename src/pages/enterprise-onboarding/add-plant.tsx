@@ -1,12 +1,12 @@
 import { useState } from "react"
-import { Building2, ClipboardCheck, Factory, Folder, Network } from "lucide-react"
+import { Building2, ClipboardCheck, Factory } from "lucide-react"
 
 import { WizardPage, KeyInfo, StepCard } from "@/components/common/wizard-layout"
 import type { WizardStep } from "@/components/common/wizard"
 import { ValueGrid, type DetailRow } from "@/components/common/detail-section"
 import { sectorLabelFor } from "@/data/master-data"
 import type { EnterpriseProfile } from "@/data/occ-tables"
-import { DepartmentStep, PlantStep, SubDepartmentAccountStep } from "./steps"
+import { PlantStructureStep } from "./steps"
 import { ReviewStep } from "./review"
 import type { OnboardingData, PlantEntry } from "./schemas"
 
@@ -18,19 +18,12 @@ const keyInfo = [
     "Continue to add one or more plants under this enterprise.",
   ],
   [
+    "The plant, its departments and their sub-departments are one structure, so they are captured together.",
     "One plant is added per run — come back to add another.",
-    "The plant carries its own location, because work is dispatched to the plant.",
-    "Fields marked with * are mandatory.",
-  ],
-  [
-    "A department groups related functions and teams within a plant.",
-    "Pick a plant, then add as many departments as it has.",
-    "Departments are optional — you can continue without any.",
-  ],
-  [
-    "Pick a department, then add as many sub-departments under it as you need.",
-    "Sub-departments help in granular asset management and maintenance tracking.",
+    "Departments and sub-departments are optional — you can continue without any.",
+    "A sub-department sits under a department, so add the department first.",
     "No account is created here — this enterprise already has its administrator.",
+    "Fields marked with * are mandatory.",
   ],
   [
     "Everything you entered is shown here in view mode.",
@@ -67,6 +60,7 @@ export function AddPlantWizard({
       sector: profile.enterprise.sector,
       website: profile.enterprise.website,
       description: profile.enterprise.description,
+      accessOption: profile.enterprise.accessOption,
     },
     location: { ...profile.location },
     plants: [],
@@ -74,16 +68,22 @@ export function AddPlantWizard({
 
   const e = profile.enterprise
   const l = profile.location
-  const plant = data.plants[0]
-  const departmentCount = plant?.departments.length ?? 0
-  const subCount = plant?.departments.reduce((m, d) => m + d.subDepartments.length, 0) ?? 0
+  const plantCount = data.plants.length
+  const departmentCount = data.plants.reduce((m, p) => m + p.departments.length, 0)
+  const subCount = data.plants.reduce((m, p) => m + p.departments.reduce((n, d) => n + d.subDepartments.length, 0), 0)
   const count = (n: number, one: string) => (n === 0 ? undefined : `${n} ${n === 1 ? one : one + "s"}`)
 
+  const structureSummary = [count(plantCount, "plant"), count(departmentCount, "department"), count(subCount, "sub-department")]
+    .filter(Boolean)
+    .join(" · ")
   const steps: WizardStep[] = [
     { title: "Enterprise", description: "Already onboarded", icon: Building2, summary: `${e.name} · ${l.city}` },
-    { title: "Plant", description: "Add the new plant", icon: Factory, summary: plant?.name },
-    { title: "Departments", description: "Add departments under the plant", icon: Network, summary: count(departmentCount, "department") },
-    { title: "Sub-departments", description: "Add sub-departments under each department", icon: Folder, summary: count(subCount, "sub-department") },
+    {
+      title: "Plant & Structure",
+      description: "The new plant, its departments and sub-departments",
+      icon: Factory,
+      summary: structureSummary || undefined,
+    },
     { title: "Review", description: "Check everything before submitting", icon: ClipboardCheck },
   ]
 
@@ -127,8 +127,8 @@ export function AddPlantWizard({
     >
       {step === 0 &&
         settled(
-          "Step 1 of 5: Enterprise Details",
-          "Next: Plant",
+          "Step 1 of 3: Enterprise Details",
+          "Next: Plant & Structure",
           "Captured when this enterprise was onboarded. Change it from the enterprise page, not here. Each plant you add carries its own address and coordinates.",
           [
             { label: "Enterprise Name", value: e.name },
@@ -145,18 +145,23 @@ export function AddPlantWizard({
           ]
         )}
 
-      {step === 1 && <PlantStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
-      {step === 2 && <DepartmentStep data={data} onPlantsChange={setPlants} onNext={advance} onBack={back} />}
-      {step === 3 && (
-        <SubDepartmentAccountStep data={data} onBack={back} onPlantsChange={setPlants} onComplete={advance} withAccount={false} />
+      {step === 1 && (
+        <PlantStructureStep
+          data={data}
+          onPlantsChange={setPlants}
+          onNext={advance}
+          onBack={back}
+          title="Step 2 of 3: Plant, Departments & Sub-departments"
+          nextLabel="Next: Review"
+        />
       )}
-      {step === 4 && (
+      {step === 2 && (
         <ReviewStep
           data={data}
           onBack={back}
           onChange={(patch) => setData((d) => ({ ...d, ...patch }))}
           submitting={submitting}
-          title="Step 5 of 5: Review & Add"
+          title="Step 3 of 3: Review & Add"
           submitLabel="Add Plant"
           readOnly={["enterprise", "location"]}
           onSubmit={async () => {

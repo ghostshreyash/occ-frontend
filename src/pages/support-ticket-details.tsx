@@ -24,7 +24,7 @@ import {
   addTicketAttachment, findTicket, keepTicketInProgress, resolveAndCloseTicket,
   useTicketDetails, useTicketRows,
 } from "@/data/ticket-store"
-import { priorityTone } from "@/data/occ-tables"
+import { ticketPriorityTone } from "@/data/occ-tables"
 import { useAuth } from "@/lib/auth/context"
 import { capabilitiesFor, isTerminal } from "@/lib/auth/ticket-access"
 import { control } from "@/lib/data-table"
@@ -127,7 +127,7 @@ export function SupportTicketDetailsPage() {
               <Detail label="Plant">{ticket.plant}</Detail>
               <Detail label="Category">{ticket.category}</Detail>
               <Detail label="Priority">
-                <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", priorityTone[ticket.priority])}>{ticket.priority}</span>
+                <span className={cn("rounded px-1.5 py-0.5 text-[0.65rem] font-semibold", ticketPriorityTone[ticket.priority])}>{ticket.priority}</span>
               </Detail>
               <Detail label="Status">
                 <Badge variant={status.badge} className="rounded px-1.5 py-0 text-[0.65rem]">{status.label}</Badge>

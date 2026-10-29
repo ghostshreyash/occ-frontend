@@ -1,19 +1,35 @@
 /**
- * Auth integration points for the OCC console.
+ * Auth for the OCC console, over Cognito via `aws-amplify/auth`.
  *
- * ┌──────────────────────────────────────────────────────────────────────────┐
- * │ The OTP itself is NOT implemented here. Codes are issued, delivered and   │
- * │ verified by AWS (Cognito user pools, SNS for SMS, SES for e-mail). Every  │
- * │ function below is a placeholder that lets the screens navigate during the │
- * │ demo; replace each body with the AWS call marked `TODO(aws)`.             │
- * └──────────────────────────────────────────────────────────────────────────┘
+ * The pool is configured with e-mail OTP as the MFA factor, so signing in is two
+ * calls: `signIn` with the password returns a challenge, `confirmSignIn` with
+ * the code completes it. Cognito owns the code, the attempt limit, the expiry
+ * and the lockout — nothing here validates anything.
  *
- * Nothing in this file validates a code, counts attempts or locks an account —
- * those are server-side policies configured in Cognito.
+ * One thing to know about Amplify: the challenge is NOT a token you can pass
+ * around. Amplify holds the in-flight auth state internally, so `verifyOtp`
+ * ignores `challenge.id` and simply answers whatever challenge is open. A page
+ * refresh mid-flow therefore drops it and the user starts again — which is what
+ * `auth-context` already says it wants.
  */
-import { type AccessRequestInput, type RecoveryRequestInput } from "./requests"
-import type { AuthUser, OtpChallenge, OtpChannel, OtpPurpose, ResetContext } from "./types"
-import { defaultChannelFor } from "./otp-policy"
+import {
+  confirmResetPassword,
+  confirmSignIn,
+  confirmSignUp,
+  signUp,
+  fetchAuthSession,
+  resetPassword as cognitoResetPassword,
+  signIn as cognitoSignIn,
+  signOut as cognitoSignOut,
+  updateMFAPreference,
+} from "aws-amplify/auth"
+
+import { apiFetch, beginSignOut } from "@/lib/api/client"
+
+import { resolveAppUser, syncAppUser } from "./app-user"
+import { cognitoConfigured } from "./cognito"
+import { type RecoveryRequestInput } from "./requests"
+import { AuthError, type AuthUser, type OtpChallenge, type OtpChannel, type OtpPurpose, type ResetContext } from "./types"
 
 /** Digits in a code — keep in step with the Cognito verification message. */
 export const OTP_LENGTH = 6
@@ -45,175 +61,581 @@ export function maskEmail(email: string) {
   return `${local.slice(0, 2)}${"•".repeat(Math.max(local.length - 2, 2))}@${domain}`
 }
 
-/* ------------------------------------------------------------ demo data --- */
-
-/** Stand-in for the profile Cognito returns in the ID token. */
-export const demoUser: AuthUser = {
-  id: "OCC-ADM-001",
-  name: "Admin",
-  initials: "A",
-  role: "OCC Admin",
-  email: "admin@olivineglobal.com",
-  mobile: "+919876543210",
+/**
+ * What the code screen shows as the address the code went to.
+ *
+ * Cognito masks `codeDeliveryDetails.destination` itself, but it masks the
+ * domain as well ("o***@y***"), which leaves someone with more than one address
+ * unable to tell which was used. The address is already known here, so mask it
+ * locally and keep the domain readable; Cognito's string is only the fallback
+ * for the paths that have no username to hand.
+ */
+function emailSentTo(destination?: string, username?: string) {
+  if (username?.includes("@")) return maskEmail(username)
+  return destination ?? "your e-mail"
 }
 
-/**
- * One account per OCC role, so signing in with any of these shows the channel
- * its role is entitled to. Any other address falls back to `demoUser`.
- * TODO(aws): this whole directory goes away — Cognito returns the real profile.
- */
-export const demoAccounts: AuthUser[] = [
-  demoUser,
-  { id: "OCC-MGR-002", name: "Ravi Menon", initials: "RM", role: "OCC Manager", email: "ravi.menon@olivineglobal.com", mobile: "+919812345678" },
-  { id: "OCC-TEC-003", name: "Neha Joshi", initials: "NJ", role: "OCC Technician", email: "neha.joshi@olivineglobal.com", mobile: "+919823456710" },
-  { id: "OCC-EMM-004", name: "Sanjay Rao", initials: "SR", role: "OCC EMMSE", email: "sanjay.rao@olivineglobal.com", mobile: "+919834567120" },
-]
-
-const accountFor = (email: string) =>
-  demoAccounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase()) ?? demoUser
+/* ----------------------------------------------------------- in flight --- */
 
 /**
- * The account the live challenge belongs to. Cognito carries this in its session;
- * here it is held between step 1 and step 2 so the code screen masks the right
- * destinations and the session ends up as the right person.
+ * What the current sign-in attempt needs that Amplify does not hand back.
+ *
+ * `password` is held only so Resend can re-issue a code: Amplify has no
+ * "resend MFA code" call, and the only way to make Cognito send another is to
+ * start the sign-in again. It lives in a module variable for the life of the
+ * challenge, never in storage, and is cleared the moment the flow ends.
  */
-let pending: AuthUser = demoUser
+let flow: { username: string; password: string; user?: AuthUser } | null = null
+
+/** Forget the in-flight credentials — call on success, failure and sign-out */
+export function clearAuthFlow() {
+  flow = null
+}
+
+/** The username a password reset is running for, needed by confirmResetPassword */
+let resetFor: string | null = null
 
 /** Masked destinations for the account a challenge belongs to */
-export function otpDestinations(user: AuthUser = pending): Partial<Record<OtpChannel, string>> {
+export function otpDestinations(user?: AuthUser): Partial<Record<OtpChannel, string>> {
+  if (!user) return {}
   return { email: maskEmail(user.email), sms: maskPhone(user.mobile), voice: maskPhone(user.mobile) }
 }
 
 const pause = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function placeholderChallenge(
+/**
+ * Build the challenge the screens render.
+ *
+ * `expiresAt` is a client-side countdown only — Cognito does not return the
+ * code's TTL, so this is the pool's configured expiry mirrored in `OTP_TTL_SECONDS`.
+ * Keep the two in step or the countdown lies.
+ *
+ * `availableChannels` is just e-mail: the pool has e-mail OTP as its only MFA
+ * factor, so the "try another way" link correctly hides itself. Enable SMS MFA
+ * too and Cognito starts returning a factor-selection step — handle that in
+ * `signIn` before widening this.
+ */
+function challengeFrom(
   purpose: OtpPurpose,
-  channel: OtpChannel,
   sentTo: string,
-  next?: string
+  next?: string,
+  channel: OtpChannel = "email"
 ): OtpChallenge {
   const now = Date.now()
   return {
-    id: `chl_${Math.random().toString(36).slice(2, 10)}`,
+    id: `cognito-${purpose}`,
     purpose,
     channel,
     sentTo,
     expiresAt: now + OTP_TTL_SECONDS * 1000,
     resendAvailableAt: now + RESEND_COOLDOWN_SECONDS * 1000,
-    availableChannels: ["email", "sms", "voice"],
+    availableChannels: [channel],
     next,
   }
 }
 
+/** A missing pool is a deployment mistake, not a credentials problem — say so */
+function requireCognito() {
+  if (!cognitoConfigured)
+    throw new AuthError(
+      "Sign-in is not configured for this environment. Set VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_CLIENT_ID.",
+      "NotConfigured"
+    )
+}
+
+/**
+ * Answer Cognito's "which factor?" step.
+ *
+ * The pool has both e-mail and SMS MFA enabled, so after a correct password it
+ * asks the user to choose (`SELECT_MFA_TYPE`, with MFAS_CAN_CHOOSE listing
+ * EMAIL_OTP and SMS_MFA). The console is built around the e-mail code, so it
+ * answers on the user's behalf rather than adding a screen nobody needs.
+ *
+ * `availableChannels` is set from what Cognito actually offered, so the code
+ * screen's "try another way" link appears only when SMS is genuinely available.
+ */
+async function chooseEmailFactor(
+  allowed: readonly string[] | undefined,
+  purpose: OtpPurpose,
+  next?: string
+): Promise<OtpChallenge> {
+  const { nextStep } = await confirmSignIn({ challengeResponse: "EMAIL" })
+
+  if (nextStep?.signInStep !== "CONFIRM_SIGN_IN_WITH_EMAIL_CODE")
+    throw new AuthError(
+      `Expected an e-mail code after choosing the factor, got ${nextStep?.signInStep}.`,
+      nextStep?.signInStep ?? "unknown"
+    )
+
+  const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, flow?.username)
+  /*
+   * E-mail only for now. Cognito may well offer SMS as well, but the console
+   * does not use it, so the code screen must not advertise a "try another way"
+   * that sends a text. Widen this to include "sms" when text delivery is wanted.
+   */
+  void allowed
+  return { ...challengeFrom(purpose, sentTo, next), availableChannels: ["email"] }
+}
+
+/** Turn whatever Amplify threw into the typed error the screens already expect */
+function asAuthError(e: unknown, fallback: string): AuthError {
+  const err = e as { name?: string; message?: string }
+  return new AuthError(err?.message || fallback, err?.name || "unknown")
+}
+
+/*
+ * The profile comes from `app-user.resolveAppUser`: the Cognito attributes
+ * (name, e-mail, phone and the `custom:user_role` the role is read from), with
+ * whatever GET /api/v1/auth/me returns laid over the top. Both sign-in and boot
+ * go through it, so a reload cannot show a different name or role than sign-in
+ * did, and a backend that is down still leaves a usable profile.
+ */
+
 /* ------------------------------------------------------- login & the OTP -- */
 
 /**
- * Step 1 of login. A correct password does not create a session — it returns the
- * OTP challenge that step 2 verifies.
- *
- * TODO(aws): CognitoIdentityProvider.initiateAuth (USER_PASSWORD_AUTH) and return
- * the SMS_MFA / CUSTOM_CHALLENGE session as the challenge id.
+ * Step 1 of login. A correct password does not create a session — Cognito
+ * answers with the e-mail OTP challenge that step 2 confirms.
  */
-export async function signIn(email: string, _password: string, next?: string): Promise<OtpChallenge> {
-  await pause()
-  pending = accountFor(email)
-  // Desk roles get the code by e-mail; the field-facing OCC roles get it by SMS
-  const channel = defaultChannelFor(pending.role)
-  return placeholderChallenge("login", channel, destinationFor(pending, channel), next)
+export async function signIn(email: string, password: string, next?: string): Promise<OtpChallenge> {
+  requireCognito()
+  const username = email.trim().toLowerCase()
+  try {
+    const { nextStep } = await cognitoSignIn({ username, password })
+
+    switch (nextStep.signInStep) {
+      case "CONFIRM_SIGN_IN_WITH_EMAIL_CODE": {
+        flow = { username, password }
+        const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, username)
+        return challengeFrom("login", sentTo, next)
+      }
+
+      /* Both e-mail and SMS MFA are on the pool, so Cognito asks which to use */
+      case "CONTINUE_SIGN_IN_WITH_MFA_SELECTION":
+        flow = { username, password }
+        return chooseEmailFactor(nextStep.allowedMFATypes, "login", next)
+
+      /*
+       * Cognito did not ask: this user already has SMS as their preferred
+       * factor, so the text has been sent. There is no way to move an open
+       * challenge to e-mail, so accept the code rather than dead-end the login —
+       * `preferEmailMfa` then makes e-mail preferred for next time.
+       */
+      case "CONFIRM_SIGN_IN_WITH_SMS_CODE": {
+        flow = { username, password }
+        const sentTo = nextStep.codeDeliveryDetails?.destination ?? maskPhone(username)
+        return challengeFrom("login", sentTo, next, "sms")
+      }
+
+      /*
+       * An admin-created account still on its temporary password. Cognito will
+       * not issue a session until a new one is set, so the screens need a
+       * dedicated step — surfaced as an error rather than silently failing.
+       */
+      case "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED":
+        flow = { username, password }
+        throw new AuthError(
+          "This account is still on its temporary password. Set a new password to continue.",
+          "NewPasswordRequired"
+        )
+
+      case "RESET_PASSWORD":
+        throw new AuthError("This password must be reset before you can sign in.", "PasswordResetRequired")
+
+      /*
+       * Cognito accepted the password without asking for a code. That means MFA
+       * is not being enforced for this account — either the pool has it OPTIONAL
+       * and the user has not enrolled, or e-mail MFA is off.
+       *
+       * The console's login is two-step by design, so rather than letting
+       * someone in through a half-flow, end the session and say why. Set MFA to
+       * required (or enrol the user) and this branch stops being reachable.
+       */
+      case "DONE":
+        await cognitoSignOut()
+        throw new AuthError(
+          "This account signed in without a verification code. Enable e-mail MFA for it before using the console.",
+          "MfaNotEnforced"
+        )
+
+      default:
+        throw new AuthError(
+          `Unsupported sign-in step: ${nextStep.signInStep}. Check the pool's MFA configuration.`,
+          nextStep.signInStep
+        )
+    }
+  } catch (e) {
+    if (e instanceof AuthError) throw e
+    clearAuthFlow()
+    throw asAuthError(e, "Could not sign in.")
+  }
 }
 
-/** The masked destination a channel delivers to for this account */
-const destinationFor = (user: AuthUser, channel: OtpChannel) =>
-  channel === "email" ? maskEmail(user.email) : maskPhone(user.mobile)
-
 /**
- * TODO(aws): re-issue the code on the same channel (initiateAuth again, or a
- * custom-auth Lambda that re-sends through SNS/SES).
+ * Re-issue the code.
+ *
+ * Amplify has no resend for an MFA challenge, so this restarts the sign-in,
+ * which makes Cognito send a fresh one. That is why the password is held for
+ * the life of the challenge.
  */
 export async function resendOtp(challenge: OtpChallenge): Promise<OtpChallenge> {
-  await pause(400)
-  const now = Date.now()
-  return {
-    ...challenge,
-    expiresAt: now + OTP_TTL_SECONDS * 1000,
-    resendAvailableAt: now + RESEND_COOLDOWN_SECONDS * 1000,
+  if (!flow) throw new AuthError("That sign-in has expired. Please start again.", "FlowExpired")
+  try {
+    const { nextStep } = await cognitoSignIn({ username: flow.username, password: flow.password })
+    const sentTo =
+      nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_EMAIL_CODE"
+        ? (nextStep.codeDeliveryDetails?.destination ?? challenge.sentTo)
+        : challenge.sentTo
+    return challengeFrom(challenge.purpose, sentTo, challenge.next, challenge.channel)
+  } catch (e) {
+    throw asAuthError(e, "Could not send another code.")
   }
 }
 
 /**
- * Fallback delivery: send the same challenge somewhere else when the SMS does
- * not arrive.
+ * Deliver the code by the other factor.
  *
- * TODO(aws): custom-auth Lambda picks the channel (SNS for sms/voice, SES for
- * e-mail) and returns the masked destination.
+ * Cognito's factor choice happens once per sign-in, so there is no way to move
+ * an open challenge across. Like Resend, this restarts the sign-in with the held
+ * credentials and answers the selection with the other factor instead.
  */
 export async function switchOtpChannel(challenge: OtpChallenge, channel: OtpChannel): Promise<OtpChallenge> {
-  await pause(400)
-  const now = Date.now()
-  return {
-    ...challenge,
-    channel,
-    sentTo: destinationFor(pending, channel),
-    expiresAt: now + OTP_TTL_SECONDS * 1000,
-    resendAvailableAt: now + RESEND_COOLDOWN_SECONDS * 1000,
+  if (!flow) throw new AuthError("That sign-in has expired. Please start again.", "FlowExpired")
+  if (channel === "voice") throw new AuthError("Voice delivery is not configured.", "ChannelUnavailable")
+
+  try {
+    const { nextStep } = await cognitoSignIn({ username: flow.username, password: flow.password })
+
+    if (nextStep.signInStep !== "CONTINUE_SIGN_IN_WITH_MFA_SELECTION")
+      throw new AuthError("This account cannot change delivery method.", "ChannelUnavailable")
+
+    const picked = channel === "sms" ? "SMS" : "EMAIL"
+    const confirmed = await confirmSignIn({ challengeResponse: picked })
+    const step = confirmed.nextStep
+
+    const expected = channel === "sms" ? "CONFIRM_SIGN_IN_WITH_SMS_CODE" : "CONFIRM_SIGN_IN_WITH_EMAIL_CODE"
+    if (step?.signInStep !== expected)
+      throw new AuthError(`Could not send the code by ${CHANNEL_LABEL[channel]}.`, step?.signInStep ?? "unknown")
+
+    return {
+      ...challengeFrom(challenge.purpose, step.codeDeliveryDetails?.destination ?? challenge.sentTo, challenge.next, channel),
+      availableChannels: challenge.availableChannels,
+    }
+  } catch (e) {
+    if (e instanceof AuthError) throw e
+    throw asAuthError(e, "Could not change the delivery method.")
+  }
+}
+
+/** Verify the code. Cognito decides correct, expired, or account locked. */
+export async function verifyOtp(_challenge: OtpChallenge, code: string): Promise<AuthUser> {
+  try {
+    // Amplify holds the open challenge; the id is not replayed back to it
+    const { isSignedIn } = await confirmSignIn({ challengeResponse: code })
+    if (!isSignedIn) throw new AuthError("That code was not accepted.", "NotSignedIn")
+
+    /*
+     * Roles come from the user's Cognito groups. /sync is still called so the
+     * OCC database has a row for them, but it cannot fail the sign-in.
+     */
+    const user = await syncAppUser()
+    await preferEmailMfa()
+    clearAuthFlow()
+    return user
+  } catch (e) {
+    if (e instanceof AuthError) throw e
+    throw asAuthError(e, "That code is not valid.")
   }
 }
 
 /**
- * Verify a code. AWS decides whether it is correct, expired, or whether the
- * account is now locked; this placeholder always succeeds so the demo can walk
- * the flow.
+ * Answer a `NEW_PASSWORD_REQUIRED` challenge.
  *
- * TODO(aws): respondToAuthChallenge({ ChallengeName, Session, ChallengeResponses })
- * and reject with the Cognito error so the screen can show it.
+ * Cognito puts admin-created accounts in FORCE_CHANGE_PASSWORD and refuses a
+ * session until the temporary password is replaced. Answering it can land in two
+ * places, so both are returned: either the account still owes an MFA code, or
+ * it is signed in already (a pool with MFA optional).
  */
-export async function verifyOtp(_challenge: OtpChallenge, _code: string): Promise<AuthUser> {
-  await pause()
-  return pending
+export async function completeNewPassword(
+  newPassword: string,
+  next?: string
+): Promise<{ challenge: OtpChallenge } | { user: AuthUser }> {
+  try {
+    const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse: newPassword })
+
+    // The usual path: password accepted, now prove the e-mail
+    if (nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_EMAIL_CODE") {
+      const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, flow?.username)
+      return { challenge: challengeFrom("login", sentTo, next) }
+    }
+
+    /* Same selection step can follow a password change */
+    if (nextStep?.signInStep === "CONTINUE_SIGN_IN_WITH_MFA_SELECTION")
+      return { challenge: await chooseEmailFactor(nextStep.allowedMFATypes, "login", next) }
+
+    if (isSignedIn) {
+      const user = await syncAppUser()
+      clearAuthFlow()
+      return { user }
+    }
+
+    throw new AuthError(
+      `Unexpected step after setting the password: ${nextStep?.signInStep}.`,
+      nextStep?.signInStep ?? "unknown"
+    )
+  } catch (e) {
+    if (e instanceof AuthError) throw e
+    throw asAuthError(e, "Could not set that password.")
+  }
+}
+
+/** True while a sign-in is waiting for a forced password change */
+export const hasPendingSignIn = () => flow !== null
+
+/**
+ * Make e-mail this user's preferred MFA factor.
+ *
+ * The console is built around the e-mail code. Without a preference Cognito
+ * asks which factor to use on every sign-in, and if SMS is preferred it sends a
+ * text instead. Setting it once, after the first successful sign-in, means
+ * later logins go straight to the e-mail code with no selection step.
+ *
+ * Needs an authenticated session, so it can only run here — and a failure is
+ * not worth failing the sign-in over.
+ */
+async function preferEmailMfa() {
+  try {
+    // DISABLED on SMS, not just NOT_PREFERRED: while the console is e-mail-only,
+    // Cognito should have no text option to fall back to for this user
+    await updateMFAPreference({ email: "PREFERRED", sms: "DISABLED" })
+  } catch (e) {
+    console.warn("[auth] could not set e-mail as the preferred MFA factor.", e)
+  }
+}
+
+/**
+ * End the session: tell the backend, then clear the Cognito tokens.
+ *
+ * The order is forced. `RevokeToken` invalidates the access tokens issued from
+ * the refresh token as well, so after the Cognito sign-out there is no bearer
+ * the backend would accept — it has to be told first.
+ *
+ * That call therefore sits in front of the only step that actually ends the
+ * session, so it is bounded and never retried. Without `retryOn401` a backend
+ * answering 401 would send the client off to refresh the token, minting a brand
+ * new one for the session being closed; without the timeout a hung API would
+ * hold the tokens in storage indefinitely, and anything that re-read them in
+ * that window — a reload, a second tab — would find the user still signed in.
+ */
+export async function signOutCognito() {
+  /*
+   * Synchronous and first: from this point no other request may pick up the
+   * outgoing token, and anything already running is cancelled. Everything below
+   * is asynchronous, so leaving this any later reopens the window it closes.
+   */
+  beginSignOut()
+  clearAuthFlow()
+
+  try {
+    await apiFetch("/api/v1/auth/logout", {
+      method: "POST",
+      retryOn401: false,
+      timeoutMs: 4000,
+      // The one request that still carries the old token, by design
+      allowDuringLogout: true,
+    })
+  } catch (e) {
+    console.warn("[auth] /auth/logout failed; ending the local session anyway.", e)
+  }
+
+  try {
+    await cognitoSignOut()
+  } catch (e) {
+    /*
+     * The tokens may still be in storage, which would let the next page load
+     * rehydrate the session. Loud on purpose: a sign-out that did not take is
+     * the one failure here the user must not be left unaware of.
+     */
+    console.error("[auth] Cognito sign-out failed; tokens may remain in storage.", e)
+  }
+}
+
+/**
+ * The profile for a session Cognito still considers valid, or null.
+ * Called on boot so a stored session cannot outlive the tokens behind it.
+ */
+export async function currentUser(): Promise<AuthUser | null> {
+  try {
+    const session = await fetchAuthSession()
+    if (!session.tokens?.idToken) return null
+    return await resolveAppUser()
+  } catch {
+    // No usable Cognito session; the stored one is dropped by the caller
+    return null
+  }
+}
+
+/** The access token for an API call, refreshed by Amplify when it needs to be */
+export async function accessToken(): Promise<string | null> {
+  try {
+    const session = await fetchAuthSession()
+    return session.tokens?.accessToken?.toString() ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Force Amplify to mint a new access token from the refresh token.
+ *
+ * Used by the API client when a call comes back 401 despite having sent a token
+ * Amplify considered current — the clock skewed, or the token was revoked.
+ * Returns null when the refresh token itself is finished, which is the client's
+ * signal that the session is over rather than the request.
+ *
+ * Concurrent callers share one refresh: a page that fires several requests at
+ * once would otherwise send several refresh calls for the same expiry, and
+ * Cognito counts those against the pool's request limits.
+ */
+let refreshing: Promise<string | null> | null = null
+
+export function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    try {
+      const session = await fetchAuthSession({ forceRefresh: true })
+      return session.tokens?.accessToken?.toString() ?? null
+    } catch {
+      // Refresh token expired or revoked - the caller signs the user out
+      return null
+    } finally {
+      refreshing = null
+    }
+  })()
+  return refreshing
 }
 
 /* -------------------------------------------------------- password reset -- */
 
 /**
- * Start recovery from an e-mail address or mobile number.
+ * Start recovery. Cognito sends the confirmation code and reports where it went.
  *
- * TODO(aws): forgotPassword — Cognito sends the confirmation code and returns
- * the masked destination in CodeDeliveryDetails.
+ * The username is held because `confirmResetPassword` needs it again on the
+ * next screen and `ResetContext` does not carry it.
  */
 export async function requestPasswordReset(identifier: string): Promise<OtpChallenge> {
-  await pause()
-  const email = identifier.includes("@")
-  return placeholderChallenge("password-reset", email ? "email" : "sms", email ? maskEmail(identifier) : maskPhone(identifier))
+  requireCognito()
+  const username = identifier.trim().toLowerCase()
+  try {
+    const { nextStep } = await cognitoResetPassword({ username })
+    resetFor = username
+
+    const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, username)
+
+    return challengeFrom("password-reset", sentTo)
+  } catch (e) {
+    /*
+     * Cognito deliberately reveals nothing about whether an account exists, and
+     * neither should the screen — report the same thing either way.
+     */
+    const err = e as { name?: string }
+    if (err?.name === "UserNotFoundException") return challengeFrom("password-reset", maskEmail(username))
+    throw asAuthError(e, "Could not start the reset.")
+  }
 }
 
 /**
- * TODO(aws): confirmForgotPassword({ Username, ConfirmationCode, Password }).
  * Cognito verifies the code and sets the password in one call, which is why the
  * reset context carries the code the user entered on the previous screen.
  */
-export async function resetPassword(_context: ResetContext, _password: string): Promise<void> {
-  await pause()
+export async function resetPassword(context: ResetContext, password: string): Promise<void> {
+  if (!resetFor) throw new AuthError("That reset has expired. Please start again.", "FlowExpired")
+  try {
+    await confirmResetPassword({ username: resetFor, confirmationCode: context.code, newPassword: password })
+    resetFor = null
+  } catch (e) {
+    throw asAuthError(e, "Could not set that password.")
+  }
 }
 
 /* ------------------------------------------------- access & recovery ------ */
 
 /**
- * "Register now": OCC accounts are approved by an OLIVINE administrator, so this
- * raises a request rather than creating an account. The applicant's mobile is
- * verified by OTP first.
+ * Registration.
  *
- * TODO(aws): POST the request to the OCC API, which verifies the contact through
- * SNS and queues it for approval.
+ * Creates the Cognito account directly: `signUp` stores the attributes and
+ * sends a confirmation code to the e-mail address. Nothing is written to the
+ * OCC database here — the local row is created by `/auth/sync` after the first
+ * successful sign-in, which reads the attributes back off the verified token.
+ *
+ * `custom:user_role` must hold a role code the backend accepts (ELPREMAR,
+ * OCC_TECHNICIAN, …), not a display label — see `ACCESS_ROLES`.
  */
-export async function startAccessRequest(request: AccessRequestInput): Promise<OtpChallenge> {
-  await pause()
-  return placeholderChallenge("contact-verification", "sms", maskPhone(request.mobile))
+export async function registerUser(input: {
+  email: string
+  password: string
+  mobile: string
+  role: string
+  fullName: string
+}): Promise<OtpChallenge> {
+  requireCognito()
+  const username = input.email.trim().toLowerCase()
+
+  try {
+    const { nextStep } = await signUp({
+      username,
+      password: input.password,
+      options: {
+        userAttributes: {
+          email: username,
+          // Cognito requires E.164; the form collects the code and digits apart
+          phone_number: toE164(input.mobile),
+          name: input.fullName.trim(),
+          "custom:user_role": input.role,
+        },
+      },
+    })
+
+    if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
+      const sentTo = emailSentTo(nextStep.codeDeliveryDetails?.destination, username)
+      registeringAs = username
+      return challengeFrom("contact-verification", sentTo)
+    }
+
+    /* Auto-confirmed pools sign the user straight in; there is no code to enter */
+    if (nextStep.signUpStep === "DONE") {
+      registeringAs = username
+      return challengeFrom("contact-verification", maskEmail(username))
+    }
+
+    throw new AuthError(`Unsupported sign-up step: ${nextStep.signUpStep}.`, nextStep.signUpStep)
+  } catch (e) {
+    if (e instanceof AuthError) throw e
+    throw asAuthError(e, "Could not create that account.")
+  }
 }
 
-/** TODO(aws): confirm the contact code and queue the access request. */
-export async function completeAccessRequest(_challenge: OtpChallenge, _code: string): Promise<{ reference: string }> {
-  await pause()
-  return { reference: `REQ-${Math.floor(100000 + Math.random() * 899999)}` }
+/** The address being registered, needed again by `confirmSignUp` */
+let registeringAs: string | null = null
+
+/** Digits plus the country code, as Cognito stores phone numbers */
+function toE164(mobile: string) {
+  const digits = mobile.replace(/\D/g, "")
+  // Assume India when the form gave ten bare digits and no country code
+  return digits.length === 10 ? `+91${digits}` : `+${digits}`
+}
+
+/**
+ * Confirm the e-mailed code. This activates the Cognito account; it does not
+ * create the database user — the first sign-in does that through `/auth/sync`.
+ */
+export async function confirmRegistration(_challenge: OtpChallenge, code: string): Promise<void> {
+  if (!registeringAs) throw new AuthError("That registration has expired. Please start again.", "FlowExpired")
+  try {
+    await confirmSignUp({ username: registeringAs, confirmationCode: code })
+    registeringAs = null
+  } catch (e) {
+    throw asAuthError(e, "That code is not valid.")
+  }
 }
 
 /**

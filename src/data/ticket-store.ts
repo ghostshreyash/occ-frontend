@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react"
 
 import { allSupportTickets, type TicketCategory, type TicketRow, type TicketSource } from "@/data/occ-tables"
 import { ticketDetail, type TicketDetail } from "@/data/ticket-detail"
-import type { Priority } from "@/data/occ-tables"
+import type { TicketPriority } from "@/data/occ-tables"
 import type { WorkStatus } from "@/lib/status"
 
 /**
@@ -140,7 +140,7 @@ export type NewTicket = {
   subject: string
   description: string
   category: TicketCategory
-  priority: Priority
+  priority: TicketPriority
   source: TicketSource
   assetId?: string
   inspectionId?: string
@@ -154,7 +154,7 @@ export type NewTicket = {
  * rather than collected, and any module context passed in is carried across.
  * Returns the new ticket id so the caller can navigate straight to it.
  */
-export function raiseTicket(input: NewTicket, raisedBy: string) {
+export function raiseTicket(input: NewTicket, raisedBy: string, raisedByRole: string) {
   const at = now()
   const [date] = at.split(" ")
   // Ids count up from the highest TK- already on the desk
@@ -170,6 +170,7 @@ export function raiseTicket(input: NewTicket, raisedBy: string) {
     category: input.category,
     raised: date,
     raisedBy,
+    raisedByRole,
     source: input.source,
     lastUpdated: at,
     priority: input.priority,

@@ -30,6 +30,8 @@ export const enterpriseSchema = z.object({
   website: z.union([z.literal(""), z.url("Enter a valid URL")]).optional(),
   logo: z.instanceof(File).optional(),
   description: optionalText,
+  /* Which product area the enterprise is onboarded onto - see master-data.accessOptions */
+  accessOption: required("Access option"),
 })
 
 export const locationSchema = z.object({
@@ -80,6 +82,24 @@ export const plantSchema = z.object({
 export const enterpriseDetailsSchema = enterpriseSchema.extend(locationSchema.shape)
 
 /** Department is optional: an enterprise can be onboarded without one */
+/**
+ * The plant's own login. Kept off `plantSchema` because that schema is shared
+ * with the enterprise detail screen, which does not issue accounts.
+ */
+export const plantManagerSchema = z
+  .object({
+    role: required("Role"),
+    /** Which EMMSE-0 operative watches this plant — only asked for that role */
+    emmseId: z.string().optional(),
+    email: z.email("Enter a valid email address"),
+    password,
+  })
+  .refine((v) => v.role !== "EMMSE-0" || !!v.emmseId, {
+    message: "Pick an EMMSE-0 operative",
+    path: ["emmseId"],
+  })
+export type PlantManagerValues = z.infer<typeof plantManagerSchema>
+
 export const departmentSchema = z.object({
   name: optionalText,
   code: optionalText,
@@ -125,7 +145,7 @@ export type AccountValues = z.infer<typeof accountSchema>
 export type DepartmentEntry = DepartmentValues & { subDepartments: SubDepartmentValues[] }
 
 /** A plant as captured during onboarding, with the departments under it */
-export type PlantEntry = PlantValues & { departments: DepartmentEntry[] }
+export type PlantEntry = PlantValues & { departments: DepartmentEntry[]; manager?: PlantManagerValues }
 
 /*
  * An enterprise has many plants, each with many departments, each with many
@@ -164,6 +184,7 @@ export const splitEnterpriseDetails = (v: EnterpriseDetailsValues) => ({
     website: v.website,
     logo: v.logo,
     description: v.description,
+    accessOption: v.accessOption,
   },
   location: { country: v.country, state: v.state, city: v.city, address: v.address, pin: v.pin },
 })
