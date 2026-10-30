@@ -3,9 +3,10 @@ import type { UseFormReturn } from "react-hook-form"
 import { FieldLabel } from "@/components/ui/field"
 import { DateField, FileDropField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { LocationPicker } from "@/components/common/location-picker"
-import { plantTypes, salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
+import { salutations, subDepartmentFunctions, timeZones } from "@/data/mock"
 import { areaForPostalCode, departmentTypes, plantCapacityUnitCodes } from "@/data/master-data"
 import { coordsForCity } from "@/data/occ-tables"
+import { POSTAL_CODE_MAX_LENGTH } from "@/lib/validation"
 import type { DepartmentValues, PlantValues, SubDepartmentValues } from "@/pages/enterprise-onboarding/schemas"
 
 /*
@@ -41,7 +42,6 @@ export function PlantFields({ form }: { form: UseFormReturn<PlantValues> }) {
   return (
     <>
       <TextField control={control} name="name" label="Plant Name" required placeholder="e.g. Mumbai Works" />
-      <SelectField control={control} name="type" label="Plant Type" options={plantTypes} />
       <TextField control={control} name="code" label="Plant Code" placeholder="e.g. TS-MUM-001" />
 
       {/* Title and head read as one name, so they share a cell */}
@@ -54,7 +54,7 @@ export function PlantFields({ form }: { form: UseFormReturn<PlantValues> }) {
 
       <TextareaField control={control} name="address" label="Plant Address" required rows={2} maxLength={250} className="md:col-span-3" />
 
-      <TextField control={control} name="pin" label="Postal Code" required onValueChange={fillFromPin} />
+      <TextField control={control} name="pin" label="Postal Code" required maxLength={POSTAL_CODE_MAX_LENGTH} onValueChange={fillFromPin} />
       <TextField control={control} name="city" label="City" required />
       {/* The pair shares one cell so the row fills all three columns evenly */}
       <div className="grid grid-cols-2 gap-2">

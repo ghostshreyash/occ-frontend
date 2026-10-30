@@ -19,6 +19,7 @@ import { PasswordRequirements, PasswordStrength } from "@/components/form/passwo
 import { StepCard } from "@/components/common/wizard-layout"
 import { countries, indianStates } from "@/data/mock"
 import { accessOptions, defaultScreenFor, emmseOperatives, plantManagerRoles, roleForAccess, roleLockedBy, sectorLabelFor, sectorTypes, sectorsFor } from "@/data/master-data"
+import { POSTAL_CODE_MAX_LENGTH } from "@/lib/validation"
 import {
   accountSchema,
   blankDepartment,
@@ -358,7 +359,7 @@ export function EnterpriseStep({
           * Work is dispatched to a plant, so the pin on the map is set per plant
           * in the next step.
           */}
-        <TextField control={control} name="pin" label="Postal Code (PIN)" onValueChange={fillFromPin} />
+        <TextField control={control} name="pin" label="Postal Code (PIN)" maxLength={POSTAL_CODE_MAX_LENGTH} onValueChange={fillFromPin} />
       </form>
       <EnterpriseAdminDialog
         key={adminOpen ? "open" : "closed"}

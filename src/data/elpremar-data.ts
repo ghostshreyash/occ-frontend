@@ -1,14 +1,15 @@
 /**
- * ELPREMAR workforce registry and per-person profiles.
+ * The mock ELPREMAR registry, and the work assigned to the people in it.
  *
- * Mirrors the shape of the enterprise register: a flat list for the table, plus
- * a deterministic full profile for the detail screen. Replace with API calls
- * (TanStack Query) later.
+ * The register and the detail screen now read the API (`src/lib/api/elpremars.ts`),
+ * so what is left here is what has no endpoint behind it yet: the roster the
+ * dashboards count, and the maintenance, inspection and support rows matched to
+ * a person by name.
  */
-import { dialCodeFor, elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
+import { elpremarLifecycle, elpremarRoles, elpremarRoster } from "@/data/master-data"
 import { format } from "date-fns"
 import type { WorkStatus } from "@/lib/status"
-import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor, stateFor } from "@/data/occ-tables"
+import { allSupportTickets, enterpriseRecords, inspectionActivities, maintenanceActivities, profileFor } from "@/data/occ-tables"
 import type { EnterpriseRecord } from "@/data/occ-tables"
 
 /** Whether the account may be used */
@@ -105,8 +106,19 @@ function certsFor(id: string, count: number): Certificate[] {
   })
 }
 
-/** Days until a DD-MM-YYYY date; negative once it has passed */
-export const daysUntil = (dmy: string) => Math.round((parseDmy(dmy).getTime() - REFERENCE.getTime()) / 86_400_000)
+/**
+ * Days until a DD-MM-YYYY date; negative once it has passed.
+ *
+ * Measured from **today**, not from the `REFERENCE` the mock certificates are
+ * generated around. The expiry pill now colours real certificates read from the
+ * API, and against a fixed reference date "expired 12 days ago" would be out by
+ * however far that date has drifted from the present.
+ */
+export const daysUntil = (dmy: string) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((parseDmy(dmy).getTime() - today.getTime()) / 86_400_000)
+}
 
 /**
  * Where one ELPREMAR is posted, taken from the enterprise's own plant tree so
@@ -165,114 +177,6 @@ export const elpremarRecords: ElpremarRecord[] = elpremarRoster.map((person, i) 
     status,
   }
 })
-
-/**
- * The next free employee ID. Onboarding fills this in rather than asking for
- * it, so two people can never be handed the same one.
- */
-export const nextElpremarId = () => {
-  const highest = elpremarRecords.reduce((n, e) => Math.max(n, Number(e.id.replace(/\D/g, "")) || 0), 1000)
-  return `ELP-${highest + 1}`
-}
-
-export const elpremarRegisterKpis = {
-  total: elpremarRecords.length,
-  active: elpremarRecords.filter((e) => e.status === "active").length,
-  inactive: elpremarRecords.filter((e) => e.status === "inactive").length,
-  /** Absolute month-over-month movement; these are counts in the tens */
-  delta: { total: 2, active: 3 },
-}
-
-/* ---------- Full profile ---------- */
-
-export type ElpremarProfile = {
-  basic: {
-    name: string
-    salutation: string
-    employeeId: string
-    dob: string
-    gender: string
-    postalCode: string
-    district: string
-    city: string
-    state: string
-    addressLine1: string
-    addressLine2: string
-    phoneCode: string
-    phone: string
-    email: string
-  }
-  posting: {
-    enterprise: string
-    plant: string
-    city: string
-    country: string
-    department: string
-    subDepartment: string
-    supervisor: string
-    effectiveFrom: string
-  }
-  work: {
-    roles: string[]
-    designation: string
-    experience: string
-  }
-  certifications: Certificate[]
-  account: { email: string; role: string; webAccess: boolean; mobileAccess: boolean; lastLogin: string }
-}
-
-/** Build the full profile for one ELPREMAR, deterministically */
-export function elpremarProfileFor(e: ElpremarRecord): ElpremarProfile {
-  const s = seedOf(e.id)
-  const home = enterpriseRecords.find((x) => x.name === e.enterprise)
-  const assigned = home ? postingFor(home, s) : undefined
-  const slug = e.name.toLowerCase().replace(/[^a-z]/g, ".")
-  const dob = new Date(1975 + (s % 25), s % 12, 1 + (s % 27))
-
-  return {
-    basic: {
-      name: e.name,
-      salutation: e.salutation,
-      employeeId: e.id,
-      dob: `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, "0")}-${String(dob.getDate()).padStart(2, "0")}`,
-      gender: elpremarRoster.find((r) => r.name === e.name)?.gender ?? "Male",
-      // Six digits in India, five elsewhere - enough to look right per country
-      postalCode: e.country === "India" ? String(110000 + (s % 789999)) : String(10000 + (s % 89999)),
-      district: e.city,
-      city: e.city,
-      state: e.country === "India" ? stateFor[e.city] ?? e.country : e.country,
-      addressLine1: `${1 + (s % 90)}, ${pick(["Industrial Estate", "MIDC Phase II", "Works Colony", "Township"], s, 11)}`,
-      addressLine2: pick(["Sector 7", "Plant Road", "Gate No. 3", "Phase I"], s, 12),
-      phoneCode: dialCodeFor(e.country),
-      phone: String(9000000000 + (s % 899999999)).slice(0, 10),
-      email: `${slug}@olivineglobalsystems.com`,
-    },
-    posting: {
-      enterprise: e.enterprise,
-      plant: e.plant,
-      city: e.city,
-      country: e.country,
-      department: e.department,
-      subDepartment: assigned ? assigned.subDepartment.name : "",
-      // The real reporting line: the head of the department they sit in
-      supervisor: assigned ? `${assigned.department.salutation} ${assigned.department.head}` : "",
-      effectiveFrom: dateOffset(-(30 + (s % 400))),
-    },
-    work: {
-      roles: e.roles,
-      designation: e.designation,
-      experience: String(e.experience),
-    },
-    certifications: certsFor(e.id, e.certifications),
-    account: {
-      email: `${slug}@olivineglobalsystems.com`,
-      role: "ELPREMAR",
-      webAccess: s % 3 !== 0,
-      mobileAccess: true,
-      lastLogin: dateOffset(-(s % 6)),
-    },
-  }
-}
 
 /* ---------- Assigned work ---------- */
 

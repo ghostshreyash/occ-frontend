@@ -5,10 +5,38 @@ export const required = (label = "This field") => z.string().trim().min(1, `${la
 
 export const optionalEmail = z.union([z.literal(""), z.email("Enter a valid email address")]).optional()
 
-export const phone = z
+/*
+ * A length range rather than a fixed six digits: an Indian PIN is six, but
+ * Australia uses four and the United States five, and some countries mix in
+ * letters. Kept in one place so every form that asks for one agrees.
+ */
+const PIN = /^[A-Za-z0-9 -]{4,10}$/
+export const POSTAL_CODE_MAX_LENGTH = 10
+
+export const postalCode = z.string().trim().regex(PIN, "Enter a valid postal code (4-10 characters)")
+
+/** The same rule where the field may be left blank */
+export const optionalPostalCode = z
   .string()
   .trim()
-  .regex(/^\+?[0-9 ]{10,15}$/, "Enter a valid phone number")
+  .optional()
+  .refine((v) => !v || PIN.test(v), "Enter a valid postal code (4-10 characters)")
+
+/**
+ * Exactly ten digits. The dialling code is picked separately, so the number
+ * itself carries no country prefix.
+ */
+const TEN_DIGITS = /^\d{10}$/
+export const PHONE_LENGTH = 10
+
+export const phone = z.string().trim().regex(TEN_DIGITS, "Enter a 10-digit phone number")
+
+/** The same rule where the number may be left blank */
+export const optionalPhone = z
+  .string()
+  .trim()
+  .optional()
+  .refine((v) => !v || TEN_DIGITS.test(v), "Enter a 10-digit phone number")
 
 export const passwordRules = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },

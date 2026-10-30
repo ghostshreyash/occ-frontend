@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { dialCodes } from "@/data/master-data"
+import { PHONE_LENGTH } from "@/lib/validation"
 
 type BaseProps<T extends FieldValues> = {
   control: Control<T>
@@ -239,14 +240,14 @@ export function PhoneField<T extends FieldValues>({
   required,
   className,
   placeholder = "98765 43210",
-  digits,
+  digits = PHONE_LENGTH,
 }: BaseProps<T> & {
   codeName: FieldPath<T>
   placeholder?: string
   /**
-   * Opt in to a fixed-length, digits-only number: anything that is not a digit
-   * is dropped as it is typed and the field stops at this many. Left unset the
-   * field stays free-form, which is what the onboarding screens expect.
+   * How many digits the number is, ten by default: anything that is not a digit
+   * is dropped as it is typed and the field stops at this many. Pass
+   * `undefined` to leave the field free-form.
    */
   digits?: number
 }) {

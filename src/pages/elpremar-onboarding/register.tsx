@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import {
   ArrowDown,
@@ -24,7 +24,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PageHeader } from "@/components/common/page-header"
 import { StatCard } from "@/components/common/stat-card"
 import { SectionCard } from "@/components/common/section-card"
-import { elpremarRecords, elpremarRegisterKpis, elpremarStatusMeta, type ElpremarRecord } from "@/data/elpremar-data"
+import { ErrorNotice, LoadingBar } from "@/components/common/data-state"
+import { elpremarStatusMeta } from "@/data/elpremar-data"
+import { listElpremars, type ElpremarRow } from "@/lib/api/elpremars"
+import { useResource } from "@/lib/api/use-resource"
 import { elpremarRoles, roleStream } from "@/data/master-data"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
@@ -34,19 +37,25 @@ const PAGE_SIZES = [8, 15, 25]
 /** Every filter menu opens below its trigger and never flips upward */
 const DROP_DOWN = { position: "popper", side: "bottom", align: "start", sideOffset: 4, avoidCollisions: false } as const
 
-/** Dates are stored DD-MM-YYYY, so they need parsing before they can be compared */
+/** Dates arrive as DD-MM-YYYY, so they need parsing before they can be compared */
 const asTime = (s: string) => {
   const [d, m, y] = s.split("-").map(Number)
-  return new Date(y, m - 1, d).getTime()
+  return new Date(y, m - 1, d).getTime() || 0
 }
 
 const SORTS = {
-  newest: { label: "Recently joined", compare: (a: ElpremarRecord, b: ElpremarRecord) => asTime(b.joined) - asTime(a.joined) },
-  oldest: { label: "Longest serving", compare: (a: ElpremarRecord, b: ElpremarRecord) => asTime(a.joined) - asTime(b.joined) },
-  name: { label: "Name A-Z", compare: (a: ElpremarRecord, b: ElpremarRecord) => a.name.localeCompare(b.name) },
-  experience: { label: "Most experience", compare: (a: ElpremarRecord, b: ElpremarRecord) => b.experience - a.experience },
+  newest: { label: "Recently joined", compare: (a: ElpremarRow, b: ElpremarRow) => asTime(b.joined) - asTime(a.joined) },
+  oldest: { label: "Longest serving", compare: (a: ElpremarRow, b: ElpremarRow) => asTime(a.joined) - asTime(b.joined) },
+  name: { label: "Name A-Z", compare: (a: ElpremarRow, b: ElpremarRow) => a.name.localeCompare(b.name) },
+  experience: { label: "Most experience", compare: (a: ElpremarRow, b: ElpremarRow) => b.experience - a.experience },
 } as const
 type SortKey = keyof typeof SORTS
+
+/**
+ * The empty register, as one value - `data?.rows ?? []` would be a new array
+ * every render, and every `useMemo` below depends on it.
+ */
+const NO_ROWS: ElpremarRow[] = []
 
 const initials = (name: string) =>
   name.replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -62,21 +71,49 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
 
-  const locations = useMemo(() => [...new Set(elpremarRecords.map((e) => e.city))].sort(), [])
+  /*
+   * The whole workforce in one read, so the filters, the sort and the KPI tiles
+   * all work across every ELPREMAR rather than across one page of them. The
+   * read takes no filters: they are typed into, and refetching per keystroke
+   * would be slower than narrowing a list this size in the browser.
+   */
+  const read = useCallback(() => listElpremars(), [])
+  const { data, error, loading, reload } = useResource(read)
+  const all = data?.rows ?? NO_ROWS
+
+  const locations = useMemo(() => [...new Set(all.map((e) => e.city).filter(Boolean))].sort(), [all])
 
   const rows = useMemo(
     () =>
-      elpremarRecords
+      all
         .filter((e) => {
           if (role !== "all" && !e.roles.includes(role)) return false
           if (status !== "all" && e.status !== status) return false
           if (location !== "all" && e.city !== location) return false
           const q = query.trim().toLowerCase()
           if (!q) return true
-          return [e.name, e.id, e.designation, ...e.roles, e.enterprise, e.plant, e.city, e.department].some((v) => v.toLowerCase().includes(q))
+          /*
+           * The enterprise, plant and department are no longer searched here:
+           * the list endpoint does not send them. The API's own `search`
+           * covers the posting, so a search for a plant belongs there once the
+           * filters move server-side.
+           */
+          return [e.name, e.employeeId, e.designation, ...e.roles, e.city, e.state, e.country]
+            .filter(Boolean)
+            .some((v) => v.toLowerCase().includes(q))
         })
         .sort(SORTS[sort].compare),
-    [query, role, status, location, sort]
+    [all, query, role, status, location, sort]
+  )
+
+  /** Counted across the register, not the filtered view */
+  const kpis = useMemo(
+    () => ({
+      total: all.length,
+      active: all.filter((e) => e.status === "active").length,
+      inactive: all.filter((e) => e.status === "inactive").length,
+    }),
+    [all]
   )
 
   /*
@@ -116,10 +153,14 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
         }
       />
 
+      {error ? <ErrorNotice error={error} onRetry={reload} /> : null}
+
+      {/* Counted off the register. No month-over-month delta: the API answers
+          what is there now, and the figures that carried one were the mock's. */}
       <div className="grid grid-cols-3 gap-2">
-        <StatCard label="Total ELPREMARs" value={elpremarRegisterKpis.total} delta={elpremarRegisterKpis.delta.total} icon={HardHat} tone="info" variant="plain" />
-        <StatCard label="Active" value={elpremarRegisterKpis.active} delta={elpremarRegisterKpis.delta.active} icon={UserCheck} tone="healthy" variant="plain" />
-        <StatCard label="Inactive" value={elpremarRegisterKpis.inactive} icon={UserMinus} tone="neutral" variant="plain" />
+        <StatCard label="Total ELPREMARs" value={kpis.total} icon={HardHat} tone="info" variant="plain" />
+        <StatCard label="Active" value={kpis.active} icon={UserCheck} tone="healthy" variant="plain" />
+        <StatCard label="Inactive" value={kpis.inactive} icon={UserMinus} tone="neutral" variant="plain" />
       </div>
 
       <SectionCard
@@ -128,10 +169,12 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
         contentClassName="px-0 pb-0"
         actions={
           <span className="text-[0.7rem] tabular-nums text-muted-foreground">
-            {rows.length} of {elpremarRecords.length}
+            {rows.length} of {all.length}
           </span>
         }
       >
+        <LoadingBar loading={loading} label="Loading the register…" />
+
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-2 border-b px-3 pb-2.5">
           <div className="min-w-0 flex-1 sm:max-w-52">
@@ -229,7 +272,7 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
                           <span className="block truncate font-medium group-hover/name:text-primary group-hover/name:underline">
                             {e.salutation} {e.name}
                           </span>
-                          <span className="block text-[0.65rem] tabular-nums text-muted-foreground">{e.id}</span>
+                          <span className="block text-[0.65rem] tabular-nums text-muted-foreground">{e.employeeId}</span>
                         </span>
                       </Link>
                     </TableCell>
@@ -256,15 +299,19 @@ export function ElpremarRegister({ onStart }: { onStart: () => void }) {
         </div>
 
         {/* Empty state: says what happened and offers the next action */}
-        {rows.length === 0 ? (
+        {rows.length === 0 && !loading ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
             <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <HardHat className="size-5" />
             </div>
             <div>
-              <p className="text-sm font-medium">No ELPREMARs match these filters</p>
+              <p className="text-sm font-medium">
+                {all.length === 0 ? "No ELPREMARs yet" : "No ELPREMARs match these filters"}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Try a different search term, or clear the filters to see all {elpremarRecords.length}.
+                {all.length === 0
+                  ? "Onboard the first one and they will appear here."
+                  : `Try a different search term, or clear the filters to see all ${all.length}.`}
               </p>
             </div>
             <div className="mt-1 flex gap-2">

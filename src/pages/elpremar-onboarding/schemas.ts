@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { dateOfBirth, password, phone, required } from "@/lib/validation"
+import { dateOfBirth, optionalPostalCode, password, phone, required } from "@/lib/validation"
 
 /** The minimum age an ELPREMAR can be onboarded at */
 export const MIN_ELPREMAR_AGE = 18
@@ -9,14 +9,20 @@ export const basicSchema = z.object({
   /* A portrait identifies the person on site, so it is not optional */
   photo: z.instanceof(File, { message: "Upload a profile photo" }),
   fullName: required("Full name"),
-  employeeId: required("Employee / ID number"),
+  /*
+   * Not asked for and not sent: the API issues the employee ID from a database
+   * sequence when the record is created. The field stays on the form so the
+   * wizard's context strip and review step have somewhere to read it from once
+   * it exists.
+   */
+  employeeId: z.string().optional(),
   dob: dateOfBirth(MIN_ELPREMAR_AGE),
   gender: z.enum(["Male", "Female", "Other"], "Select gender"),
   mobileCode: z.string().optional(),
   mobile: phone,
   email: z.email("Enter a valid email address"),
   /* Address is captured field-wise - the physical location drives dispatch */
-  postalCode: z.string().optional(),
+  postalCode: optionalPostalCode,
   district: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),

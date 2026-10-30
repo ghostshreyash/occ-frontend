@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react"
+import { useCallback, useState } from "react"
 import { Link, useParams } from "react-router"
+import { toast } from "sonner"
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -25,19 +26,22 @@ import { DateField, PhoneField, SelectField, TextField } from "@/components/form
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
+import { ErrorNotice } from "@/components/common/data-state"
 import { ExpiryValue } from "@/components/common/expiry-value"
-import { enterpriseRecords, profileFor, slotLabel } from "@/data/occ-tables"
+import { slotLabel } from "@/data/occ-tables"
+import { elpremarStatusMeta, upcomingFor, whenLabel } from "@/data/elpremar-data"
+import { getEnterprise, listEnterprises, type EnterpriseRow } from "@/lib/api/enterprises"
 import {
-  elpremarProfileFor,
-  elpremarRecords,
-  elpremarStatusMeta,
-  upcomingFor,
-  whenLabel,
-  type ElpremarProfile,
-} from "@/data/elpremar-data"
+  basicPatch,
+  getElpremar,
+  updateElpremar,
+  workPatch,
+  type ElpremarProfileData,
+} from "@/lib/api/elpremars"
+import { messageFor, useResource } from "@/lib/api/use-resource"
 import { areaForPostalCode, elpremarDesignations, elpremarRoles, roleStream, userRoles } from "@/data/master-data"
 import { countries, salutations } from "@/data/mock"
-import { optionalEmail, phone, required } from "@/lib/validation"
+import { POSTAL_CODE_MAX_LENGTH, optionalEmail, optionalPostalCode, phone, required } from "@/lib/validation"
 
 const th = "h-8 px-2 text-[0.65rem] font-semibold tracking-wide uppercase"
 const td = "px-2 py-1.5 text-xs"
@@ -57,7 +61,7 @@ const basicSchema = z.object({
   employeeId: required("Employee ID"),
   dob: z.string().optional(),
   gender: z.string().optional(),
-  postalCode: z.string().optional(),
+  postalCode: optionalPostalCode,
   district: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -97,6 +101,20 @@ const accountSchema = z.object({
 })
 type AccountValues = z.infer<typeof accountSchema>
 
+/**
+ * The account section as the API takes it.
+ *
+ * `contactEmail` is a second address the form carries and the API has no field
+ * for, so it is not sent. The access toggles are sent and the API currently
+ * reads them back as allowed either way - see `src/lib/api/elpremars.ts`.
+ */
+const accountPatch = (values: AccountValues) => ({
+  email: values.email,
+  role: values.role,
+  webAccess: values.webAccess,
+  mobileAccess: values.mobileAccess,
+})
+
 /** ELPREMAR detail: the full onboarding profile, editable, plus their assigned work */
 /** Icon and tint per activity kind, matching the three work cards above */
 const ACTIVITY_KINDS = {
@@ -105,15 +123,39 @@ const ACTIVITY_KINDS = {
   Support: { icon: LifeBuoy, tone: "bg-attention-soft text-attention" },
 } as const
 
+/** Which section a PATCH covers, so a save knows what to send */
+type Section = "basic" | "posting" | "work" | "account"
+
+/**
+ * The empty enterprise list, as one value - `data?.rows ?? []` would be a new
+ * array every render and the posting menus would rebuild with it.
+ */
+const NO_ENTERPRISES: EnterpriseRow[] = []
+
 export function ElpremarDetailPage() {
-  const { id } = useParams()
-  const record = elpremarRecords.find((e) => e.id === id)
+  const { id = "" } = useParams()
 
   const [editing, setEditing] = useState<string | null>(null)
-  const [overrides, setOverrides] = useState<Partial<ElpremarProfile>>({})
+  /** Which section is being saved, so its footer says so and locks */
+  const [saving, setSaving] = useState<Section | null>(null)
 
-  const base = useMemo(() => (record ? elpremarProfileFor(record) : undefined), [record])
-  const profile = base ? { ...base, ...overrides } : undefined
+  /*
+   * The profile comes from the API and goes back to it. There are no local
+   * overrides: a save PATCHes the section and re-reads, so what is on screen is
+   * what the server stored - which matters here because the API re-parses the
+   * address into its lines and reissues the formatted dates.
+   */
+  const read = useCallback(() => getElpremar(id), [id])
+  const { data: profile, error, loading, reload } = useResource(read)
+
+  /*
+   * The posting menus are read from the register and from the chosen
+   * enterprise's own tree, the same two calls the onboarding step makes - the
+   * plant, department and sub-department offered always exist under it.
+   */
+  const readRegister = useCallback(() => listEnterprises(), [])
+  const register = useResource(readRegister)
+  const enterprises = register.data?.rows ?? NO_ENTERPRISES
 
   const basicForm = useForm<BasicValues>({ resolver: zodResolver(basicSchema), values: profile?.basic })
   const postingForm = useForm<PostingValues>({ resolver: zodResolver(postingSchema), values: profile?.posting })
@@ -123,33 +165,76 @@ export function ElpremarDetailPage() {
     values: profile ? { ...profile.account, contactEmail: "" } : undefined,
   })
 
+  const postedEnterprise = enterprises.find((e) => e.name === postingForm.watch("enterprise"))
+  const postedEnterpriseId = postedEnterprise?.id
+  const readTree = useCallback(
+    () => (postedEnterpriseId ? getEnterprise(postedEnterpriseId) : Promise.resolve(undefined)),
+    [postedEnterpriseId]
+  )
+  const tree = useResource(readTree)
+
+  /**
+   * Saves one section.
+   *
+   * Each goes to the API under the name the endpoint knows it by, so only the
+   * fields in that section travel and nothing the operator did not open is
+   * touched. A failure leaves the form open with the values still in it.
+   */
   const save =
-    <T extends FieldValues>(form: UseFormReturn<T>, key: keyof ElpremarProfile) =>
+    <T extends FieldValues>(form: UseFormReturn<T>, section: Section) =>
     () => {
-      void form.handleSubmit((values) => {
-        // TODO: PATCH /elpremars/:id once the API exists
-        setOverrides((o) => ({ ...o, [key]: values }))
-        setEditing(null)
+      void form.handleSubmit(async (values) => {
+        setSaving(section)
+        try {
+          await updateElpremar(
+            id,
+            section === "work"
+              ? workPatch(values as unknown as WorkValues)
+              : section === "account"
+                ? { account: accountPatch(values as unknown as AccountValues) }
+                : section === "basic"
+                  ? basicPatch(values as unknown as ElpremarProfileData["basic"])
+                  : { posting: values as unknown as ElpremarProfileData["posting"] }
+          )
+          setEditing(null)
+          reload()
+          toast.success("Saved")
+        } catch (e) {
+          toast.error("Could not save", { description: messageFor(e), duration: 10_000 })
+        } finally {
+          setSaving(null)
+        }
       })()
     }
 
-  if (!record || !profile) {
+  if (!profile) {
     return (
       <div className="space-y-3">
-        <PageHeader title="ELPREMAR not found" breadcrumbs={[{ label: "ELPREMARs", to: "/elpremars" }, { label: "Not found" }]} />
-        <SectionCard title="Nothing here">
-          <p className="text-xs text-muted-foreground">
-            No ELPREMAR matches that ID.{" "}
-            <Link to="/elpremars" className="text-primary hover:underline">Back to ELPREMARs</Link>
-          </p>
-        </SectionCard>
+        <PageHeader
+          title={loading ? "Loading ELPREMAR…" : "ELPREMAR not found"}
+          breadcrumbs={[{ label: "ELPREMARs", to: "/elpremars" }, { label: loading ? "Loading" : "Not found" }]}
+        />
+        {error ? <ErrorNotice error={error} onRetry={reload} /> : null}
+        {loading ? null : (
+          <SectionCard title="Nothing here">
+            <p className="text-xs text-muted-foreground">
+              No ELPREMAR matches that ID.{" "}
+              <Link to="/elpremars" className="text-primary hover:underline">Back to ELPREMARs</Link>
+            </p>
+          </SectionCard>
+        )}
       </div>
     )
   }
 
   const { basic: b, posting: po, work: w, certifications: certs, account } = profile
-  const meta = elpremarStatusMeta[record.status]
-  const upcoming = upcomingFor(record.name)
+  const meta = elpremarStatusMeta[profile.status]
+  /*
+   * Assigned work still comes from the mock book, matched on the person's name:
+   * there is no work endpoint, so an ELPREMAR the API knows about has nothing
+   * here until there is one. Empty is the honest answer, not a broken one.
+   */
+  const upcoming = upcomingFor(b.name)
 
   // Postal code resolves the rest of the location, the way the places API will
   const fillFromPostalCode = (code: string) => {
@@ -161,8 +246,7 @@ export function ElpremarDetailPage() {
   }
 
   // Walks the chosen enterprise's tree, the same way the onboarding step does
-  const postedEnterprise = enterpriseRecords.find((e) => e.name === postingForm.watch("enterprise"))
-  const postedPlants = postedEnterprise ? profileFor(postedEnterprise).plants : []
+  const postedPlants = postedEnterpriseId && tree.data?.id === postedEnterpriseId ? tree.data.plants : []
   const postedPlant = postedPlants.find((pl) => pl.name === postingForm.watch("plant"))
   const postedDepartments = postedPlant?.departments ?? []
   const postedDepartment = postedDepartments.find((d) => d.name === postingForm.watch("department"))
@@ -194,6 +278,8 @@ export function ElpremarDetailPage() {
         }
       />
 
+      {error ? <ErrorNotice error={error} onRetry={reload} /> : null}
+
       {/* Full onboarding profile, section by section, editable in place */}
       <SectionCard title="ELPREMAR Profile" hoverable={false} contentClassName="space-y-2.5 px-3 pb-3">
         <DetailSection
@@ -206,6 +292,7 @@ export function ElpremarDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(basicForm, "basic")}
+          saveLabel={saving === "basic" ? "Saving…" : "Save"}
           view={
             <ValueGrid
               rows={[
@@ -215,7 +302,7 @@ export function ElpremarDetailPage() {
                 { label: "Gender", value: b.gender },
                 { label: "Mobile Number", value: [b.phoneCode, b.phone].filter(Boolean).join(" ") },
                 { label: "Email", value: b.email },
-                { label: "Joined", value: record.joined },
+                { label: "Joined", value: profile.joined },
                 { label: "Postal Code", value: b.postalCode },
                 { label: "District", value: b.district },
                 { label: "City", value: b.city },
@@ -235,7 +322,7 @@ export function ElpremarDetailPage() {
               <SelectField control={basicForm.control} name="gender" label="Gender" options={["Male", "Female", "Other"]} />
                             <PhoneField control={basicForm.control} codeName="phoneCode" name="phone" label="Mobile Number" required />
               <TextField control={basicForm.control} name="email" label="Email" required type="email" />
-              <TextField control={basicForm.control} name="postalCode" label="Postal Code" inputMode="numeric" onValueChange={fillFromPostalCode} />
+              <TextField control={basicForm.control} name="postalCode" label="Postal Code" maxLength={POSTAL_CODE_MAX_LENGTH} onValueChange={fillFromPostalCode} />
               <TextField control={basicForm.control} name="district" label="District" />
               <TextField control={basicForm.control} name="city" label="City" />
               <TextField control={basicForm.control} name="state" label="State" />
@@ -255,6 +342,7 @@ export function ElpremarDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(workForm, "work")}
+          saveLabel={saving === "work" ? "Saving…" : "Save"}
           view={
             <ValueGrid
               rows={[
@@ -302,6 +390,7 @@ export function ElpremarDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(postingForm, "posting")}
+          saveLabel={saving === "posting" ? "Saving…" : "Save"}
           view={
             po.enterprise ? (
               <ValueGrid
@@ -325,20 +414,29 @@ export function ElpremarDetailPage() {
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-3" noValidate>
               {/* Each list is read from the chosen enterprise, so a posting always exists */}
+              {register.error ? (
+                <ErrorNotice error={register.error} onRetry={register.reload} className="md:col-span-3" />
+              ) : null}
+              {tree.error ? (
+                <ErrorNotice error={tree.error} onRetry={tree.reload} className="md:col-span-3" />
+              ) : null}
               <SelectField
                 control={postingForm.control}
                 name="enterprise"
                 label="Enterprise"
-                options={enterpriseRecords.map((e) => e.name)}
-                placeholder="Unassigned"
+                disabled={register.loading && enterprises.length === 0}
+                options={enterprises.map((e) => e.name)}
+                placeholder={register.loading && enterprises.length === 0 ? "Loading enterprises…" : "Unassigned"}
                 onValueChange={() => clearPosting("plant", "department", "subDepartment", "supervisor")}
               />
               <SelectField
                 control={postingForm.control}
                 name="plant"
                 label="Plant"
-                disabled={!postedEnterprise}
-                placeholder={postedEnterprise ? "Select" : "Select an enterprise first"}
+                disabled={!postedEnterprise || tree.loading}
+                placeholder={
+                  !postedEnterprise ? "Select an enterprise first" : tree.loading ? "Loading plants…" : "Select"
+                }
                 options={postedPlants.map((pl) => pl.name)}
                 onValueChange={() => clearPosting("department", "subDepartment", "supervisor")}
               />
@@ -436,6 +534,7 @@ export function ElpremarDetailPage() {
           editing={editing}
           onEditingChange={setEditing}
           onSave={save(accountForm, "account")}
+          saveLabel={saving === "account" ? "Saving…" : "Save"}
           view={
             <ValueGrid
               rows={[
