@@ -43,25 +43,25 @@ const keyInfo = [
     "Fields marked with * are mandatory.",
   ],
   [
-    "Create a unique username for each ELPREMAR.",
+    "The email entered here is the username - one login per address.",
     "Ensure a strong password as per security policy.",
-    "User will be able to login to the system after onboarding is completed.",
-    "Login credentials can be shared via email or handover in a sealed format.",
-    "Password can be reset later by an administrator if required.",
+    "The password you set is emailed to the ELPREMAR, who must change it on first sign-in.",
+    "Untick Send Welcome Email to hand the password over directly instead.",
+    "Password can be reset later by an administrator from the ELPREMAR's profile.",
     "All fields marked with * are mandatory.",
   ],
 ]
 
 /*
- * What the API actually does on submit. The wizard used to promise a welcome
- * email and activated credentials; the endpoint creates the Cognito user and
- * the profile, takes no password, and sends no message - so the list says that
- * instead of describing a flow that does not run.
+ * What the API actually does on submit. This list is kept honest deliberately:
+ * it used to promise a welcome email and a password the endpoint then threw
+ * away. The password and the email choice are now both sent and both honoured.
  */
 const whatNext = [
   "The ELPREMAR profile will be created in the database.",
   "Their employee ID will be issued and shown on the register.",
-  "A sign-in account is created for the email entered in Step 4.",
+  "A sign-in account is created for the email entered in Step 4, with the password you set.",
+  "If Send Welcome Email is ticked, that password is emailed to them.",
   "They will appear on the ELPREMAR register, ready to be given work.",
   "You can proceed to the ELPREMAR Activity & Availability page to view and manage activities.",
 ]

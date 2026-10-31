@@ -74,12 +74,15 @@ export const credentialsSchema = z
     role: z.literal("ELPREMAR"),
     password,
     confirmPassword: z.string(),
-    webAccess: z.boolean(),
-    mobileAccess: z.boolean(),
+    /*
+     * Cognito e-mails the password above and suppresses the message when this
+     * is unticked. No webAccess / mobileAccess here: the create endpoint reads
+     * them back as `true` whatever is sent, so the wizard does not ask. They
+     * remain editable on the ELPREMAR detail screen, where the API honours them.
+     */
     sendWelcomeEmail: z.boolean(),
   })
   .refine((v) => v.password === v.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] })
-  .refine((v) => v.webAccess || v.mobileAccess, { message: "Allow at least one type of login access", path: ["webAccess"] })
 
 export type BasicValues = z.infer<typeof basicSchema>
 export type AssignmentValues = z.infer<typeof assignmentSchema>

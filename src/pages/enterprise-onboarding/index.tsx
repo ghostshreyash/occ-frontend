@@ -160,7 +160,12 @@ export function EnterpriseOnboardingPage() {
               let adminError: string | undefined
               if (data.account) {
                 try {
-                  await createEnterpriseAdmin(created.enterprise.name, data.account.email, data.account.password)
+                  await createEnterpriseAdmin(
+                    { id: created.id, name: created.enterprise.name },
+                    data.account.email,
+                    data.account.password,
+                    ids.countryId,
+                  )
                 } catch (e) {
                   adminError = messageFor(e)
                 }

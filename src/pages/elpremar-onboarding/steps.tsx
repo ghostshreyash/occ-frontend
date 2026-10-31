@@ -558,7 +558,10 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
   const form = useForm<CredentialsValues>({
     resolver: zodResolver(credentialsSchema),
     defaultValues: draft.credentials ?? {
-      email: draft.basic?.email ?? "", role: "ELPREMAR", password: "", confirmPassword: "", webAccess: true, mobileAccess: true, sendWelcomeEmail: false,
+      // Defaults to on: the invitation carrying the password is how the engineer
+      // learns their credentials, so silence is the deliberate choice, not the
+      // accidental one.
+      email: draft.basic?.email ?? "", role: "ELPREMAR", password: "", confirmPassword: "", sendWelcomeEmail: true,
     },
     mode: "onChange",
   })
@@ -567,9 +570,7 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
   const confirm = watch("confirmPassword")
 
   const access = [
-    { name: "webAccess" as const, label: "Allow Web Portal Access", hint: "Access to EMMS-E / OCC web application" },
-    { name: "mobileAccess" as const, label: "Allow Mobile App Access", hint: "Access to EVITA field application" },
-    { name: "sendWelcomeEmail" as const, label: "Send Welcome Email", hint: "Send login credentials to the employee's email ID" },
+    { name: "sendWelcomeEmail" as const, label: "Send Welcome Email", hint: "E-mail this password to the employee. They must change it on first sign-in." },
   ]
 
   return (
@@ -624,7 +625,6 @@ export function CredentialsStep({ draft, onNext, onBack }: { draft: ElpremarDraf
                 />
               ))}
             </div>
-            {form.formState.errors.webAccess ? <p className="mt-2 text-xs text-critical">{form.formState.errors.webAccess.message}</p> : null}
           </div>
           <div className="[&>div]:h-full">
             <div className="flex items-start gap-2 rounded-lg">
@@ -747,8 +747,8 @@ export function ReviewStep({
           <Row label="User Role" value={credentials?.role} />
           <Row label="Password" value={<span className="flex items-center gap-2">•••••••• <span className="text-xs text-healthy-soft-foreground">Secure</span></span>} />
           <Row
-            label="Login Access"
-            value={[credentials?.webAccess && "Web Portal", credentials?.mobileAccess && "Mobile App"].filter(Boolean).join(", ")}
+            label="Welcome Email"
+            value={credentials?.sendWelcomeEmail ? "Sent to the email above" : "Not sent — hand the password over directly"}
           />
         </ReviewSection>
 
