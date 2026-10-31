@@ -41,7 +41,7 @@
 import { elpremarRoles, roleStream } from "@/data/master-data"
 import { salutations } from "@/data/mock"
 import { apiFetch } from "./client"
-import { asDmy, type AccountStatus } from "./enterprises"
+import { asDmy, splitPhone, type AccountStatus } from "./enterprises"
 import { emptyPagination, query, type Envelope, type Page, type Paged } from "./types"
 import type { ElpremarDraft } from "@/pages/elpremar-onboarding/schemas"
 
@@ -284,8 +284,20 @@ const toProfile = (e: ApiElpremarDetail): ElpremarProfileData => {
       state: str(b?.state),
       addressLine1: str(b?.addressLine1),
       addressLine2: str(b?.addressLine2),
-      phoneCode: str(b?.phoneCode) || "+91",
-      phone: str(b?.phone),
+      /*
+       * The API splits the code off when it stored the two apart. A record
+       * written as one E.164 string comes back whole, so it is split here -
+       * the edit form validates the number as ten digits and would reject
+       * "+919876543210".
+       */
+      ...(() => {
+        const stored = str(b?.phone)
+        if (str(b?.phoneCode) && !stored.startsWith("+")) {
+          return { phoneCode: str(b?.phoneCode), phone: stored }
+        }
+        const parts = splitPhone(stored)
+        return { phoneCode: parts.phoneCode || str(b?.phoneCode) || "+91", phone: parts.phone }
+      })(),
       email: str(b?.email),
     },
     posting: {
@@ -385,6 +397,28 @@ export async function getElpremar(id: string): Promise<ElpremarProfileData> {
 const orNull = (v: string | undefined): string | null => (v && v.trim() !== "" ? v.trim() : null)
 
 /**
+ * A dialling code and a number as the one E.164 string Cognito demands:
+ * a `+`, then digits, and nothing else - no spaces, no separators.
+ *
+ * Cognito stores `phone_number` in E.164 and rejects anything else outright,
+ * which surfaces as "Unable to create the Cognito user: Invalid phone number
+ * format" and loses the whole onboarding. Sending the parts separately is what
+ * caused that: the API reads the bare number first, so Cognito was handed
+ * "9876543210" with no country code at all.
+ *
+ * Built here rather than left to the API so it holds whichever version is
+ * deployed - one passes a value that already starts with "+" straight through,
+ * the other strips non-digits and re-prefixes, and both end up with the same
+ * string.
+ */
+const toE164 = (code: string | undefined, number: string | undefined): string | undefined => {
+  const digits = String(number ?? "").replace(/\D/g, "")
+  if (!digits) return undefined
+  const dialling = String(code ?? "").replace(/\D/g, "")
+  return `+${dialling}${digits}`
+}
+
+/**
  * The wizard's four steps as the body `POST /elpremars` takes.
  *
  * Sent in the API's own nested form, which is a step-for-step match: the
@@ -407,6 +441,13 @@ export function elpremarCreateBody(draft: ElpremarDraft) {
       fullName: basic.fullName.trim(),
       dob: basic.dob,
       gender: basic.gender,
+      /*
+       * Sent three ways on purpose. `phone` is the E.164 value Cognito needs
+       * and is what every version of the API reads first; the code and the
+       * number are sent alongside so a version that stores them apart still
+       * has them.
+       */
+      phone: toE164(basic.mobileCode ?? "+91", basic.mobile),
       phoneCode: basic.mobileCode ?? "+91",
       mobile: basic.mobile,
       email: basic.email.trim(),
