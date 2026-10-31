@@ -587,6 +587,36 @@ export function ElpremarDetailPage() {
                   Allow mobile (EVITA tablet) access
                 </label>
               </div>
+
+              {/*
+                * The same control the section header offers, repeated here
+                * because `DetailSection` stands its `action` down while a
+                * section is being edited - and the edit form is exactly where
+                * an administrator looks for it.
+                *
+                * Still a dialog rather than a field on this form: the password
+                * is not part of the account PATCH. Sending it with a changed
+                * login e-mail is refused by the API (moving the e-mail reissues
+                * the invitation, which would discard the password), and a
+                * half-typed field would otherwise go along with Save.
+                */}
+              <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2.5">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium">Password</div>
+                  <p className="text-[0.7rem] text-muted-foreground">
+                    Set a new one for them to sign in to EVITA with. They must replace it straight away, and it is not emailed.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={() => setResettingPassword(true)}
+                >
+                  <KeyRound className="size-3.5" /> Reset Password
+                </Button>
+              </div>
             </form>
           }
         />
