@@ -290,7 +290,7 @@ export type EnterpriseDetail = {
  * recognisable code is returned whole as the number with the code left blank —
  * never silently truncated.
  */
-const splitPhone = (value: string | null | undefined): { phoneCode: string; phone: string } => {
+export const splitPhone = (value: string | null | undefined): { phoneCode: string; phone: string } => {
   const raw = str(value).trim()
   if (!raw) return { phoneCode: "", phone: "" }
 
