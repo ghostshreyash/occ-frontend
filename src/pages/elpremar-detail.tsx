@@ -11,6 +11,7 @@ import {
   Building2,
   HardHat,
   ClipboardList,
+  KeyRound,
   LifeBuoy,
   Wrench,
   ShieldCheck,
@@ -25,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DateField, PhoneField, SelectField, TextField } from "@/components/form/fields"
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
+import { ChangePasswordDialog } from "@/components/common/change-password-dialog"
 import { DetailSection, ValueGrid } from "@/components/common/detail-section"
 import { ErrorNotice } from "@/components/common/data-state"
 import { ExpiryValue } from "@/components/common/expiry-value"
@@ -138,6 +140,7 @@ export function ElpremarDetailPage() {
   const [editing, setEditing] = useState<string | null>(null)
   /** Which section is being saved, so its footer says so and locks */
   const [saving, setSaving] = useState<Section | null>(null)
+  const [resettingPassword, setResettingPassword] = useState(false)
 
   /*
    * The profile comes from the API and goes back to it. There are no local
@@ -546,6 +549,22 @@ export function ElpremarDetailPage() {
               ]}
             />
           }
+          /*
+           * Outside the edit form on purpose: setting someone's password is not
+           * a profile field and must not ride along with a Save of the section.
+           * It is also the only recovery once Cognito's invitation window
+           * lapses - the engineer's own route is EVITA's Forgot Password.
+           */
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setResettingPassword(true)}
+            >
+              <KeyRound className="size-3.5" /> Reset Password
+            </Button>
+          }
           edit={
             <form onSubmit={(ev) => ev.preventDefault()} className="grid gap-2.5 md:grid-cols-2" noValidate>
               <TextField control={accountForm.control} name="email" label="Login Email" required type="email" />
@@ -603,6 +622,26 @@ export function ElpremarDetailPage() {
           </ol>
         )}
       </SectionCard>
+
+      {/* Keyed so each open starts from an empty form */}
+      <ChangePasswordDialog
+        key={resettingPassword ? "open" : "closed"}
+        open={resettingPassword}
+        onOpenChange={setResettingPassword}
+        userName={profile.basic.name}
+        description={`Sets a new password for ${profile.basic.name}. They sign in to EVITA with it and are asked to replace it straight away. Tell them directly - this is not emailed.`}
+        onSave={async (newPassword) => {
+          try {
+            await updateElpremar(id, { account: { password: newPassword } })
+            toast.success("Password reset", {
+              description: `${profile.basic.name} must change it at next sign-in`,
+            })
+          } catch (e) {
+            toast.error("Could not reset the password", { description: messageFor(e), duration: 10_000 })
+            throw e
+          }
+        }}
+      />
     </div>
   )
 }

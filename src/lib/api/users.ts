@@ -27,6 +27,14 @@ export type NewUser = {
   status?: "ACTIVE" | "INACTIVE"
   /** Set as the account's password; no invitation email is sent when given */
   temporaryPassword?: string
+  /**
+   * Scopes the role to one enterprise. Required for `ENTERPRISE_ADMIN` - the
+   * API derives a caller's reach from this, so an unscoped administrator can
+   * see nothing - and rejected as a 400 when missing.
+   */
+  enterpriseId?: string
+  plantId?: string
+  countryId?: string
 }
 
 export async function createUser(user: NewUser): Promise<CreatedUser> {
@@ -48,10 +56,18 @@ export async function createUser(user: NewUser): Promise<CreatedUser> {
  * named after the enterprise it administers — derived from what the operator
  * typed rather than invented, and readable in a user list.
  */
-export const createEnterpriseAdmin = (enterpriseName: string, email: string, password: string) =>
+export const createEnterpriseAdmin = (
+  enterprise: { id: string; name: string },
+  email: string,
+  password: string,
+  countryId?: string,
+) =>
   createUser({
-    fullName: `${enterpriseName} Administrator`.slice(0, 240),
+    fullName: `${enterprise.name} Administrator`.slice(0, 240),
     email,
     role: "ENTERPRISE_ADMIN",
     temporaryPassword: password,
+    // Without this the account administers no enterprise at all
+    enterpriseId: enterprise.id,
+    countryId,
   })

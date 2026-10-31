@@ -32,11 +32,14 @@
  *   all — sending it would 404 an otherwise valid onboarding. It is left out of
  *   the create and only sent on a PATCH, where the API treats an unmatched name
  *   as nothing to change rather than as an error.
- * - **The password, the access toggles and the welcome email.** The API creates
- *   the Cognito account itself and does not take a password; `webAccess` and
- *   `mobileAccess` are read back as `true` whatever is sent. Until it accepts
- *   them, Step 4 of the wizard is collecting more than can be saved.
+ * - **The access toggles.** `webAccess` and `mobileAccess` are read back as
+ *   `true` whatever is sent, so Step 4 no longer offers them.
  * - **KYC documents** and **sub-department**: no column for either.
+ *
+ * The password and the welcome-email choice **are** sent, and the API passes
+ * both to Cognito: the invitation carries the password the operator typed, and
+ * unticking the box suppresses the message. Before that they were collected and
+ * dropped here, so the engineer received a random password instead.
  */
 import { elpremarRoles, roleStream } from "@/data/master-data"
 import { salutations } from "@/data/mock"
@@ -479,6 +482,9 @@ export function elpremarCreateBody(draft: ElpremarDraft) {
     account: {
       email: (credentials?.email ?? basic.email).trim(),
       status: "ACTIVE",
+      // Cognito e-mails this password and forces a change on first sign-in
+      password: credentials?.password,
+      sendWelcomeEmail: credentials?.sendWelcomeEmail ?? true,
     },
   }
 }
@@ -503,7 +509,22 @@ export type ElpremarPatch = {
   basic?: Partial<Omit<ElpremarProfileData["basic"], "employeeId">>
   work?: { designation?: string; experience?: number; roles?: string[] }
   posting?: Partial<ElpremarProfileData["posting"]>
-  account?: { email?: string; role?: string; webAccess?: boolean; mobileAccess?: boolean; status?: string }
+  account?: {
+    email?: string
+    role?: string
+    webAccess?: boolean
+    mobileAccess?: boolean
+    status?: string
+    /**
+     * An administrator setting the engineer's password. Forwarded to Cognito and
+     * never stored. The route is gated to SYSTEM_ADMIN / OCC_ADMIN.
+     *
+     * Cannot be sent together with a changed `email`: moving the login e-mail
+     * recreates the Cognito account and issues a fresh invitation, so a password
+     * sent alongside it would be discarded. The API rejects the pair with a 400.
+     */
+    password?: string
+  }
 }
 
 export async function updateElpremar(id: string, patch: ElpremarPatch): Promise<ElpremarProfileData> {

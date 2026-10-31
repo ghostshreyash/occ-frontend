@@ -3,18 +3,17 @@ import { Link, useNavigate, useParams } from "react-router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { ArrowLeft, Check, KeyRound, Lock, LockOpen, Mail, MapPin, Pencil, Phone, ShieldCheck, UserRound, X } from "lucide-react"
+import { ArrowLeft, Check, Lock, LockOpen, Mail, MapPin, Pencil, Phone, ShieldCheck, UserRound, X } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 
 import { PageHeader } from "@/components/common/page-header"
 import { SectionCard } from "@/components/common/section-card"
+import { ChangePasswordDialog } from "@/components/common/change-password-dialog"
 import { Detail } from "@/components/common/detail-view"
-import { PasswordField, PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
-import { PasswordStrength } from "@/components/form/password-requirements"
+import { PhoneField, SelectField, TextareaField, TextField } from "@/components/form/fields"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   consoleUserRoles,
   consoleUserStatuses,
@@ -30,7 +29,7 @@ import {
 import { countries } from "@/data/mock"
 import { dialCodes } from "@/data/master-data"
 import { control } from "@/lib/data-table"
-import { password, required } from "@/lib/validation"
+import { required } from "@/lib/validation"
 
 /** Role pills — identity, not status, so neutral tints rather than health colours */
 const roleTone: Record<ConsoleUserRole, string> = {
@@ -72,68 +71,6 @@ const joinPhone = (code: string | undefined, local: string) => [code?.trim(), lo
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
-
-const passwordSchema = z
-  .object({ password, confirmPassword: z.string() })
-  .refine((v) => v.password === v.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] })
-type PasswordValues = z.infer<typeof passwordSchema>
-
-/** Issues a fresh temporary password. The value is sent, never stored locally. */
-function ChangePasswordDialog({
-  open,
-  onOpenChange,
-  userName,
-  onSaved,
-}: {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-  userName: string
-  onSaved: (password: string) => void
-}) {
-  const form = useForm<PasswordValues>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: { password: "", confirmPassword: "" },
-  })
-  const pwd = form.watch("password")
-
-  const submit = form.handleSubmit((values) => {
-    // TODO: POST /console-users/:id/password over TLS
-    onSaved(values.password)
-    onOpenChange(false)
-  })
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-1.5 text-base">
-            <KeyRound className="size-4 text-primary" /> Change Password
-          </DialogTitle>
-          <DialogDescription>
-            Sets a new temporary password for {userName}. They are asked to replace it the next time they sign in.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={submit} className="grid gap-4" noValidate>
-          <div className="space-y-2">
-            <PasswordField control={form.control} name="password" label="New Password" required />
-            <PasswordStrength value={pwd} />
-          </div>
-          <PasswordField control={form.control} name="confirmPassword" label="Confirm Password" required />
-        </form>
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" className={cn(control, "bg-card")} onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button size="sm" className={control} onClick={submit}>
-            <Check className="size-3.5" /> Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 /** A console user's record, read-only until the admin chooses to edit it. */
 export function ManageUserDetailsPage() {
@@ -386,7 +323,10 @@ export function ManageUserDetailsPage() {
         open={changingPassword}
         onOpenChange={setChangingPassword}
         userName={user.name}
-        onSaved={(newPassword) => {
+        // Still the in-memory console-user register: this screen reads its record
+        // from there too, so there is nothing to POST to yet.
+        // TODO: POST /console-users/:id/password once the register is API-backed
+        onSave={(newPassword) => {
           resetConsoleUserPassword(user.id, newPassword)
           toast.success("Password changed", { description: `${user.name} will be asked to reset it at next sign-in` })
         }}
